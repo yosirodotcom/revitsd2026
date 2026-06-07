@@ -30,6 +30,7 @@ export default function App() {
   const [dutyReports, setDutyReports] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [schoolDocs, setSchoolDocs] = useState([]);
 
   // Session & Nav States
   const [activeUser, setActiveUser] = useState(null);
@@ -55,8 +56,31 @@ export default function App() {
 
     // Schools
     const storedSchools = localStorage.getItem('revit_schools');
-    if (storedSchools) setSchools(JSON.parse(storedSchools));
-    else {
+    if (storedSchools) {
+      const parsed = JSON.parse(storedSchools);
+      let isUpdated = false;
+      const migrated = parsed.map((s) => {
+        const init = initialSchools.find((x) => x.npsn === s.npsn);
+        let updated = { ...s };
+        if (init) {
+          if (init.koordinat && !s.koordinat) {
+            updated.koordinat = init.koordinat;
+            isUpdated = true;
+          }
+          if (init.fasilitatorId !== s.fasilitatorId) {
+            updated.fasilitatorId = init.fasilitatorId;
+            isUpdated = true;
+          }
+        }
+        return updated;
+      });
+      if (isUpdated) {
+        localStorage.setItem('revit_schools', JSON.stringify(migrated));
+        setSchools(migrated);
+      } else {
+        setSchools(parsed);
+      }
+    } else {
       setSchools(initialSchools);
       localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
     }
@@ -123,6 +147,14 @@ export default function App() {
     else {
       setPayments([]);
       localStorage.setItem('revit_payments', JSON.stringify([]));
+    }
+
+    // School Docs
+    const storedSchoolDocs = localStorage.getItem('revit_school_docs');
+    if (storedSchoolDocs) setSchoolDocs(JSON.parse(storedSchoolDocs));
+    else {
+      setSchoolDocs([]);
+      localStorage.setItem('revit_school_docs', JSON.stringify([]));
     }
 
     // Settings
@@ -271,7 +303,7 @@ export default function App() {
 
   // 10. Trip Actions (Fase 3 & 4)
   const handleAddTrip = (newTrip) => {
-    const updated = [...trips, newTrip];
+    const updated = Array.isArray(newTrip) ? [...trips, ...newTrip] : [...trips, newTrip];
     setTrips(updated);
     localStorage.setItem('revit_trips', JSON.stringify(updated));
   };
@@ -284,6 +316,28 @@ export default function App() {
     const updatedExpenses = [...expenses, newExpense];
     setExpenses(updatedExpenses);
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
+  };
+
+  const handleApproveTrip = (tripId, adminName) => {
+    const updatedTrips = trips.map((t) => (t.id === tripId ? { 
+      ...t, 
+      statusPersetujuan: 'approved',
+      approvedBySuperAdmin: true,
+      approvedAt: new Date().toISOString(),
+      approvedBy: adminName
+    } : t));
+    setTrips(updatedTrips);
+    localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
+  };
+
+  const handleRejectTrip = (tripId) => {
+    const updatedTrips = trips.map((t) => (t.id === tripId ? { 
+      ...t, 
+      statusPersetujuan: 'rejected',
+      approvedBySuperAdmin: false
+    } : t));
+    setTrips(updatedTrips);
+    localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
   };
 
   // 11. Daily Logs Actions (Fase 4)
@@ -333,6 +387,18 @@ export default function App() {
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
   };
 
+  const handleAddSchoolDoc = (newDoc) => {
+    const updated = [...schoolDocs, newDoc];
+    setSchoolDocs(updated);
+    localStorage.setItem('revit_school_docs', JSON.stringify(updated));
+  };
+
+  const handleDeleteSchoolDoc = (docId) => {
+    const updated = schoolDocs.filter(d => d.id !== docId);
+    setSchoolDocs(updated);
+    localStorage.setItem('revit_school_docs', JSON.stringify(updated));
+  };
+
   // RENDER: Main Dashboard Layout
   return (
     <div className="flex bg-slate-950 min-h-screen text-slate-100 font-['Outfit',sans-serif]">
@@ -355,7 +421,7 @@ export default function App() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-900 pb-5 select-none">
             <div>
               <span className="text-[10px] tracking-wider uppercase font-semibold text-indigo-400">
-                Sistem Informasi Revitalisasi SD 2027
+                Sistem Informasi Revitalisasi SD 2026
               </span>
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-0.5">
                 {activeView === 'dashboard' && 'Dashboard Utama'}
@@ -401,6 +467,9 @@ export default function App() {
               reports={reports}
               logs={logs}
               users={users}
+              trips={trips}
+              onApproveTrip={handleApproveTrip}
+              onRejectTrip={handleRejectTrip}
             />
           )}
 
@@ -438,6 +507,9 @@ export default function App() {
                     onUpdateTaskStatus={handleUpdateTaskStatus}
                     onDeleteTask={handleDeleteTask}
                     onAddContact={handleAddContact}
+                    schoolDocs={schoolDocs}
+                    onAddSchoolDoc={handleAddSchoolDoc}
+                    onDeleteSchoolDoc={handleDeleteSchoolDoc}
                   />
                 ) : (
                   <SchoolList
@@ -447,6 +519,8 @@ export default function App() {
                     onClaimSchool={handleClaimSchool}
                     onAddSchool={handleAddSchool}
                     onSelectSchool={setSelectedSchoolNpsn}
+                    onUpdateSchool={handleUpdateSchool}
+                    tasks={tasks}
                   />
                 )
               )}
@@ -469,6 +543,8 @@ export default function App() {
                   onUpdateSettings={handleUpdateSettings}
                   trips={trips}
                   onAddTrip={handleAddTrip}
+                  onApproveTrip={handleApproveTrip}
+                  onRejectTrip={handleRejectTrip}
                 />
               )}
 

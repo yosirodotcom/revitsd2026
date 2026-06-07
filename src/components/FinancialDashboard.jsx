@@ -611,15 +611,28 @@ export default function FinancialDashboard({
             {unpaidTrips.map((trip) => {
               const targetSchool = schools.find(s => s.npsn === trip.sekolahId);
               const amount = DINAS_RATES[trip.userRoleTim] || 2000000;
+              const isApproved = trip.statusPersetujuan === 'approved' || trip.statusPersetujuan === undefined;
+              const isPending = trip.statusPersetujuan === 'pending';
+              const isRejected = trip.statusPersetujuan === 'rejected';
 
               return (
                 <div key={trip.id} className="bg-slate-950 border border-slate-850 p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2 text-xs">
                       <span className="font-bold text-slate-200">{getFasilitatorName(trip.userId)}</span>
                       <span className="text-[10px] text-indigo-400 bg-indigo-500/5 px-2 py-0.5 rounded font-semibold border border-indigo-500/10">
                         {trip.userRoleTim}
                       </span>
+                      {isPending && (
+                        <span className="text-[9px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-semibold animate-pulse">
+                          Pending Approval
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="text-[9px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 font-semibold">
+                          Ditolak
+                        </span>
+                      )}
                     </div>
                     <h4 className="font-semibold text-slate-300 text-sm">
                       Kunjungan ke-{trip.kunjunganKe} ke {targetSchool ? targetSchool.nama_sekolah : `NPSN ${trip.sekolahId}`}
@@ -633,12 +646,31 @@ export default function FinancialDashboard({
 
                   <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
                     <span className="font-bold text-slate-200 text-sm shrink-0">Rp {amount.toLocaleString('id-ID')}</span>
-                    <button
-                      onClick={() => handlePayTripClaim(trip)}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/10 cursor-pointer"
-                    >
-                      Bayar Klaim Dinas
-                    </button>
+                    {isApproved ? (
+                      <button
+                        onClick={() => handlePayTripClaim(trip)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/10 cursor-pointer border-0"
+                      >
+                        Bayar Klaim Dinas
+                      </button>
+                    ) : isRejected ? (
+                      <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
+                        Ditolak Super Admin
+                      </span>
+                    ) : (
+                      <div className="flex flex-col items-end gap-1 select-none">
+                        <span className="text-[8px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 whitespace-nowrap animate-pulse">
+                          Butuh Approval Super Admin
+                        </span>
+                        <button
+                          disabled
+                          className="px-3 py-1.5 bg-slate-900 text-slate-600 rounded-xl font-bold text-xs cursor-not-allowed border border-slate-800"
+                          title="Perjalanan dinas ini belum disetujui oleh Super Admin"
+                        >
+                          Bayar Klaim Dinas
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

@@ -9,7 +9,6 @@ import {
   TrendingUp, 
   FileText, 
   ArrowRight, 
-  Activity, 
   MapPin, 
   AlertCircle, 
   CheckSquare, 
@@ -24,7 +23,10 @@ export default function Dashboard({
   tasks = [],
   reports = [],
   logs = [],
-  users = []
+  users = [],
+  trips = [],
+  onApproveTrip,
+  onRejectTrip
 }) {
   const [dates, setDates] = useState({
     projectStartDate: settings.projectStartDate || '2026-06-12',
@@ -204,14 +206,16 @@ export default function Dashboard({
         })
         .sort((a, b) => b.avgProgress - a.avgProgress);
 
-  // 5. Recent Logs
+  // 5. Ranked School Progress
   const getFasilitatorName = (userId) => {
+    if (!userId) return 'Belum ditugaskan';
     const user = users.find(u => u.id === userId);
-    return user ? user.nama : 'Fasilitator';
+    return user ? user.nama : 'Belum ditugaskan';
   };
-  const recentLogs = [...displayLogs]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 4);
+
+  const sortedSchoolsByProgress = [...schools].sort(
+    (a, b) => (b.progres_fisik || 0) - (a.progres_fisik || 0)
+  );
 
   return (
     <div className="space-y-6 animate-fade-in p-6">
@@ -222,10 +226,10 @@ export default function Dashboard({
         <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl -z-10"></div>
         <div className="max-w-3xl">
           <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 tracking-wider uppercase">
-            Tahun Anggaran 2027
+            Tahun Anggaran 2026
           </span>
           <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight mt-4">
-            {activeUser ? `Halo, ${activeUser.nama}!` : 'Selamat Datang di Portal Monitoring Revitalisasi SD 2027'}
+            {activeUser ? `Halo, ${activeUser.nama}!` : 'Selamat Datang di Portal Monitoring Revitalisasi SD 2026'}
           </h2>
           <p className="text-slate-300 text-sm md:text-base leading-relaxed mt-2 font-medium">
             {activeUser 
@@ -234,6 +238,83 @@ export default function Dashboard({
           </p>
         </div>
       </div>
+
+      {/* Super Admin Travel Approval Notifications */}
+      {activeUser?.jabatanTim === 'Super Admin' && (() => {
+        const pendingTrips = trips.filter(t => t.statusPersetujuan === 'pending');
+        if (pendingTrips.length === 0) return null;
+
+        return (
+          <div className="bg-slate-900/40 border-2 border-indigo-500/30 rounded-3xl p-6 shadow-xl space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                </span>
+                <h3 className="font-bold text-white text-sm uppercase tracking-wide">
+                  Persetujuan Perjalanan Dinas Tertunda ({pendingTrips.length})
+                </h3>
+              </div>
+              <span className="text-[10px] text-indigo-300 font-bold bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                Aksi Cepat Super Admin
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+              {pendingTrips.map(trip => {
+                const targetSchool = schools.find(s => s.npsn === trip.sekolahId);
+                const applicant = users.find(u => u.id === trip.userId);
+                
+                return (
+                  <div key={trip.id} className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between gap-3 hover:border-slate-700 transition-colors">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-500">Kunjungan ke-{trip.kunjunganKe}</span>
+                        <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/5 px-2 py-0.5 rounded border border-indigo-500/10">
+                          {trip.userRoleTim}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-slate-200 text-xs truncate">
+                        {targetSchool ? targetSchool.nama_sekolah : `NPSN ${trip.sekolahId}`}
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Diajukan oleh: <strong className="text-slate-300">{applicant ? applicant.nama : 'Anggota Tim'}</strong>
+                      </p>
+                      <div className="text-[10px] text-slate-500 font-mono mt-1">
+                        Tanggal: {trip.tanggalMulai} s/d {trip.tanggalSelesai} ({trip.durasiHari} Hari)
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-900/60 select-none">
+                      <button
+                        onClick={() => {
+                          onApproveTrip(trip.id, activeUser.nama);
+                          alert('Perjalanan dinas disetujui!');
+                        }}
+                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border-0"
+                      >
+                        Setujui
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Tolak permohonan kunjungan dinas ini?')) {
+                            onRejectTrip(trip.id);
+                            alert('Perjalanan dinas ditolak.');
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer border border-rose-500/20"
+                      >
+                        Tolak
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 4 KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -601,31 +682,7 @@ export default function Dashboard({
                   </div>
                 </form>
               </div>
-            ) : (
-              <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-                <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2 mb-4">
-                  <CheckCircle className="w-4 h-4 text-emerald-400" /> Profil & Peran Kerja Anda
-                </h3>
-                <div className="space-y-3">
-                  <div className="bg-slate-950/40 border border-slate-850 p-3 rounded-2xl text-center">
-                    <span className="block text-[9px] uppercase font-bold text-slate-500">Jabatan Tim</span>
-                    <span className="text-sm font-bold text-indigo-400 mt-1 block">{activeUser.jabatanTim}</span>
-                  </div>
-                  <div className="bg-slate-950/40 border border-slate-850 p-3 rounded-2xl text-center">
-                    <span className="block text-[9px] uppercase font-bold text-slate-500">Status Pegawai</span>
-                    <span className="text-sm font-bold text-emerald-400 mt-1 block">{activeUser.statusPegawai}</span>
-                  </div>
-                  <div className="bg-slate-950/40 border border-slate-850 p-3 rounded-2xl text-center">
-                    <span className="block text-[9px] uppercase font-bold text-slate-500">Pendidikan Terakhir</span>
-                    <span className="text-sm font-bold text-purple-400 mt-1 block">{activeUser.pendidikan}</span>
-                  </div>
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-850 text-xs text-slate-400 leading-relaxed font-medium">
-                  <span className="font-bold text-slate-300 block mb-1">Catatan Kepegawaian:</span>
-                  {activeUser.jabatanKepegawaian !== '-' ? activeUser.jabatanKepegawaian : 'Personil lapangan non-staf dinas.'}
-                </div>
-              </div>
-            )
+            ) : null
           ) : (
             <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
               <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2 mb-4">
@@ -651,49 +708,52 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* Recent Daily Logs Activity */}
+          {/* Ranked School Progress */}
           <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-            <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2 border-b border-slate-850 pb-2.5">
-              <Activity className="w-4 h-4 text-indigo-400" /> {isFacilitator ? "Aktivitas Harian Anda" : "Aktivitas Harian Terbaru"}
+            <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center justify-between border-b border-slate-850 pb-2.5">
+              <span className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-400" /> Progres Fisik Sekolah
+              </span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                Urut Terbesar
+              </span>
             </h3>
 
-            {recentLogs.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-6">Belum ada aktivitas harian tercatat.</p>
+            {sortedSchoolsByProgress.length === 0 ? (
+              <p className="text-xs text-slate-500 italic text-center py-6">Belum ada sekolah terdaftar.</p>
             ) : (
-              <div className="space-y-4">
-                {recentLogs.map((log) => {
-                  const targetSchool = schools.find(s => s.npsn === log.schoolId);
-                  
-                  return (
-                    <div key={log.id} className="space-y-1.5 bg-slate-950/30 border border-slate-850/50 rounded-2xl p-3.5">
-                      <div className="flex justify-between items-start text-xs">
-                        <div>
-                          <span className="font-bold text-slate-200 block truncate max-w-[140px]">
-                            {getFasilitatorName(log.userId)}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-semibold block truncate max-w-[140px]">
-                            {targetSchool ? targetSchool.nama_sekolah : `NPSN ${log.schoolId}`}
-                          </span>
-                        </div>
-                        <span className="text-[9px] text-indigo-400 font-mono shrink-0">
-                          {log.date}
+              <div className="max-h-[500px] overflow-y-auto pr-1 space-y-3">
+                {sortedSchoolsByProgress.map((school) => (
+                  <div key={school.npsn} className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-3.5 space-y-2 hover:border-slate-800 transition-colors">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-200 text-xs block truncate" title={school.nama_sekolah}>
+                          {school.nama_sekolah}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-semibold block">
+                          Kab. {school.kabupaten}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 line-clamp-2 italic leading-relaxed pt-1">
-                        "{log.description}"
-                      </p>
-                      {log.photoBase64 && (
-                        <div className="mt-2 rounded-xl overflow-hidden border border-slate-800 max-h-24 bg-slate-900 flex items-center justify-center">
-                          <img 
-                            src={log.photoBase64} 
-                            alt="Bukti aktivitas" 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
+                      <span className="text-xs font-bold text-emerald-400 shrink-0">
+                        {school.progres_fisik || 0}%
+                      </span>
                     </div>
-                  );
-                })}
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${school.progres_fisik || 0}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] text-slate-400 pt-0.5">
+                      <span className="truncate">
+                        Fasilitator: <strong className="text-slate-300 font-medium">{getFasilitatorName(school.fasilitatorId)}</strong>
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

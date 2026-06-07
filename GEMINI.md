@@ -1,11 +1,11 @@
-# 🏫 Dokumen Proyek: Dashboard Monitoring Revitalisasi SD 2027
+# 🏫 Dokumen Proyek: Dashboard Monitoring Revitalisasi SD 2026
 
 Dokumen ini dibuat khusus untuk memandu **AI Agent (Gemini/Antigravity)** dalam memahami konteks proyek ini secara utuh tanpa perlu membaca ulang seluruh file dari awal.
 
 ---
 
 ## 📌 1. Gambaran Umum Proyek
-Aplikasi ini adalah dashboard monitoring progres fisik dan administrasi keuangan proyek **Revitalisasi Sekolah Dasar (SD) Tahun 2027**. 
+Aplikasi ini adalah dashboard monitoring progres fisik dan administrasi keuangan proyek **Revitalisasi Sekolah Dasar (SD) Tahun 2026**. 
 * **Tujuan**: Mempermudah pemantauan progres revitalisasi sekolah, penjadwalan dinas otomatis, pencatatan log harian lapangan (dengan kompresi gambar), pelaporan PDF bulanan, hingga rekapitulasi penggajian (payroll) honorarium tim pelaksana swakelola.
 * **Arsitektur**: Berjalan sepenuhnya di sisi klien (*Client-side / Frontend-only*) dengan penyimpanan state yang persisten menggunakan `localStorage` agar tidak melampaui kuota 5MB browser.
 

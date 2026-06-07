@@ -1,4 +1,4 @@
-// Data awal anggota tim pelaksana swakelola program revitalisasi SD 2027
+// Data awal anggota tim pelaksana swakelola program revitalisasi SD 2026
 export const initialUsers = [
   {
     id: "yosi-ronadi",

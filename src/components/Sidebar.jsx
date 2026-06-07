@@ -26,10 +26,9 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['*'] },
     { id: 'sekolah', name: activeUser.jabatanTim === 'Fasilitator' ? 'Sekolah Saya' : 'Semua Sekolah', icon: School, roles: ['*'] },
-    { id: 'kontak', name: 'Kelola Kontak Mitra', icon: Contact, roles: ['*'] },
     { id: 'tanggung-jawab', name: 'Tanggung Jawab Saya', icon: FileCheck, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator', 'Tenaga Administrasi'] },
     { id: 'laporan-bulanan', name: 'Laporan Bulanan', icon: FileText, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator'] },
-    { id: 'dinas', name: 'Jadwal Perjalanan Dinas', icon: CalendarClock, roles: ['Fasilitator', 'Koordinator'] },
+    { id: 'dinas', name: 'Jadwal Perjalanan Dinas', icon: CalendarClock, roles: ['Fasilitator', 'Koordinator', 'Super Admin'] },
     
     // Keuangan & Pemantauan (Administrasi / Admin)
     { id: 'pantau-honor', name: 'Pantau & Bayar Honor', icon: CircleDollarSign, roles: ['Tenaga Administrasi', 'Super Admin'] },
@@ -111,7 +110,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
           <LogOut className="w-4 h-4" /> Keluar Sesi
         </button>
         <div className="text-center text-[9px] text-slate-600 mt-3">
-          Revitalisasi Sekolah Dasar © 2027
+          Revitalisasi Sekolah Dasar © 2026
         </div>
       </div>
 
