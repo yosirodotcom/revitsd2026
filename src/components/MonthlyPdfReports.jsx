@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Tabs } from 'lucide-react';
+import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar } from 'lucide-react';
 
 export default function MonthlyPdfReports({ 
   reports, 

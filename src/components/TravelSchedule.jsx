@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Calendar, AlertCircle, CheckCircle, Clock, MapPin, Send, Plus, HelpCircle } from 'lucide-react';
+import { Calendar, AlertCircle, CheckCircle, Clock, MapPin, Send, Plus, HelpCircle, X } from 'lucide-react';
 
 export default function TravelSchedule({ 
   schools, 
   users, 
   activeUser, 
   settings, 
+  onUpdateSettings,
   trips, 
   onAddTrip 
 }) {
-  // Let the user simulate the system date so they can test time-based triggers (e.g., September 2027)
-  const [simulatedDate, setSimulatedDate] = useState('2027-09-15');
+  // Let the user simulate the system date so they can test time-based triggers (e.g., September 2026)
+  const simulatedDate = settings.simulatedToday || '2026-09-14';
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSchoolNpsn, setRecordingSchoolNpsn] = useState('');
   
@@ -34,9 +35,9 @@ export default function TravelSchedule({
   };
 
   // Standard Target Dates based on project settings
-  const projectStart = settings.projectStartDate || '2027-06-12';
-  const month3Date = addMonths(projectStart, 3); // Default: 2027-09-12
-  const month6Date = addMonths(projectStart, 6); // Default: 2027-12-12
+  const projectStart = settings.projectStartDate || '2026-06-12';
+  const month3Date = addMonths(projectStart, 3); // Default: 2026-09-12
+  const month6Date = addMonths(projectStart, 6); // Default: 2026-12-12
 
   // Determine triggers for a school
   const getSchoolTriggers = (school) => {
@@ -200,7 +201,7 @@ export default function TravelSchedule({
           <input
             type="date"
             value={simulatedDate}
-            onChange={(e) => setSimulatedDate(e.target.value)}
+            onChange={(e) => onUpdateSettings({ ...settings, simulatedToday: e.target.value })}
             className="bg-transparent border-0 text-slate-200 text-xs font-bold focus:outline-none"
           />
         </div>

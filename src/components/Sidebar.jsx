@@ -38,6 +38,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
     // Super Admin Only
     { id: 'pantau-tanggung-jawab', name: 'Pantau Tugas Tim', icon: ShieldAlert, roles: ['Super Admin'] },
     { id: 'kelola-tim', name: 'Kelola Anggota Tim', icon: Users, roles: ['Super Admin'] },
+    { id: 'kelola-fasilitator', name: 'Kelola Fasilitator', icon: UserCog, roles: ['Super Admin'] },
   ];
 
   const filteredMenu = menuItems.filter(item => {

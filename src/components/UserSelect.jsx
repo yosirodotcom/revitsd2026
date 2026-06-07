@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, Shield, Briefcase, Award } from 'lucide-react';
+import { User, Shield, Briefcase, Award, X } from 'lucide-react';
 
-export default function UserSelect({ users, onSelectUser }) {
+export default function UserSelect({ users, onSelectUser, onClose }) {
   // Helper to get initials
   const getInitials = (name) => {
     return name
@@ -43,18 +43,36 @@ export default function UserSelect({ users, onSelectUser }) {
     }
   };
 
+  const isPopup = typeof onClose === 'function';
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 select-none animate-fade-in">
+    <div className={isPopup 
+      ? "bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 max-h-[85vh] overflow-y-auto w-full select-none animate-fade-in shadow-2xl relative text-slate-100"
+      : "min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 select-none animate-fade-in"
+    }>
+      {/* Close Button for popup mode */}
+      {isPopup && (
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
+
       <div className="max-w-5xl w-full text-center mb-8">
-        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 mb-2">
-          Revitalisasi Sekolah Dasar 2027
+        <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 mb-2">
+          Pilih Akun Simulasi
         </h1>
-        <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-          Selamat datang di portal monitoring swakelola. Silakan pilih profil Anda untuk masuk ke sistem dashboard.
+        <p className="text-slate-400 text-xs md:text-sm max-w-xl mx-auto">
+          Silakan pilih profil di bawah ini untuk mensimulasikan hak akses dan fitur sesuai peran masing-masing anggota.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-6xl w-full">
+      <div className={isPopup 
+        ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-5xl w-full"
+        : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-6xl w-full"
+      }>
         {users.map((user) => (
           <div
             key={user.id}

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { 
+import React, { useState, useEffect, useRef } from 'react';
+import {
   ArrowLeft, Edit2, Check, X, ShieldAlert, Award, FileCheck, 
   CheckCircle2, AlertTriangle, ListTodo, Plus, Trash2, Calendar, 
-  ChevronRight, Play, CheckCircle
+  ChevronRight, Play, CheckCircle, AlertCircle, Phone, User, Pencil
 } from 'lucide-react';
 
 export default function SchoolDetail({ 
@@ -19,25 +19,16 @@ export default function SchoolDetail({
   onAddContact 
 }) {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'tasks'
-  const [isEditing, setIsEditing] = useState(false);
   const [progresInput, setProgresInput] = useState(school.progres_fisik || 0);
 
-  // Form states for profile
-  const [formData, setFormData] = useState({
-    desa: '',
-    kecamatan: '',
-    kepala_sekolah: '',
-    hp_kepala_sekolah: '',
-    perencanaId: '',
-    pengawasId: '',
-    fasilitatorId: '',
-  });
+  // Inline edit state: which field is being edited and its temp value
+  const [inlineField, setInlineField] = useState(null); // 'kecamatan' | 'desa' | 'kepala_sekolah' | 'hp_kepala_sekolah' | 'perencanaId' | 'pengawasId' | 'fasilitatorId'
+  const [inlineValue, setInlineValue] = useState('');
+  const inlineInputRef = useRef(null);
 
-  // Inline contact creator states
-  const [isAddingPerencana, setIsAddingPerencana] = useState(false);
-  const [newPerencana, setNewPerencana] = useState({ nama: '', hp: '' });
-  const [isAddingPengawas, setIsAddingPengawas] = useState(false);
-  const [newPengawas, setNewPengawas] = useState({ nama: '', hp: '' });
+  // Inline new contact creation
+  const [newContactFor, setNewContactFor] = useState(null); // 'perencanaId' | 'pengawasId'
+  const [newContactData, setNewContactData] = useState({ nama: '', hp: '' });
 
   // Add Task form state
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -59,19 +50,15 @@ export default function SchoolDetail({
   useEffect(() => {
     if (school) {
       setProgresInput(school.progres_fisik || 0);
-      setFormData({
-        desa: school.desa || '',
-        kecamatan: school.kecamatan || '',
-        kepala_sekolah: school.kepala_sekolah || '',
-        hp_kepala_sekolah: school.hp_kepala_sekolah || '',
-        perencanaId: school.perencanaId || '',
-        pengawasId: school.pengawasId || '',
-        fasilitatorId: school.fasilitatorId || '',
-      });
-      setIsAddingPerencana(false);
-      setIsAddingPengawas(false);
     }
   }, [school]);
+
+  // Focus the inline input when it appears
+  useEffect(() => {
+    if (inlineField && inlineInputRef.current) {
+      inlineInputRef.current.focus();
+    }
+  }, [inlineField]);
 
   // Sync calculated progress to school parent state when tasks update
   useEffect(() => {
@@ -83,37 +70,76 @@ export default function SchoolDetail({
     }
   }, [calculatedProgress, totalTasks]);
 
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    let updatedPerencanaId = formData.perencanaId;
-    let updatedPengawasId = formData.pengawasId;
+  // Start inline editing for a text field
+  const startInlineEdit = (fieldName) => {
+    setInlineField(fieldName);
+    setInlineValue(school[fieldName] || '');
+    setNewContactFor(null);
+  };
 
-    // 1. Process inline Perencana if created
-    if (isAddingPerencana && newPerencana.nama && newPerencana.hp) {
-      const pid = `contact-${Date.now()}-p`;
-      onAddContact({ id: pid, nama: newPerencana.nama, hp: newPerencana.hp });
-      updatedPerencanaId = pid;
+  // Start inline editing for a contact dropdown field
+  const startContactEdit = (fieldName) => {
+    setInlineField(fieldName);
+    setInlineValue(school[fieldName] || '');
+    setNewContactFor(null);
+    setNewContactData({ nama: '', hp: '' });
+  };
+
+  // Save an inline text field
+  const saveInlineField = () => {
+    if (inlineField) {
+      onUpdateSchool({ ...school, [inlineField]: inlineValue });
+      setInlineField(null);
+      setInlineValue('');
     }
+  };
 
-    // 2. Process inline Pengawas if created
-    if (isAddingPengawas && newPengawas.nama && newPengawas.hp) {
-      const pid = `contact-${Date.now()}-w`;
-      onAddContact({ id: pid, nama: newPengawas.nama, hp: newPengawas.hp });
-      updatedPengawasId = pid;
+  // Save a contact selection
+  const saveContactField = (fieldName, contactId) => {
+    onUpdateSchool({ ...school, [fieldName]: contactId });
+    setInlineField(null);
+    setInlineValue('');
+    setNewContactFor(null);
+  };
+
+  // Save newly created contact and assign
+  const saveNewContact = (fieldName) => {
+    if (!newContactData.nama.trim() || !newContactData.hp.trim()) return;
+    const suffix = fieldName === 'perencanaId' ? 'p' : 'w';
+    const newId = `contact-${Date.now()}-${suffix}`;
+    onAddContact({ id: newId, nama: newContactData.nama, hp: newContactData.hp });
+    onUpdateSchool({ ...school, [fieldName]: newId });
+    setInlineField(null);
+    setNewContactFor(null);
+    setNewContactData({ nama: '', hp: '' });
+  };
+
+  // Cancel inline editing
+  const cancelInlineEdit = () => {
+    setInlineField(null);
+    setInlineValue('');
+    setNewContactFor(null);
+    setNewContactData({ nama: '', hp: '' });
+  };
+
+  // Handle Enter/Escape on inline inputs
+  const handleInlineKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveInlineField();
+    } else if (e.key === 'Escape') {
+      cancelInlineEdit();
     }
+  };
 
-    onUpdateSchool({
-      ...school,
-      ...formData,
-      perencanaId: updatedPerencanaId,
-      pengawasId: updatedPengawasId,
-      progres_fisik: totalTasks > 0 ? calculatedProgress : Number(progresInput),
-    });
-
-    alert('Informasi profil sekolah berhasil disimpan!');
-    setIsEditing(false);
-    setIsAddingPerencana(false);
-    setIsAddingPengawas(false);
+  // Handle Enter on new contact creation
+  const handleNewContactKeyDown = (e, fieldName) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveNewContact(fieldName);
+    } else if (e.key === 'Escape') {
+      cancelInlineEdit();
+    }
   };
 
   const handleQuickProgressSave = () => {
@@ -197,15 +223,6 @@ export default function SchoolDetail({
         >
           <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar
         </button>
-
-        {isAuthorizedToEdit && !isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <Edit2 className="w-4 h-4" /> Lengkapi Profil Sekolah
-          </button>
-        )}
       </div>
 
       {/* Title & Stats Summary Banner */}
@@ -296,9 +313,751 @@ export default function SchoolDetail({
         </div>
       )}
 
-      {/* Edit Mode Content */}
-      {isEditing ? (
-        <form onSubmit={handleSaveProfile} className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-3xl p-6 space-y-6">
+      {/* Tab Content */}
+      <div>
+          {/* Tab 1: Profile & Documents */}
+          {activeTab === 'profile' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Left Column: Metadata with Inline Edit */}
+              <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 lg:col-span-2 space-y-6">
+
+                {/* Incomplete Data Alert for Facilitators */}
+                {(() => {
+                  const missing = [];
+                  if (!school.kepala_sekolah) missing.push('Kepala Sekolah');
+                  if (!school.hp_kepala_sekolah) missing.push('HP Kepsek');
+                  if (!school.perencanaId) missing.push('Perencana');
+                  if (!school.pengawasId) missing.push('Pengawas');
+                  if (isMySchool && missing.length > 0) {
+                    return (
+                      <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold text-amber-400 text-xs">Data Belum Lengkap ({missing.length})</span>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Klik ikon <Pencil className="w-3 h-3 inline text-slate-400" /> di samping field untuk mengisi. Tekan <kbd className="px-1 py-0.5 bg-slate-800 rounded text-[9px] text-slate-300 font-mono">Enter</kbd> untuk simpan.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (isMySchool && missing.length === 0) {
+                    return (
+                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-2.5">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="font-semibold text-emerald-400 text-xs">Data Sekolah Sudah Lengkap</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Section: Informasi Sekolah */}
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4">
+                    Informasi Sekolah & Kepegawaian
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* Nama Sekolah (read-only) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Nama Sekolah</span>
+                      <span className="text-sm font-medium text-slate-200">{school.nama_sekolah}</span>
+                    </div>
+
+                    {/* NPSN (read-only) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">NPSN</span>
+                      <span className="text-sm font-mono font-medium text-slate-200">{school.npsn}</span>
+                    </div>
+
+                    {/* Kecamatan (inline-editable) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Kecamatan</span>
+                      {inlineField === 'kecamatan' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Nama Kecamatan"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          <span className={`text-sm font-medium ${school.kecamatan ? 'text-slate-200' : 'text-slate-600 italic'}`}>
+                            {school.kecamatan || 'Belum diisi'}
+                          </span>
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('kecamatan')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.kecamatan ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Kecamatan"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Desa (inline-editable) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Desa / Kelurahan</span>
+                      {inlineField === 'desa' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Nama Desa"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          <span className={`text-sm font-medium ${school.desa ? 'text-slate-200' : 'text-slate-600 italic'}`}>
+                            {school.desa || 'Belum diisi'}
+                          </span>
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('desa')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.desa ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Desa"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Kabupaten (read-only) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Kabupaten</span>
+                      <span className="text-sm font-medium text-slate-200">{school.kabupaten}</span>
+                    </div>
+
+                    {/* Spacer */}
+                    <div></div>
+
+                    {/* Kepala Sekolah (inline-editable) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Kepala Sekolah</span>
+                      {inlineField === 'kepala_sekolah' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Nama Kepala Sekolah"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.kepala_sekolah ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 text-slate-500" />
+                              {school.kepala_sekolah}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('kepala_sekolah')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.kepala_sekolah ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Kepala Sekolah"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* HP Kepala Sekolah (inline-editable) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">No HP Kepala Sekolah</span>
+                      {inlineField === 'hp_kepala_sekolah' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value.replace(/[^0-9+-]/g, ''))}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="08xxxxxxxxxx"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.hp_kepala_sekolah ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-slate-500" />
+                              {school.hp_kepala_sekolah}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('hp_kepala_sekolah')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.hp_kepala_sekolah ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit No HP"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Section: Mitra Pelaksana Lapangan */}
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4">
+                    Mitra Pelaksana Lapangan
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {/* Perencana (inline-editable dropdown) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Perencana Lapangan</span>
+                      {inlineField === 'perencanaId' ? (
+                        <div className="mt-0.5 space-y-2">
+                          {newContactFor === 'perencanaId' ? (
+                            <div className="bg-slate-950 border border-indigo-500/30 p-3 rounded-xl space-y-2">
+                              <div className="flex justify-between items-center text-[10px] text-indigo-400 font-semibold">
+                                <span>Kontak Perencana Baru</span>
+                                <button onClick={() => setNewContactFor(null)} className="text-slate-500 hover:text-slate-300 cursor-pointer">Kembali</button>
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="Nama Perencana"
+                                value={newContactData.nama}
+                                onChange={(e) => setNewContactData({ ...newContactData, nama: e.target.value })}
+                                onKeyDown={(e) => handleNewContactKeyDown(e, 'perencanaId')}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                                autoFocus
+                              />
+                              <input
+                                type="text"
+                                placeholder="No HP"
+                                value={newContactData.hp}
+                                onChange={(e) => setNewContactData({ ...newContactData, hp: e.target.value.replace(/[^0-9+-]/g, '') })}
+                                onKeyDown={(e) => handleNewContactKeyDown(e, 'perencanaId')}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                              />
+                              <div className="flex gap-1.5 justify-end pt-1">
+                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">Batal</button>
+                                <button onClick={() => saveNewContact('perencanaId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">Simpan</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={inlineValue}
+                                onChange={(e) => {
+                                  if (e.target.value === 'new') {
+                                    setNewContactFor('perencanaId');
+                                  } else {
+                                    saveContactField('perencanaId', e.target.value);
+                                  }
+                                }}
+                                className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                                autoFocus
+                              >
+                                <option value="">-- Pilih Kontak --</option>
+                                {contacts.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.nama} ({c.hp})</option>
+                                ))}
+                                <option value="new" className="text-indigo-400 font-bold bg-slate-900">+ Tambah Kontak Baru</option>
+                              </select>
+                              <button onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.perencanaId ? (
+                            <span className="text-sm font-medium text-slate-200">{perencana.nama}</span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum ditentukan</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startContactEdit('perencanaId')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.perencanaId ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Ubah Perencana"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* HP Perencana (read-only, from contact) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Perencana</span>
+                      <span className="text-sm font-medium text-slate-200 mt-0.5 block">
+                        {school.perencanaId ? (
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-500" />
+                            {perencana.hp}
+                          </span>
+                        ) : <span className="text-slate-600 italic">-</span>}
+                      </span>
+                    </div>
+
+                    {/* Pengawas (inline-editable dropdown) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Pengawas Lapangan</span>
+                      {inlineField === 'pengawasId' ? (
+                        <div className="mt-0.5 space-y-2">
+                          {newContactFor === 'pengawasId' ? (
+                            <div className="bg-slate-950 border border-indigo-500/30 p-3 rounded-xl space-y-2">
+                              <div className="flex justify-between items-center text-[10px] text-indigo-400 font-semibold">
+                                <span>Kontak Pengawas Baru</span>
+                                <button onClick={() => setNewContactFor(null)} className="text-slate-500 hover:text-slate-300 cursor-pointer">Kembali</button>
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="Nama Pengawas"
+                                value={newContactData.nama}
+                                onChange={(e) => setNewContactData({ ...newContactData, nama: e.target.value })}
+                                onKeyDown={(e) => handleNewContactKeyDown(e, 'pengawasId')}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                                autoFocus
+                              />
+                              <input
+                                type="text"
+                                placeholder="No HP"
+                                value={newContactData.hp}
+                                onChange={(e) => setNewContactData({ ...newContactData, hp: e.target.value.replace(/[^0-9+-]/g, '') })}
+                                onKeyDown={(e) => handleNewContactKeyDown(e, 'pengawasId')}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                              />
+                              <div className="flex gap-1.5 justify-end pt-1">
+                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">Batal</button>
+                                <button onClick={() => saveNewContact('pengawasId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">Simpan</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={inlineValue}
+                                onChange={(e) => {
+                                  if (e.target.value === 'new') {
+                                    setNewContactFor('pengawasId');
+                                  } else {
+                                    saveContactField('pengawasId', e.target.value);
+                                  }
+                                }}
+                                className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                                autoFocus
+                              >
+                                <option value="">-- Pilih Kontak --</option>
+                                {contacts.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.nama} ({c.hp})</option>
+                                ))}
+                                <option value="new" className="text-indigo-400 font-bold bg-slate-900">+ Tambah Kontak Baru</option>
+                              </select>
+                              <button onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.pengawasId ? (
+                            <span className="text-sm font-medium text-slate-200">{pengawas.nama}</span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum ditentukan</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startContactEdit('pengawasId')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.pengawasId ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Ubah Pengawas"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* HP Pengawas (read-only, from contact) */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Pengawas</span>
+                      <span className="text-sm font-medium text-slate-200 mt-0.5 block">
+                        {school.pengawasId ? (
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-500" />
+                            {pengawas.hp}
+                          </span>
+                        ) : <span className="text-slate-600 italic">-</span>}
+                      </span>
+                    </div>
+
+                  </div>
+                </div>
+
+              {/* Right Column: Progress & Docs checklist */}
+              <div className="space-y-6">
+                
+                {/* Manual Progress Slider (Only if NO tasks are assigned) */}
+                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
+                  <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-4 border-b border-slate-800 pb-2">
+                    Update Progres Konstruksi
+                  </h3>
+                  {totalTasks > 0 ? (
+                    <div className="bg-slate-950/40 rounded-xl border border-slate-850 p-4 text-center">
+                      <ListTodo className="w-5 h-5 text-indigo-400 mx-auto mb-2" />
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Progress fisik dihitung otomatis berdasarkan Papan Tugas. Progres saat ini: <strong>{calculatedProgress}%</strong>.
+                      </p>
+                    </div>
+                  ) : isAuthorizedToEdit ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={progresInput}
+                          onChange={(e) => setProgresInput(e.target.value)}
+                          className="flex-1 accent-indigo-500 h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="w-16">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={progresInput}
+                            onChange={(e) => setProgresInput(e.target.value)}
+                            className="w-full text-center bg-slate-950 border border-slate-800 rounded-xl px-2 py-1 text-sm font-bold text-slate-200"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleQuickProgressSave}
+                        className="w-full py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+                      >
+                        Simpan Progres Fisik
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 bg-slate-950/40 rounded-xl border border-slate-850 p-4">
+                      <AlertTriangle className="w-5 h-5 text-slate-600 mx-auto mb-2" />
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Hanya Fasilitator Pendamping atau Super Admin yang dapat mengubah progres.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Documents list */}
+                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
+                  <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-4 border-b border-slate-800 pb-2">
+                    <FileCheck className="w-4 h-4 text-indigo-400" /> Berkas Laporan Sekolah
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { id: 'mingguan', name: 'Laporan Mingguan', field: 'dokumen_mingguan' },
+                      { id: 'bulanan', name: 'Laporan Bulanan', field: 'dokumen_bulanan' },
+                      { id: 'progres50', name: 'Laporan Progres 50%', field: 'dokumen_progres_50' },
+                      { id: 'progres100', name: 'Laporan Progres 100%', field: 'dokumen_progres_100' },
+                    ].map((doc) => {
+                      const status = school[doc.field] || 'belum';
+                      
+                      return (
+                        <div key={doc.id} className="bg-slate-950/60 border border-slate-850 rounded-xl p-3 flex flex-col justify-between gap-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-semibold text-slate-300">{doc.name}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase ${
+                              status === 'belum' 
+                                ? 'bg-slate-800 text-slate-500 border border-slate-700/50'
+                                : status === 'dikirim'
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            }`}>
+                              {status === 'belum' && 'Belum Dikirim'}
+                              {status === 'dikirim' && 'Menunggu Reviu'}
+                              {status === 'direviu' && 'Sudah Direviu'}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-end gap-1.5 pt-1.5 border-t border-slate-900/60">
+                            {isMySchool && status === 'belum' && (
+                              <button
+                                onClick={() => handleDocumentAction(doc.id, 'dikirim')}
+                                className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 rounded-lg border border-indigo-500/20 transition-all cursor-pointer"
+                              >
+                                Kirim Laporan
+                              </button>
+                            )}
+
+                            {isReviuAuthorized && status === 'dikirim' && (
+                              <button
+                                onClick={() => handleDocumentAction(doc.id, 'direviu')}
+                                className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 rounded-lg border border-emerald-500/20 transition-all cursor-pointer"
+                              >
+                                Setujui Reviu
+                              </button>
+                            )}
+                            
+                            {status === 'direviu' && (
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1 font-medium select-none">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Selesai direviu
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Papan Tugas (Kanban-like Columns) */}
+          {activeTab === 'tasks' && (
+            <div className="space-y-6">
+              
+              {/* Task board header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm">Tugas Pemantauan Konstruksi</h3>
+                  <p className="text-[11px] text-slate-500">Mencatat, memantau pengerjaan fisik di sekolah ini secara detail.</p>
+                </div>
+                {isAuthorizedToEdit && (
+                  <button
+                    onClick={() => setIsAddingTask(true)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah Pekerjaan
+                  </button>
+                )}
+              </div>
+
+              {/* Task Form (Modal or Inline) */}
+              {isAddingTask && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 max-w-md">
+                  <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider mb-3">Pekerjaan Lapangan Baru</h4>
+                  <form onSubmit={handleAddTaskSubmit} className="space-y-3">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Nama Pekerjaan (Contoh: Pemasangan Kusen Pintu)"
+                        value={taskForm.title}
+                        onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <textarea
+                        placeholder="Keterangan singkat"
+                        value={taskForm.description}
+                        onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-slate-100 focus:outline-none h-16 resize-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <select
+                          value={taskForm.priority}
+                          onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200"
+                        >
+                          <option value="low">Prioritas Rendah</option>
+                          <option value="medium">Prioritas Sedang</option>
+                          <option value="high">Prioritas Tinggi</option>
+                        </select>
+                      </div>
+                      <div>
+                        <input
+                          type="date"
+                          value={taskForm.dueDate}
+                          onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1 text-xs text-slate-200"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingTask(false)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-850"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+                      >
+                        Tambah Tugas
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Kanban Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 select-none">
+                
+                {/* Column Loop */}
+                {[
+                  { id: 'todo', name: 'Belum Mulai (To Do)', color: 'border-slate-800 bg-slate-900/10' },
+                  { id: 'inprogress', name: 'Sedang Pengerjaan', color: 'border-amber-500/10 bg-amber-500/[0.01]' },
+                  { id: 'done', name: 'Selesai (Done)', color: 'border-emerald-500/10 bg-emerald-500/[0.01]' }
+                ].map((col) => {
+                  const colTasks = schoolTasks.filter((t) => t.status === col.id);
+
+                  return (
+                    <div key={col.id} className={`border rounded-2xl p-4 flex flex-col gap-3 min-h-[300px] ${col.color}`}>
+                      <div className="flex items-center justify-between font-bold text-xs uppercase tracking-wider text-slate-400 pb-2 border-b border-slate-800/60">
+                        <span>{col.name}</span>
+                        <span className="bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full text-[10px] text-indigo-400">{colTasks.length}</span>
+                      </div>
+
+                      {/* Tasks Cards list */}
+                      <div className="flex-1 space-y-3 overflow-y-auto max-h-[450px] pr-1 no-scrollbar">
+                        {colTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 hover:border-slate-700 transition-all space-y-2 relative group"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <h5 className="font-semibold text-slate-200 text-xs leading-snug line-clamp-2">{task.title}</h5>
+                              <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                task.priority === 'high'
+                                  ? 'bg-rose-500/10 text-rose-400'
+                                  : task.priority === 'medium'
+                                  ? 'bg-amber-500/10 text-amber-400'
+                                  : 'bg-slate-800 text-slate-400'
+                              }`}>
+                                {task.priority}
+                              </span>
+                            </div>
+
+                            {task.description && (
+                              <p className="text-[10px] text-slate-500 leading-normal line-clamp-3">{task.description}</p>
+                            )}
+
+                            {/* Task Footer: date & controls */}
+                            <div className="flex justify-between items-center pt-2 border-t border-slate-900/60 text-[9px] text-slate-500 font-semibold">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-600" /> {task.dueDate}
+                              </span>
+                              
+                              {/* Action Buttons to move status */}
+                              <div className="flex gap-1">
+                                {isAuthorizedToEdit && (
+                                  <>
+                                    {task.status === 'todo' && (
+                                      <button
+                                        onClick={() => onUpdateTaskStatus(task.id, 'inprogress')}
+                                        className="p-1 rounded bg-slate-950 hover:bg-slate-850 text-indigo-400"
+                                        title="Kerjakan tugas"
+                                      >
+                                        <Play className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
+                                    {task.status === 'inprogress' && (
+                                      <button
+                                        onClick={() => onUpdateTaskStatus(task.id, 'done')}
+                                        className="p-1 rounded bg-slate-950 hover:bg-slate-850 text-emerald-400"
+                                        title="Selesaikan tugas"
+                                      >
+                                        <CheckCircle className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
+                                    
+                                    {/* Delete task button */}
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm('Hapus tugas ini?')) {
+                                          onDeleteTask(task.id);
+                                        }
+                                      }}
+                                      className="p-1 rounded bg-slate-950 hover:bg-rose-950/40 text-slate-600 hover:text-rose-400"
+                                      title="Hapus tugas"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                          </div>
+                        ))}
+
+                        {colTasks.length === 0 && (
+                          <div className="text-center py-8 text-[10px] text-slate-600 italic border border-dashed border-slate-850 rounded-xl">
+                            Kosong
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })}
+
+              </div>
+
+            </div>
+          )}
+        </div> className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-3xl p-6 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
             <h3 className="font-semibold text-slate-100 text-base">Edit Informasi Profil Sekolah</h3>
             <button
@@ -493,6 +1252,51 @@ export default function SchoolDetail({
               
               {/* Left Column: Metadata */}
               <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 lg:col-span-2 space-y-6">
+
+                {/* Incomplete Data Alert for Facilitators */}
+                {(() => {
+                  const missing = [];
+                  if (!school.kepala_sekolah) missing.push('Nama Kepala Sekolah');
+                  if (!school.hp_kepala_sekolah) missing.push('No HP Kepala Sekolah');
+                  if (!school.perencanaId) missing.push('Kontak Perencana');
+                  if (!school.pengawasId) missing.push('Kontak Pengawas');
+                  if (isMySchool && missing.length > 0) {
+                    return (
+                      <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="font-semibold text-amber-400 text-sm">Data Sekolah Belum Lengkap ({missing.length} field)</h4>
+                            <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
+                              Segera lengkapi: <span className="text-amber-300/80 font-medium">{missing.join(', ')}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/20 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Lengkapi Sekarang
+                        </button>
+                      </div>
+                    );
+                  }
+                  if (isMySchool && missing.length === 0) {
+                    return (
+                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <div>
+                          <h4 className="font-semibold text-emerald-400 text-sm">Data Sekolah Sudah Lengkap</h4>
+                          <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
+                            Semua informasi profil dan kontak mitra telah terisi.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 <div>
                   <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4">
                     Informasi Sekolah & Kepegawaian
@@ -509,7 +1313,13 @@ export default function SchoolDetail({
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Kecamatan / Desa</span>
                       <span className="text-sm font-medium text-slate-200">
-                        {school.kecamatan && school.desa ? `${school.kecamatan}, ${school.desa}` : <span className="text-slate-600 italic">Belum diisi</span>}
+                        {school.kecamatan && school.desa ? `${school.kecamatan}, ${school.desa}` : (
+                          isAuthorizedToEdit ? (
+                            <button onClick={() => setIsEditing(true)} className="text-amber-400/80 italic hover:text-amber-300 transition-colors cursor-pointer text-sm">
+                              Belum diisi — Klik untuk mengisi
+                            </button>
+                          ) : <span className="text-slate-600 italic">Belum diisi</span>
+                        )}
                       </span>
                     </div>
                     <div>
@@ -518,11 +1328,33 @@ export default function SchoolDetail({
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Kepala Sekolah</span>
-                      <span className="text-sm font-medium text-slate-200">{school.kepala_sekolah || <span className="text-slate-600 italic">Belum diisi</span>}</span>
+                      {school.kepala_sekolah ? (
+                        <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-500" />
+                          {school.kepala_sekolah}
+                        </span>
+                      ) : (
+                        isAuthorizedToEdit ? (
+                          <button onClick={() => setIsEditing(true)} className="text-amber-400/80 italic hover:text-amber-300 transition-colors cursor-pointer text-sm">
+                            Belum diisi — Klik untuk mengisi
+                          </button>
+                        ) : <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                      )}
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">No HP Kepala Sekolah</span>
-                      <span className="text-sm font-medium text-slate-200">{school.hp_kepala_sekolah || <span className="text-slate-600 italic">Belum diisi</span>}</span>
+                      {school.hp_kepala_sekolah ? (
+                        <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-500" />
+                          {school.hp_kepala_sekolah}
+                        </span>
+                      ) : (
+                        isAuthorizedToEdit ? (
+                          <button onClick={() => setIsEditing(true)} className="text-amber-400/80 italic hover:text-amber-300 transition-colors cursor-pointer text-sm">
+                            Belum diisi — Klik untuk mengisi
+                          </button>
+                        ) : <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -534,25 +1366,359 @@ export default function SchoolDetail({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Perencana Lapangan</span>
-                      <span className="text-sm font-medium text-slate-200">{perencana.nama}</span>
+                      {school.perencanaId ? (
+                        <span className="text-sm font-medium text-slate-200">{perencana.nama}</span>
+                      ) : (
+                        isAuthorizedToEdit ? (
+                          <button onClick={() => setIsEditing(true)} className="text-amber-400/80 italic hover:text-amber-300 transition-colors cursor-pointer text-sm">
+                            Belum ditentukan — Klik untuk memilih
+                          </button>
+                        ) : <span className="text-sm font-medium text-slate-600 italic">Belum ditentukan</span>
+                      )}
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Perencana</span>
-                      <span className="text-sm font-medium text-slate-200">{perencana.hp}</span>
+                      <span className="text-sm font-medium text-slate-200">
+                        {school.perencanaId ? (
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-500" />
+                            {perencana.hp}
+                          </span>
+                        ) : <span className="text-slate-600 italic">-</span>}
+                      </span>
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Pengawas Lapangan</span>
-                      <span className="text-sm font-medium text-slate-200">{pengawas.nama}</span>
+                      {school.pengawasId ? (
+                        <span className="text-sm font-medium text-slate-200">{pengawas.nama}</span>
+                      ) : (
+                        isAuthorizedToEdit ? (
+                          <button onClick={() => setIsEditing(true)} className="text-amber-400/80 italic hover:text-amber-300 transition-colors cursor-pointer text-sm">
+                            Belum ditentukan — Klik untuk memilih
+                          </button>
+                        ) : <span className="text-sm font-medium text-slate-600 italic">Belum ditentukan</span>
+                      )}
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Pengawas</span>
-                      <span className="text-sm font-medium text-slate-200">{pengawas.hp}</span>
+                      <span className="text-sm font-medium text-slate-200">
+                        {school.pengawasId ? (
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-500" />
+                            {pengawas.hp}
+                          </span>
+                        ) : <span className="text-slate-600 italic">-</span>}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Progress & Docs checklist */}
+              <div className="space-y-6">
+                
+                {/* Manual Progress Slider (Only if NO tasks are assigned) */}
+                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
+                  <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-4 border-b border-slate-800 pb-2">
+                    Update Progres Konstruksi
+                  </h3>
+                  {totalTasks > 0 ? (
+                    <div className="bg-slate-950/40 rounded-xl border border-slate-850 p-4 text-center">
+                      <ListTodo className="w-5 h-5 text-indigo-400 mx-auto mb-2" />
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Progress fisik dihitung otomatis berdasarkan Papan Tugas. Progres saat ini: <strong>{calculatedProgress}%</strong>.
+                      </p>
+                    </div>
+                  ) : isAuthorizedToEdit ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={progresInput}
+                          onChange={(e) => setProgresInput(e.target.value)}
+                          className="flex-1 accent-indigo-500 h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="w-16">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={progresInput}
+                            onChange={(e) => setProgresInput(e.target.value)}
+                            className="w-full text-center bg-slate-950 border border-slate-800 rounded-xl px-2 py-1 text-sm font-bold text-slate-200"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleQuickProgressSave}
+                        className="w-full py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+                      >
+                        Simpan Progres Fisik
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 bg-slate-950/40 rounded-xl border border-slate-850 p-4">
+                      <AlertTriangle className="w-5 h-5 text-slate-600 mx-auto mb-2" />
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Hanya Fasilitator Pendamping atau Super Admin yang dapat mengubah progres.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Documents list */}
+                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
+                  <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-4 border-b border-slate-800 pb-2">
+                    <FileCheck className="w-4 h-4 text-indigo-400" /> Berkas Laporan Sekolah
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { id: 'mingguan', name: 'Laporan Mingguan', field: 'dokumen_mingguan' },
+                      { id: 'bulanan', name: 'Laporan Bulanan', field: 'dokumen_bulanan' },
+                      { id: 'progres50', name: 'Laporan Progres 50%', field: 'dokumen_progres_50' },
+                      { id: 'progres100', name: 'Laporan Progres 100%', field: 'dokumen_progres_100' },
+                    ].map((doc) => {
+                      const status = school[doc.field] || 'belum';
+                      
+                      return (
+                        <div key={doc.id} className="bg-slate-950/60 border border-slate-850 rounded-xl p-3 flex flex-col justify-between gap-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-semibold text-slate-300">{doc.name}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase ${
+                              status === 'belum' 
+                                ? 'bg-slate-800 text-slate-500 border border-slate-700/50'
+                                : status === 'dikirim'
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            }`}>
+                              {status === 'belum' && 'Belum Dikirim'}
+                              {status === 'dikirim' && 'Menunggu Reviu'}
+                              {status === 'direviu' && 'Sudah Direviu'}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-end gap-1.5 pt-1.5 border-t border-slate-900/60">
+                            {isMySchool && status === 'belum' && (
+                              <button
+                                onClick={() => handleDocumentAction(doc.id, 'dikirim')}
+                                className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 rounded-lg border border-indigo-500/20 transition-all cursor-pointer"
+                              >
+                                Kirim Laporan
+                              </button>
+                            )}
+
+                            {isReviuAuthorized && status === 'dikirim' && (
+                              <button
+                                onClick={() => handleDocumentAction(doc.id, 'direviu')}
+                                className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 rounded-lg border border-emerald-500/20 transition-all cursor-pointer"
+                              >
+                                Setujui Reviu
+                              </button>
+                            )}
+                            
+                            {status === 'direviu' && (
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1 font-medium select-none">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Selesai direviu
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Papan Tugas (Kanban-like Columns) */}
+          {activeTab === 'tasks' && (
+            <div className="space-y-6">
+              
+              {/* Task board header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm">Tugas Pemantauan Konstruksi</h3>
+                  <p className="text-[11px] text-slate-500">Mencatat, memantau pengerjaan fisik di sekolah ini secara detail.</p>
+                </div>
+                {isAuthorizedToEdit && (
+                  <button
+                    onClick={() => setIsAddingTask(true)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah Pekerjaan
+                  </button>
+                )}
+              </div>
+
+              {/* Task Form */}
+              {isAddingTask && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 max-w-md">
+                  <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider mb-3">Pekerjaan Lapangan Baru</h4>
+                  <form onSubmit={handleAddTaskSubmit} className="space-y-3">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Nama Pekerjaan (Contoh: Pemasangan Kusen Pintu)"
+                        value={taskForm.title}
+                        onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <textarea
+                        placeholder="Keterangan singkat"
+                        value={taskForm.description}
+                        onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-slate-100 focus:outline-none h-16 resize-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <select
+                          value={taskForm.priority}
+                          onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200"
+                        >
+                          <option value="low">Prioritas Rendah</option>
+                          <option value="medium">Prioritas Sedang</option>
+                          <option value="high">Prioritas Tinggi</option>
+                        </select>
+                      </div>
+                      <div>
+                        <input
+                          type="date"
+                          value={taskForm.dueDate}
+                          onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1 text-xs text-slate-200"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingTask(false)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-850"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+                      >
+                        Tambah Tugas
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Kanban Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 select-none">
+                {[
+                  { id: 'todo', name: 'Belum Mulai (To Do)', color: 'border-slate-800 bg-slate-900/10' },
+                  { id: 'inprogress', name: 'Sedang Pengerjaan', color: 'border-amber-500/10 bg-amber-500/[0.01]' },
+                  { id: 'done', name: 'Selesai (Done)', color: 'border-emerald-500/10 bg-emerald-500/[0.01]' }
+                ].map((col) => {
+                  const colTasks = schoolTasks.filter((t) => t.status === col.id);
+
+                  return (
+                    <div key={col.id} className={`border rounded-2xl p-4 flex flex-col gap-3 min-h-[300px] ${col.color}`}>
+                      <div className="flex items-center justify-between font-bold text-xs uppercase tracking-wider text-slate-400 pb-2 border-b border-slate-800/60">
+                        <span>{col.name}</span>
+                        <span className="bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full text-[10px] text-indigo-400">{colTasks.length}</span>
+                      </div>
+
+                      <div className="flex-1 space-y-3 overflow-y-auto max-h-[450px] pr-1 no-scrollbar">
+                        {colTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 hover:border-slate-700 transition-all space-y-2 relative group"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <h5 className="font-semibold text-slate-200 text-xs leading-snug line-clamp-2">{task.title}</h5>
+                              <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                task.priority === 'high'
+                                  ? 'bg-rose-500/10 text-rose-400'
+                                  : task.priority === 'medium'
+                                  ? 'bg-amber-500/10 text-amber-400'
+                                  : 'bg-slate-800 text-slate-400'
+                              }`}>
+                                {task.priority}
+                              </span>
+                            </div>
+
+                            {task.description && (
+                              <p className="text-[10px] text-slate-500 leading-normal line-clamp-3">{task.description}</p>
+                            )}
+
+                            <div className="flex justify-between items-center pt-2 border-t border-slate-900/60 text-[9px] text-slate-500 font-semibold">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-600" /> {task.dueDate}
+                              </span>
+                              
+                              <div className="flex gap-1">
+                                {isAuthorizedToEdit && (
+                                  <>
+                                    {task.status === 'todo' && (
+                                      <button
+                                        onClick={() => onUpdateTaskStatus(task.id, 'inprogress')}
+                                        className="p-1 rounded bg-slate-950 hover:bg-slate-850 text-indigo-400"
+                                        title="Kerjakan tugas"
+                                      >
+                                        <Play className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
+                                    {task.status === 'inprogress' && (
+                                      <button
+                                        onClick={() => onUpdateTaskStatus(task.id, 'done')}
+                                        className="p-1 rounded bg-slate-950 hover:bg-slate-850 text-emerald-400"
+                                        title="Selesaikan tugas"
+                                      >
+                                        <CheckCircle className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm('Hapus tugas ini?')) {
+                                          onDeleteTask(task.id);
+                                        }
+                                      }}
+                                      className="p-1 rounded bg-slate-950 hover:bg-rose-950/40 text-slate-600 hover:text-rose-400"
+                                      title="Hapus tugas"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {colTasks.length === 0 && (
+                          <div className="text-center py-8 text-[10px] text-slate-600 italic border border-dashed border-slate-850 rounded-xl">
+                            Kosong
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          )}
+        </div>
+
+    </div>
+  );
+}
+
               <div className="space-y-6">
                 
                 {/* Manual Progress Slider (Only if NO tasks are assigned) */}

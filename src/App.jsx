@@ -14,6 +14,7 @@ import DailyLogs from './components/DailyLogs';
 import MonthlyPdfReports from './components/MonthlyPdfReports';
 import DutyReports from './components/DutyReports';
 import FinancialDashboard from './components/FinancialDashboard';
+import FacilitatorManagement from './components/FacilitatorManagement';
 
 export default function App() {
   // 1. Core State
@@ -35,9 +36,11 @@ export default function App() {
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedSchoolNpsn, setSelectedSchoolNpsn] = useState(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSelectingUser, setIsSelectingUser] = useState(false);
   const [settings, setSettings] = useState({
-    projectStartDate: '2027-06-12',
-    projectEndDate: '2027-12-12',
+    projectStartDate: '2026-06-12',
+    projectEndDate: '2026-12-12',
+    simulatedToday: '2026-09-14',
   });
 
   // 2. Load Initial Data from LocalStorage or seed defaults
@@ -124,9 +127,18 @@ export default function App() {
 
     // Settings
     const storedSettings = localStorage.getItem('revit_settings');
-    if (storedSettings) setSettings(JSON.parse(storedSettings));
-    else {
-      localStorage.setItem('revit_settings', JSON.stringify(settings));
+    if (storedSettings) {
+      const parsed = JSON.parse(storedSettings);
+      if (parsed.projectStartDate === '2027-06-12') parsed.projectStartDate = '2026-06-12';
+      if (parsed.projectEndDate === '2027-12-12') parsed.projectEndDate = '2026-12-12';
+      if (parsed.simulatedToday === '2027-09-15' || parsed.simulatedToday === '2027-09-14') parsed.simulatedToday = '2026-09-14';
+      setSettings(prev => ({ ...prev, ...parsed }));
+    } else {
+      localStorage.setItem('revit_settings', JSON.stringify({
+        projectStartDate: '2026-06-12',
+        projectEndDate: '2026-12-12',
+        simulatedToday: '2026-09-14',
+      }));
     }
 
     // Active User session if exists
@@ -178,6 +190,10 @@ export default function App() {
     const updated = users.filter((u) => u.id !== userId);
     setUsers(updated);
     localStorage.setItem('revit_users', JSON.stringify(updated));
+    // Reset assigned schools for this user to ensure data consistency
+    const updatedSchools = schools.map((s) => s.fasilitatorId === userId ? { ...s, fasilitatorId: null } : s);
+    setSchools(updatedSchools);
+    localStorage.setItem('revit_schools', JSON.stringify(updatedSchools));
   };
 
   // 6. Edit Profile Modal (Self Profile Edit)
@@ -317,25 +333,22 @@ export default function App() {
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
   };
 
-  // RENDER: Login/User Selection Screen
-  if (!activeUser) {
-    return <UserSelect users={users} onSelectUser={handleSelectUser} />;
-  }
-
   // RENDER: Main Dashboard Layout
   return (
     <div className="flex bg-slate-950 min-h-screen text-slate-100 font-['Outfit',sans-serif]">
       {/* Sidebar Navigation */}
-      <Sidebar
-        activeUser={activeUser}
-        activeView={activeView}
-        onViewChange={handleViewChange}
-        onEditProfile={() => setIsEditingProfile(true)}
-        onLogout={handleLogout}
-      />
+      {activeUser && (
+        <Sidebar
+          activeUser={activeUser}
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          onEditProfile={() => setIsEditingProfile(true)}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* Main View Area */}
-      <main className="flex-1 min-h-screen overflow-y-auto bg-slate-950/20">
+      <main className={`${activeUser ? 'flex-1' : 'w-full'} min-h-screen overflow-y-auto bg-slate-950/20`}>
         <div className="max-w-7xl mx-auto p-4 md:p-8">
           
           {/* Header Bar */}
@@ -352,18 +365,29 @@ export default function App() {
                 {activeView === 'dinas' && 'Jadwal Perjalanan Dinas'}
                 {activeView === 'tanggung-jawab' && 'Pelaporan Tanggung Jawab Saya'}
                 {activeView === 'laporan-bulanan' && 'Laporan Bulanan PDF'}
-                {activeView === 'pantau-tanggung-jawab' && 'Pantau Tugas Tim'}
+                 {activeView === 'pantau-tanggung-jawab' && 'Pantau Tugas Tim'}
                 {activeView === 'pantau-honor' && 'Pantau & Bayar Honorarium'}
                 {activeView === 'keuangan' && 'Rekapitulasi Keuangan Proyek'}
+                {activeView === 'kelola-fasilitator' && 'Kelola Tugas Fasilitator'}
               </h1>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-medium">Sesi Aktif:</span>
-              <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                {activeUser.nama}
+            
+            {activeUser ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-medium">Sesi Aktif:</span>
+                <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  {activeUser.nama}
+                </div>
               </div>
-            </div>
+            ) : (
+              <button
+                onClick={() => setIsSelectingUser(true)}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
+              >
+                Masuk ke Sistem
+              </button>
+            )}
           </div>
 
           {/* Dynamic Component Rendering */}
@@ -372,102 +396,136 @@ export default function App() {
               activeUser={activeUser}
               settings={settings}
               onUpdateSettings={handleUpdateSettings}
-            />
-          )}
-
-          {activeView === 'kelola-tim' && (
-            <TeamManagement
-              users={users}
-              activeUser={activeUser}
-              onAddUser={handleAddUser}
-              onUpdateUser={handleUpdateUser}
-              onDeleteUser={handleDeleteUser}
-            />
-          )}
-
-          {activeView === 'sekolah' && (
-            selectedSchoolNpsn ? (
-              <SchoolDetail
-                school={schools.find((s) => s.npsn === selectedSchoolNpsn)}
-                users={users}
-                contacts={contacts}
-                tasks={tasks}
-                activeUser={activeUser}
-                onBack={() => setSelectedSchoolNpsn(null)}
-                onUpdateSchool={handleUpdateSchool}
-                onAddTask={handleAddTask}
-                onUpdateTaskStatus={handleUpdateTaskStatus}
-                onDeleteTask={handleDeleteTask}
-                onAddContact={handleAddContact}
-              />
-            ) : (
-              <SchoolList
-                schools={schools}
-                users={users}
-                activeUser={activeUser}
-                onClaimSchool={handleClaimSchool}
-                onAddSchool={handleAddSchool}
-                onSelectSchool={setSelectedSchoolNpsn}
-              />
-            )
-          )}
-
-          {activeView === 'kontak' && (
-            <ContactManagement
-              contacts={contacts}
-              onAddContact={handleAddContact}
-              onUpdateContact={handleUpdateContact}
-              onDeleteContact={handleDeleteContact}
-            />
-          )}
-
-          {activeView === 'dinas' && (
-            <TravelSchedule
               schools={schools}
-              users={users}
-              activeUser={activeUser}
-              settings={settings}
-              trips={trips}
-              onAddTrip={handleAddTrip}
-            />
-          )}
-
-          {activeView === 'laporan-bulanan' && (
-            <MonthlyPdfReports
+              tasks={tasks}
               reports={reports}
+              logs={logs}
               users={users}
-              activeUser={activeUser}
-              onAddReport={handleAddReport}
             />
           )}
 
-          {(activeView === 'tanggung-jawab' || activeView === 'pantau-tanggung-jawab') && (
-            <DutyReports
-              users={users}
-              activeUser={activeUser}
-              dutyReports={dutyReports}
-              onSaveReport={handleSaveDutyReport}
-            />
-          )}
+          {activeUser && (
+            <>
+              {activeView === 'kelola-tim' && (
+                <TeamManagement
+                  users={users}
+                  activeUser={activeUser}
+                  onAddUser={handleAddUser}
+                  onUpdateUser={handleUpdateUser}
+                  onDeleteUser={handleDeleteUser}
+                />
+              )}
 
-          {(activeView === 'pantau-honor' || activeView === 'keuangan') && (
-            <FinancialDashboard
-              users={users}
-              schools={schools}
-              reports={reports}
-              trips={trips}
-              expenses={expenses}
-              payments={payments}
-              activeUser={activeUser}
-              onAddExpense={handleAddExpense}
-              onDeleteExpense={handleDeleteExpense}
-              onAddPayment={handleAddPayment}
-              onPayTrip={handlePayTrip}
-            />
+              {activeView === 'kelola-fasilitator' && (
+                <FacilitatorManagement
+                  users={users}
+                  schools={schools}
+                  onClaimSchool={handleClaimSchool}
+                />
+              )}
+
+              {activeView === 'sekolah' && (
+                selectedSchoolNpsn ? (
+                  <SchoolDetail
+                    school={schools.find((s) => s.npsn === selectedSchoolNpsn)}
+                    users={users}
+                    contacts={contacts}
+                    tasks={tasks}
+                    activeUser={activeUser}
+                    onBack={() => setSelectedSchoolNpsn(null)}
+                    onUpdateSchool={handleUpdateSchool}
+                    onAddTask={handleAddTask}
+                    onUpdateTaskStatus={handleUpdateTaskStatus}
+                    onDeleteTask={handleDeleteTask}
+                    onAddContact={handleAddContact}
+                  />
+                ) : (
+                  <SchoolList
+                    schools={schools}
+                    users={users}
+                    activeUser={activeUser}
+                    onClaimSchool={handleClaimSchool}
+                    onAddSchool={handleAddSchool}
+                    onSelectSchool={setSelectedSchoolNpsn}
+                  />
+                )
+              )}
+
+              {activeView === 'kontak' && (
+                <ContactManagement
+                  contacts={contacts}
+                  onAddContact={handleAddContact}
+                  onUpdateContact={handleUpdateContact}
+                  onDeleteContact={handleDeleteContact}
+                />
+              )}
+
+              {activeView === 'dinas' && (
+                <TravelSchedule
+                  schools={schools}
+                  users={users}
+                  activeUser={activeUser}
+                  settings={settings}
+                  onUpdateSettings={handleUpdateSettings}
+                  trips={trips}
+                  onAddTrip={handleAddTrip}
+                />
+              )}
+
+              {activeView === 'laporan-bulanan' && (
+                <MonthlyPdfReports
+                  reports={reports}
+                  users={users}
+                  activeUser={activeUser}
+                  onAddReport={handleAddReport}
+                />
+              )}
+
+              {(activeView === 'tanggung-jawab' || activeView === 'pantau-tanggung-jawab') && (
+                <DutyReports
+                  users={users}
+                  activeUser={activeUser}
+                  dutyReports={dutyReports}
+                  onSaveReport={handleSaveDutyReport}
+                />
+              )}
+
+              {(activeView === 'pantau-honor' || activeView === 'keuangan') && (
+                <FinancialDashboard
+                  users={users}
+                  schools={schools}
+                  reports={reports}
+                  trips={trips}
+                  expenses={expenses}
+                  payments={payments}
+                  activeUser={activeUser}
+                  onAddExpense={handleAddExpense}
+                  onDeleteExpense={handleDeleteExpense}
+                  onAddPayment={handleAddPayment}
+                  onPayTrip={handlePayTrip}
+                />
+              )}
+            </>
           )}
 
         </div>
       </main>
+
+      {/* User Selection Modal (Popup) */}
+      {isSelectingUser && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl relative">
+            <UserSelect 
+              users={users} 
+              onSelectUser={(user) => {
+                handleSelectUser(user);
+                setIsSelectingUser(false);
+              }} 
+              onClose={() => setIsSelectingUser(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Edit Profile Modal */}
       {isEditingProfile && (
