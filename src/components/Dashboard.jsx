@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Calendar, 
   Info, 
@@ -12,7 +13,10 @@ import {
   MapPin, 
   AlertCircle, 
   CheckSquare, 
-  Play
+  Play,
+  Users,
+  Plane,
+  X
 } from 'lucide-react';
 
 export default function Dashboard({ 
@@ -33,6 +37,10 @@ export default function Dashboard({
     projectEndDate: settings.projectEndDate || '2026-12-12',
     simulatedToday: settings.simulatedToday || '2026-09-14',
   });
+
+  const [selectedFacilitator, setSelectedFacilitator] = useState(null);
+  const [facModalId, setFacModalId] = useState(null);
+  const [facModalTab, setFacModalTab] = useState('reports');
 
   // Sync state if settings change (e.g. from TravelSchedule or another tab)
   useEffect(() => {
@@ -201,7 +209,7 @@ export default function Dashboard({
             statusPegawai: fac.statusPegawai,
             schoolCount,
             avgProgress: avgFacProgress,
-            schools: facSchools.map(s => ({ nama: s.nama_sekolah, progres: s.progres_fisik }))
+            schools: facSchools.map(s => ({ nama: s.nama_sekolah, progres: s.progres_fisik, kabupaten: s.kabupaten }))
           };
         })
         .sort((a, b) => b.avgProgress - a.avgProgress);
@@ -438,34 +446,76 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Regional Progress by Kabupaten */}
+          {/* Average Progress per Fasilitator */}
           <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
             <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-emerald-400" /> Rata-Rata Progres Fisik per Kabupaten
+              <Users className="w-4 h-4 text-emerald-400" /> Rata-Rata Progres Fisik per Fasilitator
             </h3>
 
-            {kabStats.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-6">Data kabupaten belum tersedia.</p>
+            {facilitatorStats.length === 0 ? (
+              <p className="text-xs text-slate-500 italic text-center py-6">Belum ada data fasilitator.</p>
             ) : (
-              <div className="space-y-4">
-                {kabStats.map(stat => (
-                  <div key={stat.name} className="space-y-1.5 bg-slate-950/20 border border-slate-850/40 rounded-2xl p-3.5">
-                    <div className="flex justify-between items-center text-xs font-semibold text-slate-300">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                        <span className="text-sm font-bold text-slate-200">{stat.name}</span>
-                        <span className="text-[10px] text-slate-500 font-normal">({stat.count} Sekolah)</span>
+              <div className="space-y-3">
+                {facilitatorStats.map(fac => {
+                  const isSelected = selectedFacilitator === fac.id;
+                  return (
+                    <div
+                      key={fac.id}
+                      className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+                        isSelected
+                          ? 'bg-indigo-950/40 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-950/20 hover:bg-slate-950/40'
+                      }`}
+                    >
+                      <button
+                        onClick={() => setSelectedFacilitator(isSelected ? null : fac.id)}
+                        className="w-full text-left p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-transparent border-0 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-500/20 border border-indigo-400/40 text-indigo-300'
+                              : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
+                          }`}>
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className={`text-sm font-bold block truncate transition-colors ${isSelected ? 'text-indigo-200' : 'text-slate-200'}`}>{fac.name}</span>
+                            <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Binaan</span>
+                          </div>
+                        </div>
+                        <span className={`font-bold text-sm shrink-0 ${isSelected ? 'text-indigo-300' : 'text-emerald-400'}`}>{fac.avgProgress}%</span>
+                      </button>
+                      <div className="px-3.5 pb-2">
+                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-indigo-400 to-purple-400'
+                                : 'bg-gradient-to-r from-indigo-500 to-emerald-400'
+                            }`}
+                            style={{ width: `${fac.avgProgress}%` }}
+                          />
+                        </div>
                       </div>
-                      <span className="text-emerald-400 font-bold text-sm">{stat.avgProgress}%</span>
+                      {/* Detail Button */}
+                      <div className="px-3.5 pb-3 flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('reports'); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-purple-500/20 bg-purple-500/5 text-purple-400 hover:bg-purple-500/15 hover:text-purple-300 transition-all"
+                        >
+                          <FileText className="w-3 h-3" /> Dokumen Laporan
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('trips'); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500/15 hover:text-sky-300 transition-all"
+                        >
+                          <Plane className="w-3 h-3" /> Perjalanan Dinas
+                        </button>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${stat.avgProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -708,59 +758,271 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* Ranked School Progress */}
-          <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-            <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center justify-between border-b border-slate-850 pb-2.5">
-              <span className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" /> Progres Fisik Sekolah
-              </span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                Urut Terbesar
-              </span>
-            </h3>
+          {/* Ranked School Progress — filtered by selectedFacilitator */}
+          {(() => {
+            const selectedFacName = selectedFacilitator
+              ? users.find(u => u.id === selectedFacilitator)?.nama || 'Fasilitator'
+              : null;
+            const filteredSchools = selectedFacilitator
+              ? sortedSchoolsByProgress.filter(s => s.fasilitatorId === selectedFacilitator)
+              : sortedSchoolsByProgress;
 
-            {sortedSchoolsByProgress.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-6">Belum ada sekolah terdaftar.</p>
-            ) : (
-              <div className="max-h-[500px] overflow-y-auto pr-1 space-y-3">
-                {sortedSchoolsByProgress.map((school) => (
-                  <div key={school.npsn} className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-3.5 space-y-2 hover:border-slate-800 transition-colors">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="min-w-0">
-                        <span className="font-bold text-slate-200 text-xs block truncate" title={school.nama_sekolah}>
-                          {school.nama_sekolah}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-semibold block">
-                          Kab. {school.kabupaten}
-                        </span>
-                      </div>
-                      <span className="text-xs font-bold text-emerald-400 shrink-0">
-                        {school.progres_fisik || 0}%
-                      </span>
-                    </div>
+            return (
+              <div className={`bg-slate-900/30 backdrop-blur-md border rounded-3xl p-6 shadow-md transition-all duration-300 ${
+                selectedFacilitator ? 'border-indigo-500/30 ring-1 ring-indigo-500/10' : 'border-slate-800'
+              }`}>
+                <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center justify-between border-b border-slate-850 pb-2.5">
+                  <span className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" /> Progres Fisik Sekolah
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                    Urut Terbesar
+                  </span>
+                </h3>
 
-                    {/* Progress Bar */}
-                    <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${school.progres_fisik || 0}%` }}
-                      />
-                    </div>
-
-                    <div className="flex justify-between items-center text-[10px] text-slate-400 pt-0.5">
-                      <span className="truncate">
-                        Fasilitator: <strong className="text-slate-300 font-medium">{getFasilitatorName(school.fasilitatorId)}</strong>
-                      </span>
-                    </div>
+                {/* Active filter indicator */}
+                {selectedFacilitator && (
+                  <div className="flex items-center justify-between bg-indigo-950/40 border border-indigo-500/20 rounded-xl px-3 py-2 mb-3 animate-fade-in">
+                    <span className="text-[11px] text-indigo-300 font-semibold">
+                      <UserCheck className="w-3 h-3 inline mr-1.5 -mt-0.5" />
+                      Sekolah binaan <strong>{selectedFacName}</strong>
+                    </span>
+                    <button
+                      onClick={() => setSelectedFacilitator(null)}
+                      className="text-[10px] text-indigo-400 hover:text-white font-bold bg-indigo-500/10 hover:bg-indigo-500/30 border border-indigo-500/20 px-2 py-0.5 rounded-lg cursor-pointer transition-colors"
+                    >
+                      ✕ Reset
+                    </button>
                   </div>
-                ))}
+                )}
+
+                {filteredSchools.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic text-center py-6">
+                    {selectedFacilitator ? 'Fasilitator ini belum memiliki sekolah binaan.' : 'Belum ada sekolah terdaftar.'}
+                  </p>
+                ) : (
+                  <div className="max-h-[500px] overflow-y-auto pr-1 space-y-3">
+                    {filteredSchools.map((school) => (
+                      <div key={school.npsn} className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-3.5 space-y-2 hover:border-slate-800 transition-colors">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-200 text-xs block truncate" title={school.nama_sekolah}>
+                              {school.nama_sekolah}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-semibold block">
+                              Kab. {school.kabupaten}
+                            </span>
+                          </div>
+                          <span className="text-xs font-bold text-emerald-400 shrink-0">
+                            {school.progres_fisik || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${school.progres_fisik || 0}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-slate-400 pt-0.5">
+                          <span className="truncate">
+                            Fasilitator: <strong className="text-slate-300 font-medium">{getFasilitatorName(school.fasilitatorId)}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
         </div>
 
       </div>
+
+      {/* ===== FACILITATOR DETAIL MODAL ===== */}
+      {facModalId && (() => {
+        const modalFac = users.find(u => u.id === facModalId);
+        const modalFacName = modalFac?.nama || 'Fasilitator';
+        const modalFacSchools = schools.filter(s => s.fasilitatorId === facModalId);
+        const modalFacNpsns = modalFacSchools.map(s => s.npsn);
+        const modalReports = reports.filter(r => modalFacNpsns.includes(r.schoolId) || r.uploadedBy === facModalId);
+        const modalTrips = trips.filter(t => t.userId === facModalId);
+
+        const getSchoolName = (npsn) => {
+          const s = schools.find(sc => sc.npsn === npsn);
+          return s ? s.nama_sekolah : `NPSN ${npsn}`;
+        };
+
+        return createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setFacModalId(null)}>
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+            {/* Modal */}
+            <div
+              className="relative bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-slate-800/80 shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
+                      <UserCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-extrabold text-white">{modalFacName}</h2>
+                      <span className="text-[10px] text-slate-500 font-semibold">
+                        {modalFac?.jabatanTim} • {modalFacSchools.length} Sekolah Binaan
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setFacModalId(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 cursor-pointer transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Modal Tab Navigation */}
+                <div className="flex gap-2">
+                  {[
+                    { key: 'reports', label: 'Dokumen Laporan', icon: FileText, count: modalReports.length, accent: 'purple' },
+                    { key: 'trips', label: 'Perjalanan Dinas', icon: Plane, count: modalTrips.length, accent: 'sky' },
+                  ].map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setFacModalTab(tab.key)}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer border transition-all ${
+                        facModalTab === tab.key
+                          ? tab.accent === 'purple'
+                            ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+                            : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                          : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-300'
+                      }`}
+                    >
+                      <tab.icon className="w-3.5 h-3.5" />
+                      {tab.label}
+                      <span className={`text-[9px] ml-1 px-1.5 py-0.5 rounded-md font-bold ${
+                        facModalTab === tab.key
+                          ? tab.accent === 'purple' ? 'bg-purple-500/20 text-purple-300' : 'bg-sky-500/20 text-sky-300'
+                          : 'bg-slate-800 text-slate-500'
+                      }`}>{tab.count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                {/* Reports Tab */}
+                {facModalTab === 'reports' && (
+                  <>
+                    {modalReports.length === 0 ? (
+                      <div className="text-center py-12">
+                        <FileText className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                        <p className="text-xs text-slate-500 italic">Belum ada laporan dari fasilitator ini.</p>
+                      </div>
+                    ) : (
+                      modalReports.map((report) => {
+                        const statusConfig = {
+                          approved: { label: 'Disetujui', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                          rejected: { label: 'Ditolak', color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
+                          pending: { label: 'Menunggu Review', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                        };
+                        const st = statusConfig[report.status] || statusConfig.pending;
+                        return (
+                          <div key={report.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 hover:border-slate-700 transition-colors">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <FileText className="w-4 h-4 text-purple-400 shrink-0" />
+                                  <span className="font-bold text-slate-200 text-sm truncate">{report.fileName}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-medium">
+                                  {getSchoolName(report.schoolId)} — <span className="text-slate-500">Bulan {report.month}</span>
+                                </p>
+                              </div>
+                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border shrink-0 ${st.color}`}>
+                                {st.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-2.5 pt-2 border-t border-slate-850/40 text-[10px] text-slate-500">
+                              <span>Ukuran: {report.fileSize ? `${(report.fileSize / 1024).toFixed(0)} KB` : '-'}</span>
+                              {report.note && (
+                                <span className="text-slate-400 italic truncate">Catatan: "{report.note}"</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </>
+                )}
+
+                {/* Trips Tab */}
+                {facModalTab === 'trips' && (
+                  <>
+                    {modalTrips.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Plane className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                        <p className="text-xs text-slate-500 italic">Belum ada perjalanan dinas dari fasilitator ini.</p>
+                      </div>
+                    ) : (
+                      modalTrips.map((trip) => {
+                        const tripSchool = schools.find(s => s.npsn === trip.sekolahId);
+                        const statusConfig = {
+                          planned: { label: 'Direncanakan', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                          completed: { label: 'Selesai', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                          paid: { label: 'Dibayar', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                        };
+                        const approvalConfig = {
+                          pending: { label: 'Menunggu Persetujuan', color: 'text-amber-400', bg: 'bg-amber-500/5 border-amber-500/15' },
+                          approved: { label: 'Disetujui', color: 'text-emerald-400', bg: 'bg-emerald-500/5 border-emerald-500/15' },
+                          rejected: { label: 'Ditolak', color: 'text-rose-400', bg: 'bg-rose-500/5 border-rose-500/15' },
+                        };
+                        const st = statusConfig[trip.status] || statusConfig.planned;
+                        const ap = trip.statusPersetujuan ? (approvalConfig[trip.statusPersetujuan] || null) : null;
+                        return (
+                          <div key={trip.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 hover:border-slate-700 transition-colors">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Plane className="w-4 h-4 text-sky-400 shrink-0" />
+                                  <span className="font-bold text-slate-200 text-sm truncate">
+                                    {tripSchool ? tripSchool.nama_sekolah : `NPSN ${trip.sekolahId}`}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-medium">
+                                  Kunjungan ke-{trip.kunjunganKe || '?'} • Durasi {trip.durasiHari || '?'} Hari
+                                </p>
+                              </div>
+                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border shrink-0 ${st.color}`}>
+                                {st.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-2.5 pt-2 border-t border-slate-850/40 text-[10px] text-slate-500 font-mono">
+                              <span>📅 {trip.tanggalMulai} s/d {trip.tanggalSelesai}</span>
+                            </div>
+                            {ap && (
+                              <div className={`mt-2 text-[10px] font-semibold px-2.5 py-1 rounded-lg border ${ap.color} ${ap.bg}`}>
+                                {ap.label}{trip.approvedBy ? ` oleh ${trip.approvedBy}` : ''}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
     </div>
   );
