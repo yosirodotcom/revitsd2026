@@ -25,7 +25,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['*'] },
-    { id: 'sekolah', name: activeUser.jabatanTim === 'Fasilitator' ? 'Sekolah Saya' : 'Semua Sekolah', icon: School, roles: ['*'] },
+    { id: 'sekolah', name: 'Daftar Sekolah', icon: School, roles: ['*'] },
     { id: 'tanggung-jawab', name: 'Tanggung Jawab Saya', icon: FileCheck, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator', 'Tenaga Administrasi'] },
     { id: 'laporan-bulanan', name: 'Laporan Bulanan', icon: FileText, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator'] },
     { id: 'dinas', name: 'Jadwal Perjalanan Dinas', icon: CalendarClock, roles: ['Fasilitator', 'Koordinator', 'Super Admin'] },

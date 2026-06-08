@@ -249,7 +249,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
         <div>
           <h2 className="text-xl md:text-2xl font-semibold text-slate-100 flex items-center gap-2">
             <School className="w-6 h-6 text-indigo-400" /> 
-            {activeUser.jabatanTim === 'Fasilitator' ? 'Sekolah Pendampingan Saya' : 'Daftar Semua Sekolah'}
+            Daftar Sekolah
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             {activeUser.jabatanTim === 'Fasilitator' 

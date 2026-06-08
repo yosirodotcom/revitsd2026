@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, RefreshCw, LogIn } from 'lucide-react';
 import { initialUsers } from './data/initialData';
 import { initialSchools } from './data/initialSchools';
 import UserSelect from './components/UserSelect';
@@ -16,6 +16,9 @@ import MonthlyPdfReports from './components/MonthlyPdfReports';
 import DutyReports from './components/DutyReports';
 import FinancialDashboard from './components/FinancialDashboard';
 import FacilitatorManagement from './components/FacilitatorManagement';
+import { syncService } from './services/api';
+
+const isValidId = (val) => val !== undefined && val !== null && String(val).trim() !== '';
 
 export default function App() {
   // 1. Core State
@@ -41,11 +44,38 @@ export default function App() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSelectingUser, setIsSelectingUser] = useState(false);
   const [dialog, setDialog] = useState(null);
+  
+  // Sync state
+  const [syncStatus, setSyncStatus] = useState('offline'); // 'offline' | 'connecting' | 'success' | 'error'
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+
   const [settings, setSettings] = useState({
     projectStartDate: '2026-06-12',
     projectEndDate: '2026-12-12',
     simulatedToday: '2026-09-14',
+    googleAppsScriptUrl: '',
+    googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN'
   });
+
+  const latestStateRef = React.useRef();
+
+  // Track latest state to avoid closure staleness in timers
+  useEffect(() => {
+    latestStateRef.current = {
+      users,
+      schools,
+      contacts,
+      tasks,
+      trips,
+      logs,
+      reports,
+      dutyReports,
+      expenses,
+      payments,
+      schoolDocs,
+      settings
+    };
+  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, settings]);
 
   // 2. Load Initial Data from LocalStorage or seed defaults
   useEffect(() => {
@@ -53,32 +83,38 @@ export default function App() {
     const storedUsers = localStorage.getItem('revit_users');
     if (storedUsers) {
       const parsedUsers = JSON.parse(storedUsers);
-      let migrated = false;
-      const updatedUsers = parsedUsers.map(u => {
-        let updated = { ...u };
-        if (updated.id === 'yosi-ronadi' && updated.password === undefined) {
-          updated.password = '4051';
-          migrated = true;
-        }
-        if (updated.id === 'etty-rabihati' && updated.password === undefined) {
-          updated.password = 'sipil';
-          migrated = true;
-        }
-        if (updated.id === 'chandra-bayu' && updated.password === undefined) {
-          updated.password = 'arsitektur';
-          migrated = true;
-        }
-        if (updated.password === undefined) {
-          updated.password = '';
-          migrated = true;
-        }
-        return updated;
-      });
-      if (migrated) {
-        localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
-        setUsers(updatedUsers);
+      const cleanUsers = parsedUsers.filter(u => u && isValidId(u.id));
+      if (cleanUsers.length === 0) {
+        setUsers(initialUsers);
+        localStorage.setItem('revit_users', JSON.stringify(initialUsers));
       } else {
-        setUsers(parsedUsers);
+        let migrated = false;
+        const updatedUsers = cleanUsers.map(u => {
+          let updated = { ...u };
+          if (updated.id === 'yosi-ronadi' && updated.password === undefined) {
+            updated.password = '4051';
+            migrated = true;
+          }
+          if (updated.id === 'etty-rabihati' && updated.password === undefined) {
+            updated.password = 'sipil';
+            migrated = true;
+          }
+          if (updated.id === 'chandra-bayu' && updated.password === undefined) {
+            updated.password = 'arsitektur';
+            migrated = true;
+          }
+          if (updated.password === undefined) {
+            updated.password = '';
+            migrated = true;
+          }
+          return updated;
+        });
+        if (migrated) {
+          localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
+          setUsers(updatedUsers);
+        } else {
+          setUsers(cleanUsers);
+        }
       }
     } else {
       setUsers(initialUsers);
@@ -89,27 +125,33 @@ export default function App() {
     const storedSchools = localStorage.getItem('revit_schools');
     if (storedSchools) {
       const parsed = JSON.parse(storedSchools);
-      let isUpdated = false;
-      const migrated = parsed.map((s) => {
-        const init = initialSchools.find((x) => x.npsn === s.npsn);
-        let updated = { ...s };
-        if (init) {
-          if (init.koordinat && !s.koordinat) {
-            updated.koordinat = init.koordinat;
-            isUpdated = true;
-          }
-          if (init.fasilitatorId !== s.fasilitatorId) {
-            updated.fasilitatorId = init.fasilitatorId;
-            isUpdated = true;
-          }
-        }
-        return updated;
-      });
-      if (isUpdated) {
-        localStorage.setItem('revit_schools', JSON.stringify(migrated));
-        setSchools(migrated);
+      const cleanSchools = parsed.filter(s => s && isValidId(s.npsn));
+      if (cleanSchools.length === 0) {
+        setSchools(initialSchools);
+        localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
       } else {
-        setSchools(parsed);
+        let isUpdated = false;
+        const migrated = cleanSchools.map((s) => {
+          const init = initialSchools.find((x) => x.npsn === s.npsn);
+          let updated = { ...s };
+          if (init) {
+            if (init.koordinat && !s.koordinat) {
+              updated.koordinat = init.koordinat;
+              isUpdated = true;
+            }
+            if (init.fasilitatorId !== s.fasilitatorId) {
+              updated.fasilitatorId = init.fasilitatorId;
+              isUpdated = true;
+            }
+          }
+          return updated;
+        });
+        if (isUpdated) {
+          localStorage.setItem('revit_schools', JSON.stringify(migrated));
+          setSchools(migrated);
+        } else {
+          setSchools(cleanSchools);
+        }
       }
     } else {
       setSchools(initialSchools);
@@ -195,14 +237,106 @@ export default function App() {
       if (parsed.projectStartDate === '2027-06-12') parsed.projectStartDate = '2026-06-12';
       if (parsed.projectEndDate === '2027-12-12') parsed.projectEndDate = '2026-12-12';
       if (parsed.simulatedToday === '2027-09-15' || parsed.simulatedToday === '2027-09-14') parsed.simulatedToday = '2026-09-14';
-      setSettings(prev => ({ ...prev, ...parsed }));
+      setSettings(prev => ({ 
+        projectStartDate: '2026-06-12',
+        projectEndDate: '2026-12-12',
+        simulatedToday: '2026-09-14',
+        googleAppsScriptUrl: '',
+        googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+        ...parsed 
+      }));
     } else {
       localStorage.setItem('revit_settings', JSON.stringify({
         projectStartDate: '2026-06-12',
         projectEndDate: '2026-12-12',
         simulatedToday: '2026-09-14',
+        googleAppsScriptUrl: '',
+        googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN'
       }));
     }
+
+    // Initial fetch from Google Sheets if configured
+    const checkAndFetchInitialData = async () => {
+      if (syncService.isConfigured()) {
+        setSyncStatus('connecting');
+        try {
+          const remoteData = await syncService.fetchData();
+          
+          if (remoteData.users) {
+            const clean = remoteData.users.filter(u => u && isValidId(u.id));
+            if (clean.length > 0) {
+              setUsers(clean);
+              localStorage.setItem('revit_users', JSON.stringify(clean));
+            }
+          }
+          if (remoteData.schools) {
+            const clean = remoteData.schools.filter(s => s && isValidId(s.npsn));
+            if (clean.length > 0) {
+              setSchools(clean);
+              localStorage.setItem('revit_schools', JSON.stringify(clean));
+            }
+          }
+          if (remoteData.contacts) {
+            const clean = remoteData.contacts.filter(c => c && isValidId(c.id));
+            setContacts(clean);
+            localStorage.setItem('revit_contacts', JSON.stringify(clean));
+          }
+          if (remoteData.tasks) {
+            const clean = remoteData.tasks.filter(t => t && isValidId(t.id));
+            setTasks(clean);
+            localStorage.setItem('revit_tasks', JSON.stringify(clean));
+          }
+          if (remoteData.trips) {
+            const clean = remoteData.trips.filter(t => t && isValidId(t.id));
+            setTrips(clean);
+            localStorage.setItem('revit_trips', JSON.stringify(clean));
+          }
+          if (remoteData.logs) {
+            const clean = remoteData.logs.filter(l => l && isValidId(l.id));
+            setLogs(clean);
+            localStorage.setItem('revit_logs', JSON.stringify(clean));
+          }
+          if (remoteData.reports) {
+            const clean = remoteData.reports.filter(r => r && isValidId(r.id));
+            setReports(clean);
+            localStorage.setItem('revit_reports', JSON.stringify(clean));
+          }
+          if (remoteData.duty_reports) {
+            const clean = remoteData.duty_reports.filter(dr => dr && isValidId(dr.userId));
+            setDutyReports(clean);
+            localStorage.setItem('revit_duty_reports', JSON.stringify(clean));
+          }
+          if (remoteData.expenses) {
+            const clean = remoteData.expenses.filter(e => e && isValidId(e.id));
+            setExpenses(clean);
+            localStorage.setItem('revit_expenses', JSON.stringify(clean));
+          }
+          if (remoteData.payments) {
+            const clean = remoteData.payments.filter(p => p && isValidId(p.id));
+            setPayments(clean);
+            localStorage.setItem('revit_payments', JSON.stringify(clean));
+          }
+          if (remoteData.school_docs) {
+            const clean = remoteData.school_docs.filter(d => d && isValidId(d.id));
+            setSchoolDocs(clean);
+            localStorage.setItem('revit_school_docs', JSON.stringify(clean));
+          }
+          if (remoteData.settings) {
+            setSettings(prev => ({ ...prev, ...remoteData.settings }));
+            localStorage.setItem('revit_settings', JSON.stringify(remoteData.settings));
+          }
+          setSyncStatus('success');
+          setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+        } catch (err) {
+          console.error("Initial load from Sheets failed, using localStorage fallback:", err);
+          setSyncStatus('error');
+        }
+      } else {
+        setSyncStatus('offline');
+      }
+    };
+
+    checkAndFetchInitialData();
 
     // Active User session if exists
     const storedActiveUser = localStorage.getItem('revit_active_user');
@@ -230,6 +364,18 @@ export default function App() {
     };
   }, []);
 
+  // Periodic background sync every 60 seconds (only if configured)
+  useEffect(() => {
+    if (!syncService.isConfigured()) return;
+
+    const interval = setInterval(() => {
+      // Auto-sync in background silently
+      triggerSync();
+    }, 60000); // 60 detik sekali
+
+    return () => clearInterval(interval);
+  }, [settings.googleAppsScriptUrl]);
+
   const handleViewChange = (viewId) => {
     setActiveView(viewId);
     setSelectedSchoolNpsn(null); // Reset detail page when switching tabs
@@ -248,10 +394,129 @@ export default function App() {
     localStorage.removeItem('revit_active_user');
   };
 
+  // 3b. Synchronization Core Functions
+  const triggerSync = async (currentState = null) => {
+    if (!syncService.isConfigured()) {
+      setSyncStatus('offline');
+      return;
+    }
+
+    setSyncStatus('connecting');
+    try {
+      const stateToPush = currentState || latestStateRef.current || {
+        users,
+        schools,
+        contacts,
+        tasks,
+        trips,
+        logs,
+        reports,
+        dutyReports,
+        expenses,
+        payments,
+        schoolDocs,
+        settings
+      };
+
+      await syncService.pushData(stateToPush);
+      const remoteData = await syncService.fetchData();
+
+      if (remoteData.users) {
+        const clean = remoteData.users.filter(u => u && isValidId(u.id));
+        if (clean.length > 0) {
+          setUsers(clean);
+          localStorage.setItem('revit_users', JSON.stringify(clean));
+        }
+      }
+      if (remoteData.schools) {
+        const clean = remoteData.schools.filter(s => s && isValidId(s.npsn));
+        if (clean.length > 0) {
+          setSchools(clean);
+          localStorage.setItem('revit_schools', JSON.stringify(clean));
+        }
+      }
+      if (remoteData.contacts) {
+        const clean = remoteData.contacts.filter(c => c && isValidId(c.id));
+        setContacts(clean);
+        localStorage.setItem('revit_contacts', JSON.stringify(clean));
+      }
+      if (remoteData.tasks) {
+        const clean = remoteData.tasks.filter(t => t && isValidId(t.id));
+        setTasks(clean);
+        localStorage.setItem('revit_tasks', JSON.stringify(clean));
+      }
+      if (remoteData.trips) {
+        const clean = remoteData.trips.filter(t => t && isValidId(t.id));
+        setTrips(clean);
+        localStorage.setItem('revit_trips', JSON.stringify(clean));
+      }
+      if (remoteData.logs) {
+        const clean = remoteData.logs.filter(l => l && isValidId(l.id));
+        setLogs(clean);
+        localStorage.setItem('revit_logs', JSON.stringify(clean));
+      }
+      if (remoteData.reports) {
+        const clean = remoteData.reports.filter(r => r && isValidId(r.id));
+        setReports(clean);
+        localStorage.setItem('revit_reports', JSON.stringify(clean));
+      }
+      if (remoteData.duty_reports) {
+        const clean = remoteData.duty_reports.filter(dr => dr && isValidId(dr.userId));
+        setDutyReports(clean);
+        localStorage.setItem('revit_duty_reports', JSON.stringify(clean));
+      }
+      if (remoteData.expenses) {
+        const clean = remoteData.expenses.filter(e => e && isValidId(e.id));
+        setExpenses(clean);
+        localStorage.setItem('revit_expenses', JSON.stringify(clean));
+      }
+      if (remoteData.payments) {
+        const clean = remoteData.payments.filter(p => p && isValidId(p.id));
+        setPayments(clean);
+        localStorage.setItem('revit_payments', JSON.stringify(clean));
+      }
+      if (remoteData.school_docs) {
+        const clean = remoteData.school_docs.filter(d => d && isValidId(d.id));
+        setSchoolDocs(clean);
+        localStorage.setItem('revit_school_docs', JSON.stringify(clean));
+      }
+      if (remoteData.settings) {
+        setSettings(prev => ({ ...prev, ...remoteData.settings }));
+        localStorage.setItem('revit_settings', JSON.stringify(remoteData.settings));
+      }
+
+      setSyncStatus('success');
+      setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    } catch (error) {
+      console.error('Sync Error:', error);
+      setSyncStatus('error');
+    }
+  };
+
+  const syncWithNewState = (updatedStateKeys) => {
+    const nextState = {
+      users,
+      schools,
+      contacts,
+      tasks,
+      trips,
+      logs,
+      reports,
+      dutyReports,
+      expenses,
+      payments,
+      schoolDocs,
+      settings,
+      ...updatedStateKeys
+    };
+    triggerSync(nextState);
+  };
+
   // 4. Update Settings (Super Admin)
   const handleUpdateSettings = (newSettings) => {
     setSettings(newSettings);
     localStorage.setItem('revit_settings', JSON.stringify(newSettings));
+    syncWithNewState({ settings: newSettings });
   };
 
   // 5. CRUD Team Members (Super Admin)
@@ -259,26 +524,31 @@ export default function App() {
     const updated = [...users, newUser];
     setUsers(updated);
     localStorage.setItem('revit_users', JSON.stringify(updated));
+    syncWithNewState({ users: updated });
   };
 
   const handleUpdateUser = (updatedUser) => {
     const updated = users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
     setUsers(updated);
     localStorage.setItem('revit_users', JSON.stringify(updated));
+    let nextActiveUser = activeUser;
     if (activeUser && activeUser.id === updatedUser.id) {
+      nextActiveUser = updatedUser;
       setActiveUser(updatedUser);
       localStorage.setItem('revit_active_user', JSON.stringify(updatedUser));
     }
+    syncWithNewState({ users: updated });
   };
 
   const handleDeleteUser = (userId) => {
-    const updated = users.filter((u) => u.id !== userId);
-    setUsers(updated);
-    localStorage.setItem('revit_users', JSON.stringify(updated));
+    const updatedUsers = users.filter((u) => u.id !== userId);
+    setUsers(updatedUsers);
+    localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
     // Reset assigned schools for this user to ensure data consistency
     const updatedSchools = schools.map((s) => s.fasilitatorId === userId ? { ...s, fasilitatorId: null } : s);
     setSchools(updatedSchools);
     localStorage.setItem('revit_schools', JSON.stringify(updatedSchools));
+    syncWithNewState({ users: updatedUsers, schools: updatedSchools });
   };
 
   // 6. Edit Profile Modal (Self Profile Edit)
@@ -306,18 +576,21 @@ export default function App() {
     const updated = [...schools, newSchool];
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
+    syncWithNewState({ schools: updated });
   };
 
   const handleUpdateSchool = (updatedSchool) => {
     const updated = schools.map((s) => (s.npsn === updatedSchool.npsn ? updatedSchool : s));
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
+    syncWithNewState({ schools: updated });
   };
 
   const handleClaimSchool = (npsn, fasilitatorId) => {
     const updated = schools.map((s) => (s.npsn === npsn ? { ...s, fasilitatorId } : s));
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
+    syncWithNewState({ schools: updated });
   };
 
   // 8. Contact Actions (Fase 3)
@@ -325,18 +598,20 @@ export default function App() {
     const updated = [...contacts, newContact];
     setContacts(updated);
     localStorage.setItem('revit_contacts', JSON.stringify(updated));
+    syncWithNewState({ contacts: updated });
   };
 
   const handleUpdateContact = (updatedContact) => {
     const updated = contacts.map((c) => (c.id === updatedContact.id ? updatedContact : c));
     setContacts(updated);
     localStorage.setItem('revit_contacts', JSON.stringify(updated));
+    syncWithNewState({ contacts: updated });
   };
 
   const handleDeleteContact = (contactId) => {
-    const updated = contacts.filter((c) => c.id !== contactId);
-    setContacts(updated);
-    localStorage.setItem('revit_contacts', JSON.stringify(updated));
+    const updatedContacts = contacts.filter((c) => c.id !== contactId);
+    setContacts(updatedContacts);
+    localStorage.setItem('revit_contacts', JSON.stringify(updatedContacts));
     // also remove references
     const updatedSchools = schools.map((s) => {
       let isChanged = false;
@@ -347,6 +622,7 @@ export default function App() {
     });
     setSchools(updatedSchools);
     localStorage.setItem('revit_schools', JSON.stringify(updatedSchools));
+    syncWithNewState({ contacts: updatedContacts, schools: updatedSchools });
   };
 
   // 9. Task Actions (Fase 3)
@@ -354,18 +630,21 @@ export default function App() {
     const updated = [...tasks, newTask];
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
+    syncWithNewState({ tasks: updated });
   };
 
   const handleUpdateTaskStatus = (taskId, status) => {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, status } : t));
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
+    syncWithNewState({ tasks: updated });
   };
 
   const handleDeleteTask = (taskId) => {
     const updated = tasks.filter((t) => t.id !== taskId);
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
+    syncWithNewState({ tasks: updated });
   };
 
   // 10. Trip Actions (Fase 3 & 4)
@@ -373,6 +652,7 @@ export default function App() {
     const updated = Array.isArray(newTrip) ? [...trips, ...newTrip] : [...trips, newTrip];
     setTrips(updated);
     localStorage.setItem('revit_trips', JSON.stringify(updated));
+    syncWithNewState({ trips: updated });
   };
 
   const handlePayTrip = (tripId, newExpense) => {
@@ -383,6 +663,7 @@ export default function App() {
     const updatedExpenses = [...expenses, newExpense];
     setExpenses(updatedExpenses);
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
+    syncWithNewState({ trips: updatedTrips, expenses: updatedExpenses });
   };
 
   const handleApproveTrip = (tripId, adminName) => {
@@ -395,6 +676,7 @@ export default function App() {
     } : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
+    syncWithNewState({ trips: updatedTrips });
   };
 
   const handleRejectTrip = (tripId) => {
@@ -405,6 +687,7 @@ export default function App() {
     } : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
+    syncWithNewState({ trips: updatedTrips });
   };
 
   // 11. Daily Logs Actions (Fase 4)
@@ -412,6 +695,7 @@ export default function App() {
     const updated = [...logs, newLog];
     setLogs(updated);
     localStorage.setItem('revit_logs', JSON.stringify(updated));
+    syncWithNewState({ logs: updated });
   };
 
   // 12. Monthly Reports PDF Actions (Fase 4)
@@ -421,12 +705,14 @@ export default function App() {
     updated.push(newReport);
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
+    syncWithNewState({ reports: updated });
   };
 
   const handleDeleteReport = (reportId) => {
     const updated = reports.filter(r => r.id !== reportId);
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
+    syncWithNewState({ reports: updated });
   };
 
   // 13. Duty Reports Actions (Fase 4)
@@ -435,6 +721,7 @@ export default function App() {
     updated.push(newReport);
     setDutyReports(updated);
     localStorage.setItem('revit_duty_reports', JSON.stringify(updated));
+    syncWithNewState({ dutyReports: updated });
   };
 
   // 14. Expense Actions (Fase 4)
@@ -442,12 +729,14 @@ export default function App() {
     const updated = [...expenses, newExpense];
     setExpenses(updated);
     localStorage.setItem('revit_expenses', JSON.stringify(updated));
+    syncWithNewState({ expenses: updated });
   };
 
   const handleDeleteExpense = (expenseId) => {
     const updated = expenses.filter(e => e.id !== expenseId);
     setExpenses(updated);
     localStorage.setItem('revit_expenses', JSON.stringify(updated));
+    syncWithNewState({ expenses: updated });
   };
 
   const handleAddPayment = (newPayment, newExpense) => {
@@ -458,18 +747,21 @@ export default function App() {
     const updatedExpenses = [...expenses, newExpense];
     setExpenses(updatedExpenses);
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
+    syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses });
   };
 
   const handleAddSchoolDoc = (newDoc) => {
     const updated = [...schoolDocs, newDoc];
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
+    syncWithNewState({ schoolDocs: updated });
   };
 
   const handleDeleteSchoolDoc = (docId) => {
     const updated = schoolDocs.filter(d => d.id !== docId);
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
+    syncWithNewState({ schoolDocs: updated });
   };
 
   // RENDER: Main Dashboard Layout
@@ -499,7 +791,7 @@ export default function App() {
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-0.5">
                 {activeView === 'dashboard' && 'Dashboard Utama'}
                 {activeView === 'kelola-tim' && 'Manajemen Anggota Tim'}
-                {activeView === 'sekolah' && 'Dashboard Pendampingan Sekolah'}
+                {activeView === 'sekolah' && 'Daftar Sekolah'}
                 {activeView === 'kontak' && 'Manajemen Kontak Mitra Lapangan'}
                 {activeView === 'dinas' && 'Jadwal Perjalanan Dinas'}
                 {activeView === 'tanggung-jawab' && 'Pelaporan Tanggung Jawab Saya'}
@@ -512,19 +804,46 @@ export default function App() {
             </div>
             
             {activeUser ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-medium">Sesi Aktif:</span>
-                <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  {activeUser.nama}
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Indikator Sinkronisasi Google Sheets */}
+                <button
+                  onClick={() => triggerSync()}
+                  disabled={syncStatus === 'connecting'}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none ${
+                    syncStatus === 'connecting'
+                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 cursor-wait'
+                      : syncStatus === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                      : syncStatus === 'error'
+                      ? 'bg-rose-500/10 border-rose-500/20 text-rose-450 hover:bg-rose-500/20'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
+                  }`}
+                  title={lastSyncTime ? `Terakhir sinkronisasi: ${lastSyncTime}. Klik untuk sinkronisasi ulang.` : 'Klik untuk sinkronisasi dengan Google Sheets'}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === 'connecting' ? 'animate-spin' : ''}`} />
+                  <span>
+                    {syncStatus === 'connecting' && 'Sinkronisasi...'}
+                    {syncStatus === 'success' && `Tersambung (${lastSyncTime})`}
+                    {syncStatus === 'error' && 'Gagal Sinkronisasi'}
+                    {syncStatus === 'offline' && 'Mode Lokal'}
+                  </span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-medium">Sesi Aktif:</span>
+                  <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    {activeUser.nama}
+                  </div>
                 </div>
               </div>
             ) : (
               <button
                 onClick={() => setIsSelectingUser(true)}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-sm font-bold btn-enter-system text-white-keep flex items-center gap-2 cursor-pointer"
               >
-                Masuk ke Sistem
+                <LogIn className="w-4 h-4 text-white-keep" />
+                <span>Masuk ke Sistem</span>
               </button>
             )}
           </div>

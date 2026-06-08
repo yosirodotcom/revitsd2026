@@ -36,6 +36,8 @@ export default function Dashboard({
     projectStartDate: settings.projectStartDate || '2026-06-12',
     projectEndDate: settings.projectEndDate || '2026-12-12',
     simulatedToday: settings.simulatedToday || '2026-09-14',
+    googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
+    googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN'
   });
 
   const [selectedFacilitator, setSelectedFacilitator] = useState(null);
@@ -48,6 +50,8 @@ export default function Dashboard({
       projectStartDate: settings.projectStartDate || '2026-06-12',
       projectEndDate: settings.projectEndDate || '2026-12-12',
       simulatedToday: settings.simulatedToday || '2026-09-14',
+      googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
+      googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN'
     });
   }, [settings]);
 
@@ -530,7 +534,7 @@ export default function Dashboard({
                 <div className="text-center py-8">
                   <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah dampingan.</p>
                   <p className="text-xs text-slate-400">
-                    Silakan buka menu <strong>"Semua Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
+                    Silakan buka menu <strong>"Daftar Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
                   </p>
                 </div>
               ) : (
@@ -628,6 +632,36 @@ export default function Dashboard({
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
                       required
                     />
+                  </div>
+                  <div className="border-t border-slate-850 my-2 pt-2">
+                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Penyimpanan Sheets & Drive</span>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          URL Google Apps Script Web App
+                        </label>
+                        <input
+                          type="url"
+                          value={dates.googleAppsScriptUrl}
+                          onChange={(e) => setDates({ ...dates, googleAppsScriptUrl: e.target.value })}
+                          placeholder="https://script.google.com/macros/s/.../exec"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Token Keamanan API
+                        </label>
+                        <input
+                          type="password"
+                          value={dates.googleAppsScriptToken}
+                          onChange={(e) => setDates({ ...dates, googleAppsScriptToken: e.target.value })}
+                          placeholder="REVITSD2026_SECURE_TOKEN"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="pt-2">
                     <button

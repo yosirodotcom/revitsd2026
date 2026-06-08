@@ -116,3 +116,13 @@ Aplikasi menyimpan seluruh data dalam satu namespace utama agar mudah disinkronk
    * Lakukan perjalanan dinas di menu "Jadwal Perjalanan Dinas" dengan memanfaatkan fitur **Tanggal Simulasi Hari Ini** (misal ubah ke 3 bulan setelah tanggal mulai proyek).
    * Buat log harian dan unggah foto kegiatan, lalu cek apakah ukuran fotonya otomatis mengecil.
    * Masuk sebagai **Tenaga Administrasi (Wida Arindya Sari)** -> Buka "Payroll & Keuangan" untuk memproses pembayaran honor dan klaim dinas yang selesai.
+
+---
+
+## 🚨 7. Aturan Khusus: Evaluasi Backend & Apps Script (Wajib Baca)
+
+Setiap kali terjadi perubahan kode (terutama pada state, schema, atau penambahan entitas/kolom baru di sisi React Frontend):
+1. **BACA ATURAN INI TERLEBIH DAHULU** sebelum melanjutkan langkah coding.
+2. **Evaluasi Dampak Backend**: Tentukan apakah perubahan kode tersebut memerlukan penyesuaian pada skema tabel Google Sheets atau penanganan berkas Google Drive.
+3. **Perbarui Walkthrough**: Jika backend memerlukan perubahan struktur, perbarui berkas panduan setup [walkthrough.md](file:///C:/Users/Kerja%20Sama%20Polnep/.gemini/antigravity-ide/brain/c7484b94-d046-4809-bd51-1ffcaf7df6d6/walkthrough.md) (khususnya skema `SCHEMAS` dan kode `Code.gs` di dalamnya) agar tetap sinkron.
+4. **Instruksi Pengguna**: Tampilkan saran instruksi yang jelas kepada pengguna di akhir giliran untuk segera memperbarui kode Apps Script di Google Sheets secara manual agar sinkronisasi data tetap berjalan lancar.

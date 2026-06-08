@@ -1,0 +1,87 @@
+/**
+ * Service untuk sinkronisasi data dengan Google Sheets & Google Drive
+ */
+export const syncService = {
+  getApiConfig() {
+    const settings = localStorage.getItem('revit_settings');
+    if (settings) {
+      const parsed = JSON.parse(settings);
+      return {
+        url: parsed.googleAppsScriptUrl || '',
+        token: parsed.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN'
+      };
+    }
+    return { url: '', token: '' };
+  },
+
+  isConfigured() {
+    const config = this.getApiConfig();
+    return !!config.url;
+  },
+
+  /**
+   * Mengunduh seluruh data tabel dari Google Sheets
+   */
+  async fetchData() {
+    const { url, token } = this.getApiConfig();
+    if (!url) throw new Error('API URL belum dikonfigurasi di Pengaturan.');
+
+    const fetchUrl = `${url}?token=${encodeURIComponent(token)}`;
+    const response = await fetch(fetchUrl);
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    
+    return data;
+  },
+
+  /**
+   * Mengirim data lokal ke Google Sheets dan memicu upload file ke Drive
+   */
+  async pushData(state) {
+    const { url, token } = this.getApiConfig();
+    if (!url) throw new Error('API URL belum dikonfigurasi di Pengaturan.');
+
+    // Petakan state lokal ke format tabel Google Sheet
+    const payload = {
+      token: token,
+      state: {
+        settings: {
+          projectStartDate: state.settings.projectStartDate,
+          projectEndDate: state.settings.projectEndDate,
+          simulatedToday: state.settings.simulatedToday,
+          googleAppsScriptUrl: state.settings.googleAppsScriptUrl || '',
+          googleAppsScriptToken: state.settings.googleAppsScriptToken || ''
+        },
+        users: state.users,
+        schools: state.schools,
+        contacts: state.contacts,
+        tasks: state.tasks,
+        trips: state.trips,
+        logs: state.logs,
+        reports: state.reports,
+        duty_reports: state.dutyReports || [],
+        expenses: state.expenses,
+        payments: state.payments,
+        school_docs: state.schoolDocs || []
+      }
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    
+    return data;
+  }
+};

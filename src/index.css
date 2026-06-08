@@ -320,3 +320,41 @@ input[type="date"] {
 .max-w-5xl { max-width: 64rem !important; }
 .max-w-6xl { max-width: 72rem !important; }
 .max-w-7xl { max-width: 80rem !important; }
+
+/* Orange-Red Pulsing Button styling */
+@keyframes orangeRedPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    transform: scale(1);
+  }
+}
+
+.btn-enter-system {
+  background: linear-gradient(135deg, #ff6b35 0%, #dd2c00 100%) !important;
+  color: #ffffff !important;
+  animation: orangeRedPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(221, 44, 0, 0.45) !important;
+  transition: all 0.3s ease;
+}
+
+.btn-enter-system:hover {
+  background: linear-gradient(135deg, #ff8253 0%, #f43d0b 100%) !important;
+  transform: translateY(-2px) scale(1.06) !important;
+  box-shadow: 0 6px 20px rgba(221, 44, 0, 0.65) !important;
+  animation-play-state: paused;
+}
+
+.btn-enter-system:active {
+  transform: translateY(1px) scale(0.98) !important;
+  box-shadow: 0 2px 10px rgba(221, 44, 0, 0.45) !important;
+}
+
