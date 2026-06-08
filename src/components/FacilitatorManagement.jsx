@@ -71,12 +71,12 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
   };
 
   // Handle Unassign School
-  const handleUnassign = (npsn) => {
+  const handleUnassign = async (npsn) => {
     const school = schools.find((s) => s.npsn === npsn);
     const currentFacId = school?.fasilitatorId;
     const fac = users.find((u) => u.id === currentFacId);
 
-    if (window.confirm(`Apakah Anda yakin ingin melepas penugasan sekolah ${school?.nama_sekolah} dari fasilitator ${fac?.nama || 'pendamping'}?`)) {
+    if (await window.showConfirm(`Apakah Anda yakin ingin melepas penugasan sekolah ${school?.nama_sekolah} dari fasilitator ${fac?.nama || 'pendamping'}?`)) {
       onClaimSchool(npsn, null);
       showNotification('success', `Berhasil melepas penugasan ${school?.nama_sekolah} dari ${fac?.nama || 'fasilitator'}.`);
     }
@@ -140,7 +140,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
         <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:border-slate-700/60 transition-colors">
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Terbina</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Terdampingi</span>
               <span className="text-3xl font-extrabold text-emerald-400 block mt-1">
                 {schools.length - unassignedSchools.length} <span className="text-xs text-slate-400 font-normal">/ {schools.length}</span>
               </span>
@@ -156,7 +156,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
         <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:border-slate-700/60 transition-colors">
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Belum Terbina</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Belum Didampingi</span>
               <span className={`text-3xl font-extrabold block mt-1 ${unassignedSchools.length > 0 ? 'text-amber-500' : 'text-slate-400'}`}>
                 {unassignedSchools.length} <span className="text-xs text-slate-400 font-normal">sekolah</span>
               </span>
@@ -257,7 +257,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                 {/* List of currently assigned schools */}
                 <div className="space-y-2 flex-1">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2 select-none">
-                    Daftar Sekolah Binaan ({assigned.length})
+                    Daftar Sekolah Dampingan ({assigned.length})
                   </span>
                   
                   {assigned.length === 0 ? (

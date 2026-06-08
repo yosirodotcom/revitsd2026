@@ -43,6 +43,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
   const filteredMenu = menuItems.filter(item => {
     if (item.roles.includes('*')) return true;
     if (activeUser.role === 'admin' && (item.roles.includes('Super Admin') || item.id === 'pantau-honor' || item.id === 'keuangan' || item.id === 'pantau-tanggung-jawab')) return true;
+    if (item.id === 'tanggung-jawab' && ['Fasilitator', 'Ketua Tim', 'Koordinator'].includes(activeUser.jabatanTim)) return false;
     return item.roles.includes(activeUser.jabatanTim);
   });
 
@@ -71,34 +72,58 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
           onClick={onEditProfile}
           className="mt-4 w-full px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/80 text-[11px] font-medium text-slate-300 hover:text-white flex items-center justify-center gap-1.5 transition-all duration-200"
         >
-          <UserCog className="w-3.5 h-3.5" /> Edit Profil Kepegawaian
+          <UserCog className="w-3.5 h-3.5" /> Ubah Profil
         </button>
       </div>
 
       {/* Navigation Menu */}
-      <div className="flex-1 py-4 overflow-y-auto px-4 space-y-1 no-scrollbar">
-        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">
-          Menu Navigasi
+      <div className="flex-1 py-4 overflow-y-auto px-4 space-y-1 no-scrollbar flex flex-col justify-between">
+        <div className="space-y-1">
+          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">
+            Menu Navigasi
+          </div>
+          {filteredMenu.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeView === item.id;
+            
+            return (
+              <button
+                key={item.id}
+                onClick={() => onViewChange(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group relative ${
+                  isActive 
+                    ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-650/10' 
+                    : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                <span className="truncate">{item.name}</span>
+              </button>
+            );
+          })}
         </div>
-        {filteredMenu.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeView === item.id;
-          
-          return (
+
+        {['Fasilitator', 'Ketua Tim', 'Koordinator'].includes(activeUser.jabatanTim) && (
+          <div className="mt-6 p-4 rounded-2xl bg-slate-950/40 border border-slate-850 text-[11px] space-y-2.5">
+            <div className="flex items-center gap-2 text-slate-200 font-bold text-xs select-none">
+              <FileCheck className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span>Catatan Tanggung Jawab</span>
+            </div>
+            <p className="leading-relaxed text-[10px] text-slate-400 select-none">
+              Harap pantau dan laporkan progres kewajiban peran bulanan Anda secara berkala.
+            </p>
             <button
-              key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group relative ${
-                isActive 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10' 
-                  : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+              onClick={() => onViewChange('tanggung-jawab')}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border-0 ${
+                activeView === 'tanggung-jawab'
+                  ? 'bg-indigo-650 text-white shadow-md'
+                  : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800'
               }`}
             >
-              <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
-              <span className="truncate">{item.name}</span>
+              Pelaporan Tanggung Jawab Saya
             </button>
-          );
-        })}
+          </div>
+        )}
       </div>
 
       {/* Footer / Logout */}

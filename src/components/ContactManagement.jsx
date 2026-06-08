@@ -28,7 +28,7 @@ export default function ContactManagement({ contacts, onAddContact, onUpdateCont
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.nama.trim() || !formData.hp.trim()) {
-      return alert('Nama dan Nomor HP wajib diisi');
+      return window.showAlert('Nama dan Nomor HP wajib diisi');
     }
 
     if (editingContact) {
@@ -36,22 +36,22 @@ export default function ContactManagement({ contacts, onAddContact, onUpdateCont
         ...editingContact,
         ...formData
       });
-      alert('Kontak mitra berhasil diperbarui!');
+      window.showAlert('Kontak mitra berhasil diperbarui!');
     } else {
       const newContact = {
         id: `contact-${Date.now()}`,
         ...formData
       };
       onAddContact(newContact);
-      alert('Kontak mitra baru berhasil ditambahkan!');
+      window.showAlert('Kontak mitra baru berhasil ditambahkan!');
     }
     resetForm();
   };
 
-  const handleDeleteClick = (contact) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus kontak "${contact.nama}"?`)) {
+  const handleDeleteClick = async (contact) => {
+    if (await window.showConfirm(`Apakah Anda yakin ingin menghapus kontak "${contact.nama}"?`)) {
       onDeleteContact(contact.id);
-      alert('Kontak berhasil dihapus.');
+      window.showAlert('Kontak berhasil dihapus.');
     }
   };
 

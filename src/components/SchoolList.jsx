@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, Plus, Check, MapPin, UserCheck, ShieldAlert, Award, School, X, AlertCircle, LayoutGrid } from 'lucide-react';
+import { Search, Filter, Plus, Check, MapPin, UserCheck, ShieldAlert, Award, School, X, AlertCircle, Table } from 'lucide-react';
 
 const parseCoordinates = (school) => {
   if (!school.koordinat) return null;
@@ -47,7 +47,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKabupaten, setSelectedKabupaten] = useState('Semua');
   const [selectedFacilitatorFilter, setSelectedFacilitatorFilter] = useState('Semua');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('table');
   
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -208,12 +208,12 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   const handleAddMasterSchoolSubmit = (e) => {
     e.preventDefault();
     if (!newSchoolData.npsn.trim() || !newSchoolData.nama_sekolah.trim()) {
-      return alert('NPSN dan Nama Sekolah wajib diisi');
+      return window.showAlert('NPSN dan Nama Sekolah wajib diisi');
     }
     
     // Check duplication
     if (schools.some((s) => s.npsn === newSchoolData.npsn)) {
-      return alert('Sekolah dengan NPSN tersebut sudah terdaftar');
+      return window.showAlert('Sekolah dengan NPSN tersebut sudah terdaftar');
     }
 
     const newSchool = {
@@ -234,7 +234,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
     };
 
     onAddSchool(newSchool);
-    alert('Sekolah baru berhasil ditambahkan ke Master Data');
+    window.showAlert('Sekolah baru berhasil ditambahkan ke Master Data');
     setNewSchoolData({ npsn: '', nama_sekolah: '', kabupaten: 'Melawi' });
     setIsAddingMaster(false);
   };
@@ -262,14 +262,14 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
           <div className="bg-slate-900/80 border border-slate-800 p-1 rounded-xl flex items-center gap-1 select-none">
             <button
               type="button"
-              onClick={() => setViewMode('grid')}
+              onClick={() => setViewMode('table')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                viewMode === 'grid'
+                viewMode === 'table'
                   ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" /> Grid
+              <Table className="w-3.5 h-3.5" /> Tabel
             </button>
             <button
               type="button"
@@ -386,128 +386,132 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSchools.map((school) => {
-            const isMySchool = school.fasilitatorId === activeUser.id;
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900/60 border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider select-none">
+                <tr>
+                  <th className="px-6 py-4">Nama Sekolah Dasar / NPSN</th>
+                  <th className="px-6 py-4">Kabupaten</th>
+                  <th className="px-6 py-4">Fasilitator Pendamping</th>
+                  <th className="px-6 py-4">Progres Fisik</th>
+                  <th className="px-6 py-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {filteredSchools.map((school) => {
+                  const isMySchool = school.fasilitatorId === activeUser?.id;
+                  const isAuthorizedToEdit = activeUser?.role === 'admin' || (activeUser?.jabatanTim === 'Fasilitator' && school.fasilitatorId === activeUser?.id);
+                  const schoolTasks = tasks ? tasks.filter((t) => t.sekolahId === school.npsn || t.schoolId === school.npsn) : [];
+                  const hasTasks = schoolTasks.length > 0;
 
-            // Count missing data fields for facilitator's own schools
-            const missingFields = [];
-            if (!school.kepala_sekolah) missingFields.push('Kepala Sekolah');
-            if (!school.hp_kepala_sekolah) missingFields.push('HP Kepsek');
-            if (!school.perencanaId) missingFields.push('Perencana');
-            if (!school.pengawasId) missingFields.push('Pengawas');
-            const missingCount = missingFields.length;
-
-            const schoolTasks = tasks ? tasks.filter((t) => t.sekolahId === school.npsn || t.schoolId === school.npsn) : [];
-            const totalTasks = schoolTasks.length;
-            const hasTasks = totalTasks > 0;
-            const isAuthorizedToEdit = activeUser?.role === 'admin' || (activeUser?.jabatanTim === 'Fasilitator' && school.fasilitatorId === activeUser?.id);
-
-            return (
-              <div
-                key={school.npsn}
-                onClick={() => onSelectSchool(school.npsn)}
-                className={`group bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:border-slate-700/80 cursor-pointer transition-all duration-300 hover:scale-[1.015] hover:shadow-lg hover:shadow-indigo-500/[0.02] flex flex-col justify-between ${
-                  isMySchool ? 'ring-1 ring-indigo-500/20 bg-indigo-500/[0.01]' : ''
-                }`}
-              >
-                <div>
-                  {/* School Header */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <span className="text-[10px] font-semibold text-slate-500 tracking-wider">NPSN {school.npsn}</span>
-                      <h3 className="font-bold text-slate-200 group-hover:text-white text-base leading-tight mt-0.5 line-clamp-1 transition-colors">
-                        {school.nama_sekolah}
-                      </h3>
-                    </div>
-                    <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/15 shrink-0 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> {school.kabupaten}
-                    </span>
-                  </div>
-
-                  {/* Missing Data Indicator (visible for facilitator's own schools) */}
-                  {isMySchool && missingCount > 0 && (
-                    <div className="mb-3 bg-amber-500/5 border border-amber-500/15 rounded-xl px-3 py-2 flex items-start gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-[10px] font-bold text-amber-400 block">Data Belum Lengkap ({missingCount})</span>
-                        <span className="text-[9px] text-slate-500 leading-snug">
-                          {missingFields.join(', ')}
+                  return (
+                    <tr 
+                      key={school.npsn} 
+                      onClick={() => onSelectSchool(school.npsn)}
+                      className={`hover:bg-slate-900/10 cursor-pointer transition-colors ${
+                        isMySchool ? 'bg-indigo-500/[0.02]' : ''
+                      }`}
+                    >
+                      {/* Name & NPSN */}
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-slate-200 block hover:text-indigo-400 hover:underline transition-all">
+                          {school.nama_sekolah}
                         </span>
-                      </div>
-                    </div>
-                  )}
+                        <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">NPSN {school.npsn}</span>
+                      </td>
 
-                  {/* Complete Data Badge */}
-                  {isMySchool && missingCount === 0 && (
-                    <div className="mb-3 bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-3 py-2 flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-[10px] font-semibold text-emerald-400">Data Sekolah Lengkap</span>
-                    </div>
-                  )}
+                      {/* Kabupaten */}
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/15">
+                          <MapPin className="w-3 h-3" /> {school.kabupaten}
+                        </span>
+                      </td>
 
-                  {/* Progress bar or range slider */}
-                  <div 
-                    className="my-4 bg-slate-950/60 rounded-xl p-3 border border-slate-850"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex justify-between items-center text-xs font-semibold text-slate-400 mb-1.5 select-none">
-                      <span className="flex items-center gap-1.5">
-                        Progres Fisik
-                        {hasTasks && (
-                          <span 
-                            className="text-[8px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20"
-                            title="Progres dihitung otomatis berdasarkan Papan Tugas (Kanban)"
-                          >
-                            Auto
+                      {/* Facilitator */}
+                      <td className="px-6 py-4 font-medium">
+                        {school.fasilitatorId ? (
+                          <span className="text-slate-250 font-semibold">
+                            {users.find((u) => u.id === school.fasilitatorId)?.nama || 'Belum ditugaskan'}
                           </span>
+                        ) : (
+                          <span className="text-slate-500 italic">Belum ditugaskan</span>
                         )}
-                      </span>
-                      <span className="text-emerald-400 font-bold">{school.progres_fisik}%</span>
-                    </div>
-                    {isAuthorizedToEdit && !hasTasks ? (
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={school.progres_fisik || 0}
-                        onChange={(e) => {
-                          onUpdateSchool({
-                            ...school,
-                            progres_fisik: Number(e.target.value)
-                          });
-                        }}
-                        className="w-full accent-emerald-500 h-2 rounded-lg appearance-none cursor-pointer focus:outline-none"
-                        style={{
-                          background: `linear-gradient(to right, #10b981 0%, #10b981 ${school.progres_fisik || 0}%, #1e293b ${school.progres_fisik || 0}%, #1e293b 100%)`
-                        }}
-                        title="Geser untuk mengubah progres fisik"
-                      />
-                    ) : (
-                      <div 
-                        className="w-full bg-slate-800 rounded-full h-2 overflow-hidden cursor-help"
-                        title={hasTasks ? "Progres dihitung otomatis dari Papan Tugas (Kanban)" : "Hanya Fasilitator Pendamping atau Super Admin yang dapat mengubah progres."}
-                      >
-                        <div
-                          className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${school.progres_fisik}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                      </td>
 
-              </div>
-            );
-          })}
+                      {/* Progress */}
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 max-w-[220px]">
+                          <div className="flex-1">
+                            {isAuthorizedToEdit && !hasTasks ? (
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={school.progres_fisik || 0}
+                                onChange={(e) => {
+                                  onUpdateSchool({
+                                    ...school,
+                                    progres_fisik: Number(e.target.value)
+                                  });
+                                }}
+                                className="w-full accent-emerald-500 h-1.5 rounded-lg appearance-none cursor-pointer focus:outline-none"
+                                style={{
+                                  background: `linear-gradient(to right, #2e7d32 0%, #2e7d32 ${school.progres_fisik || 0}%, #e2e8f8 ${school.progres_fisik || 0}%, #e2e8f8 100%)`
+                                }}
+                                title="Geser untuk mengubah progres fisik"
+                              />
+                            ) : (
+                              <div 
+                                className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden"
+                                title={hasTasks ? "Progres dihitung otomatis dari Papan Tugas (Kanban)" : "Hanya Fasilitator Pendamping atau Super Admin yang dapat mengubah progres."}
+                              >
+                                <div
+                                  className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${school.progres_fisik}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">{school.progres_fisik}%</span>
+                        </div>
+                      </td>
 
-          {filteredSchools.length === 0 && (
-            <div className="col-span-full py-12 text-center text-slate-500 font-semibold border border-dashed border-slate-800 rounded-2xl bg-slate-900/10">
-              Tidak ada sekolah yang cocok dengan filter atau pencarian Anda.
-            </div>
-          )}
+                      {/* Actions */}
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2 select-none">
+                          {isFacilitator && !school.fasilitatorId && (
+                            <button
+                              onClick={() => {
+                                onClaimSchool(school.npsn, activeUser.id);
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer border-0"
+                            >
+                              Klaim
+                            </button>
+                          )}
+                          <button
+                            onClick={() => onSelectSchool(school.npsn)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                          >
+                            Detail
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredSchools.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-semibold italic">
+                      Tidak ada sekolah yang cocok dengan filter atau pencarian Anda.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

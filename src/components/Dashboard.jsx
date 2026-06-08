@@ -12,7 +12,6 @@ import {
   ArrowRight, 
   MapPin, 
   AlertCircle, 
-  CheckSquare, 
   Play,
   Users,
   Plane,
@@ -30,7 +29,8 @@ export default function Dashboard({
   users = [],
   trips = [],
   onApproveTrip,
-  onRejectTrip
+  onRejectTrip,
+  onSelectSchool
 }) {
   const [dates, setDates] = useState({
     projectStartDate: settings.projectStartDate || '2026-06-12',
@@ -54,7 +54,7 @@ export default function Dashboard({
   const handleSaveSettings = (e) => {
     e.preventDefault();
     onUpdateSettings(dates);
-    alert('Konfigurasi linimasa global berhasil disimpan!');
+    window.showAlert('Konfigurasi linimasa global berhasil disimpan!');
   };
 
   const getRoleDescription = (role) => {
@@ -108,12 +108,12 @@ export default function Dashboard({
 
   const totalSchoolsCount = displaySchools.length;
 
-  let totalLabel = "Total Sekolah Binaan";
+  let totalLabel = "Total Sekolah Dampingan";
   let totalCount = schools.length;
   let totalSubtitle = "Sekolah Dasar Master";
   
   if (isFacilitator) {
-    totalLabel = "Sekolah Binaan Anda";
+    totalLabel = "Sekolah Dampingan Anda";
     totalCount = displaySchools.length;
     totalSubtitle = "Sekolah dasar dampingan Anda";
   }
@@ -185,12 +185,7 @@ export default function Dashboard({
     avgProgress: Math.round(group.totalProgress / group.count)
   })).sort((a, b) => b.avgProgress - a.avgProgress);
 
-  // 4. Kanban statistics
-  const taskTodo = displayTasks.filter(t => t.status === 'todo').length;
-  const taskInProgress = displayTasks.filter(t => t.status === 'in_progress').length;
-  const taskDone = displayTasks.filter(t => t.status === 'done').length;
-  const totalTasks = displayTasks.length;
-  const donePercentage = totalTasks ? Math.round((taskDone / totalTasks) * 100) : 0;
+
 
   // 6. Facilitator progress statistics
   const facilitatorStats = isFacilitator
@@ -209,7 +204,7 @@ export default function Dashboard({
             statusPegawai: fac.statusPegawai,
             schoolCount,
             avgProgress: avgFacProgress,
-            schools: facSchools.map(s => ({ nama: s.nama_sekolah, progres: s.progres_fisik, kabupaten: s.kabupaten }))
+            schools: facSchools.map(s => ({ npsn: s.npsn, nama: s.nama_sekolah, progres: s.progres_fisik, kabupaten: s.kabupaten }))
           };
         })
         .sort((a, b) => b.avgProgress - a.avgProgress);
@@ -283,7 +278,11 @@ export default function Dashboard({
                           {trip.userRoleTim}
                         </span>
                       </div>
-                      <h4 className="font-bold text-slate-200 text-xs truncate">
+                      <h4 
+                        onClick={() => targetSchool && onSelectSchool && onSelectSchool(targetSchool.npsn)}
+                        className="font-bold text-slate-200 text-xs truncate hover:text-indigo-400 cursor-pointer transition-colors"
+                        title="Klik untuk melihat detail sekolah"
+                      >
                         {targetSchool ? targetSchool.nama_sekolah : `NPSN ${trip.sekolahId}`}
                       </h4>
                       <p className="text-[11px] text-slate-400">
@@ -298,17 +297,17 @@ export default function Dashboard({
                       <button
                         onClick={() => {
                           onApproveTrip(trip.id, activeUser.nama);
-                          alert('Perjalanan dinas disetujui!');
+                          window.showAlert('Perjalanan dinas disetujui!');
                         }}
                         className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border-0"
                       >
                         Setujui
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('Tolak permohonan kunjungan dinas ini?')) {
+                        onClick={async () => {
+                          if (await window.showConfirm('Tolak permohonan kunjungan dinas ini?')) {
                             onRejectTrip(trip.id);
-                            alert('Perjalanan dinas ditolak.');
+                            window.showAlert('Perjalanan dinas ditolak.');
                           }
                         }}
                         className="px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer border border-rose-500/20"
@@ -481,7 +480,7 @@ export default function Dashboard({
                           </div>
                           <div className="min-w-0">
                             <span className={`text-sm font-bold block truncate transition-colors ${isSelected ? 'text-indigo-200' : 'text-slate-200'}`}>{fac.name}</span>
-                            <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Binaan</span>
+                            <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Dampingan</span>
                           </div>
                         </div>
                         <span className={`font-bold text-sm shrink-0 ${isSelected ? 'text-indigo-300' : 'text-emerald-400'}`}>{fac.avgProgress}%</span>
@@ -520,61 +519,16 @@ export default function Dashboard({
             )}
           </div>
 
-          {/* Kanban & Tasks Overview */}
-          <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-            <div className="flex items-center justify-between mb-4 border-b border-slate-850 pb-3">
-              <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-purple-400" /> Distribusi Pekerjaan Fisik (Kanban)
-              </h3>
-              <span className="text-[10px] font-bold text-slate-400">Total: {totalTasks} Tugas Terdaftar</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Todo */}
-              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Belum Dikerjakan (Todo)</span>
-                  <span className="text-2xl font-extrabold text-slate-200 block mt-2">{taskTodo}</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-4 overflow-hidden">
-                  <div className="bg-slate-600 h-full" style={{ width: `${totalTasks ? (taskTodo/totalTasks)*100 : 0}%` }} />
-                </div>
-              </div>
-
-              {/* In Progress */}
-              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Dalam Proses (In Progress)</span>
-                  <span className="text-2xl font-extrabold text-amber-400 block mt-2">{taskInProgress}</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-4 overflow-hidden">
-                  <div className="bg-amber-500 h-full" style={{ width: `${totalTasks ? (taskInProgress/totalTasks)*100 : 0}%` }} />
-                </div>
-              </div>
-
-              {/* Done */}
-              <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-2xl flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Selesai (Done)</span>
-                  <span className="text-2xl font-extrabold text-emerald-400 block mt-2">{taskDone} <span className="text-xs text-slate-400 font-normal">({donePercentage}%)</span></span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-4 overflow-hidden">
-                  <div className="bg-emerald-500 h-full" style={{ width: `${totalTasks ? (taskDone/totalTasks)*100 : 0}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Conditional Facilitator vs Global Section */}
-          {isFacilitator ? (
+          {/* Conditional Facilitator Section */}
+          {isFacilitator && (
             <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
               <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2 border-b border-slate-850 pb-3">
-                <School className="w-4 h-4 text-indigo-400" /> Daftar Sekolah Binaan Anda
+                <School className="w-4 h-4 text-indigo-400" /> Daftar Sekolah Dampingan Anda
               </h3>
 
               {displaySchools.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah binaan.</p>
+                  <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah dampingan.</p>
                   <p className="text-xs text-slate-400">
                     Silakan buka menu <strong>"Semua Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
                   </p>
@@ -582,7 +536,11 @@ export default function Dashboard({
               ) : (
                 <div className="space-y-4">
                   {displaySchools.map(school => (
-                    <div key={school.npsn} className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div 
+                      key={school.npsn} 
+                      onClick={() => onSelectSchool && onSelectSchool(school.npsn)}
+                      className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-500/40 hover:bg-indigo-950/10 cursor-pointer transition-all duration-300"
+                    >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-200 text-sm">{school.nama_sekolah}</span>
@@ -619,57 +577,6 @@ export default function Dashboard({
                   ))}
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-              <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2 border-b border-slate-850 pb-3">
-                <UserCheck className="w-4 h-4 text-indigo-400" /> Progres Pendampingan per Fasilitator
-              </h3>
-
-              <div className="space-y-4">
-                {facilitatorStats.map(fac => (
-                  <div key={fac.id} className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-200 text-sm">{fac.name}</span>
-                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border border-slate-800 bg-slate-900/60 text-slate-400`}>
-                          {fac.statusPegawai}
-                        </span>
-                      </div>
-                      
-                      {/* Schools small list */}
-                      <div className="text-[11px] text-slate-500 font-medium">
-                        {fac.schoolCount > 0 ? (
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            <span className="text-[10px] uppercase font-bold text-slate-600 block mr-1 mt-0.5">Binaan ({fac.schoolCount}):</span>
-                            {fac.schools.map((s, idx) => (
-                              <span key={idx} className="bg-slate-950/45 px-2 py-0.5 rounded border border-slate-850 text-slate-400 font-semibold text-[10px] inline-block">
-                                {s.nama} ({s.progres}%)
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-600 italic">Belum mendampingi sekolah dasar</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Progress info & bar */}
-                    <div className="w-full md:w-48 shrink-0 space-y-1">
-                      <div className="flex justify-between items-center text-xs font-semibold">
-                        <span className="text-slate-400">Rerata Progres</span>
-                        <span className="text-emerald-400">{fac.avgProgress}%</span>
-                      </div>
-                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${fac.avgProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
@@ -785,7 +692,7 @@ export default function Dashboard({
                   <div className="flex items-center justify-between bg-indigo-950/40 border border-indigo-500/20 rounded-xl px-3 py-2 mb-3 animate-fade-in">
                     <span className="text-[11px] text-indigo-300 font-semibold">
                       <UserCheck className="w-3 h-3 inline mr-1.5 -mt-0.5" />
-                      Sekolah binaan <strong>{selectedFacName}</strong>
+                      Sekolah dampingan <strong>{selectedFacName}</strong>
                     </span>
                     <button
                       onClick={() => setSelectedFacilitator(null)}
@@ -798,12 +705,16 @@ export default function Dashboard({
 
                 {filteredSchools.length === 0 ? (
                   <p className="text-xs text-slate-500 italic text-center py-6">
-                    {selectedFacilitator ? 'Fasilitator ini belum memiliki sekolah binaan.' : 'Belum ada sekolah terdaftar.'}
+                    {selectedFacilitator ? 'Fasilitator ini belum memiliki sekolah dampingan.' : 'Belum ada sekolah terdaftar.'}
                   </p>
                 ) : (
                   <div className="max-h-[500px] overflow-y-auto pr-1 space-y-3">
                     {filteredSchools.map((school) => (
-                      <div key={school.npsn} className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-3.5 space-y-2 hover:border-slate-800 transition-colors">
+                      <div 
+                        key={school.npsn} 
+                        onClick={() => onSelectSchool && onSelectSchool(school.npsn)}
+                        className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-3.5 space-y-2 hover:border-indigo-500/40 hover:bg-indigo-950/10 cursor-pointer transition-all duration-300"
+                      >
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0">
                             <span className="font-bold text-slate-200 text-xs block truncate" title={school.nama_sekolah}>
@@ -874,7 +785,7 @@ export default function Dashboard({
                     <div>
                       <h2 className="text-base font-extrabold text-white">{modalFacName}</h2>
                       <span className="text-[10px] text-slate-500 font-semibold">
-                        {modalFac?.jabatanTim} • {modalFacSchools.length} Sekolah Binaan
+                        {modalFac?.jabatanTim} • {modalFacSchools.length} Sekolah Dampingan
                       </span>
                     </div>
                   </div>
@@ -942,7 +853,16 @@ export default function Dashboard({
                                   <span className="font-bold text-slate-200 text-sm truncate">{report.fileName}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-400 font-medium">
-                                  {getSchoolName(report.schoolId)} — <span className="text-slate-500">Bulan {report.month}</span>
+                                  <span 
+                                    onClick={() => {
+                                      setFacModalId(null);
+                                      onSelectSchool && onSelectSchool(report.schoolId);
+                                    }}
+                                    className="hover:text-indigo-400 cursor-pointer transition-colors hover:underline"
+                                    title="Lihat detail sekolah"
+                                  >
+                                    {getSchoolName(report.schoolId)}
+                                  </span> — <span className="text-slate-500">Bulan {report.month}</span>
                                 </p>
                               </div>
                               <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border shrink-0 ${st.color}`}>
@@ -992,7 +912,16 @@ export default function Dashboard({
                                 <div className="flex items-center gap-2 mb-1">
                                   <Plane className="w-4 h-4 text-sky-400 shrink-0" />
                                   <span className="font-bold text-slate-200 text-sm truncate">
+                                  <span 
+                                    onClick={() => {
+                                      setFacModalId(null);
+                                      onSelectSchool && onSelectSchool(trip.sekolahId);
+                                    }}
+                                    className="font-bold text-slate-200 text-sm truncate hover:text-indigo-400 cursor-pointer transition-colors hover:underline"
+                                    title="Lihat detail sekolah"
+                                  >
                                     {tripSchool ? tripSchool.nama_sekolah : `NPSN ${trip.sekolahId}`}
+                                  </span>
                                   </span>
                                 </div>
                                 <p className="text-[11px] text-slate-400 font-medium">

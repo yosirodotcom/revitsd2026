@@ -57,7 +57,7 @@ export default function DutyReports({
     };
 
     onSaveReport(newReport);
-    alert('Laporan tanggung jawab berhasil diperbarui!');
+    window.showAlert('Laporan tanggung jawab berhasil diperbarui!');
     setEditingItemIdx(null);
   };
 

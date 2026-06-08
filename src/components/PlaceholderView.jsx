@@ -65,7 +65,7 @@ export default function PlaceholderView({ viewId }) {
         return {
           title: 'Pantau & Bayar Honorarium (Tenaga Administrasi)',
           phase: 'Fase 4',
-          desc: 'Dashboard pemantauan kelayakan pembayaran honorarium tim (Tetap, Output, Outcome). Kelayakan dihitung otomatis berdasarkan persentase kemajuan fisik sekolah binaan dan status reviu laporan.',
+          desc: 'Dashboard pemantauan kelayakan pembayaran honorarium tim (Tetap, Output, Outcome). Kelayakan dihitung otomatis berdasarkan persentase kemajuan fisik sekolah dampingan dan status reviu laporan.',
           tasks: [
             'Perhitungan kelayakan honor otomatis (Merah/Hijau)',
             'Syarat kelayakan Output (75% Sekolah >= 50% + Laporan direviu)',

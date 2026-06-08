@@ -202,18 +202,18 @@ export default function SchoolDetail({
 
   const handleQuickProgressSave = () => {
     if (totalTasks > 0) {
-      return alert('Progress fisik dihitung otomatis berdasarkan Papan Tugas. Selesaikan tugas untuk menambah progress!');
+      return window.showAlert('Progress fisik dihitung otomatis berdasarkan Papan Tugas. Selesaikan tugas untuk menambah progress!');
     }
     onUpdateSchool({
       ...school,
       progres_fisik: Number(progresInput),
     });
-    alert(`Progres fisik berhasil diubah menjadi ${progresInput}%`);
+    window.showAlert(`Progres fisik berhasil diubah menjadi ${progresInput}%`);
   };
 
   const handleAddTaskSubmit = (e) => {
     e.preventDefault();
-    if (!taskForm.title.trim()) return alert('Judul tugas wajib diisi');
+    if (!taskForm.title.trim()) return window.showAlert('Judul tugas wajib diisi');
 
     const newTask = {
       id: `task-${Date.now()}`,
@@ -229,7 +229,7 @@ export default function SchoolDetail({
     onAddTask(newTask);
     setTaskForm({ title: '', description: '', priority: 'medium', dueDate: '' });
     setIsAddingTask(false);
-    alert('Tugas lapangan baru berhasil ditambahkan!');
+    window.showAlert('Tugas lapangan baru berhasil ditambahkan!');
   };
 
   const handleDocumentAction = (docType, newStatus) => {
@@ -249,7 +249,7 @@ export default function SchoolDetail({
     });
 
     const msg = newStatus === 'dikirim' ? 'Dokumen berhasil dikirim ke Koordinator.' : 'Dokumen berhasil disetujui (direviu).';
-    alert(msg);
+    window.showAlert(msg);
   };
 
   const getContactDetails = (id) => {
@@ -265,6 +265,16 @@ export default function SchoolDetail({
   const isMySchool = school.fasilitatorId === activeUser.id;
   const isAuthorizedToEdit = isMySchool || activeUser.role === 'admin';
   const isReviuAuthorized = activeUser.jabatanTim === 'Koordinator' || activeUser.role === 'admin';
+  const canDeleteDoc = (file) => {
+    return (
+      isAuthorizedToEdit ||
+      file.uploadedBy === activeUser.nama ||
+      activeUser.role === 'admin' ||
+      activeUser.jabatanTim === 'Super Admin' ||
+      activeUser.jabatanTim === 'Ketua Tim' ||
+      activeUser.jabatanTim === 'Koordinator'
+    );
+  };
   const facilitators = users.filter((u) => u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Ketua Tim');
 
   const perencana = getContactDetails(school.perencanaId);
@@ -305,7 +315,7 @@ export default function SchoolDetail({
     if (!file) return;
 
     if (file.size > 50 * 1024 * 1024) {
-      return alert('Ukuran file terlalu besar! Maksimal ukuran file adalah 50MB.');
+      return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 50MB.');
     }
 
     const reader = new FileReader();
@@ -329,7 +339,7 @@ export default function SchoolDetail({
         ? reportCategories.find(c => c.key === categoryKey).label 
         : docCategories.find(c => c.key === categoryKey).label;
 
-      alert(`Dokumen "${file.name}" berhasil diunggah dalam kategori "${catLabel}"!`);
+      window.showAlert(`Dokumen "${file.name}" berhasil diunggah dalam kategori "${catLabel}"!`);
       e.target.value = '';
     };
   };
@@ -344,7 +354,7 @@ export default function SchoolDetail({
       document.body.removeChild(link);
     } catch (err) {
       console.error(err);
-      alert('Gagal mendownload file');
+      window.showAlert('Gagal mendownload file');
     }
   };
 
@@ -365,7 +375,7 @@ export default function SchoolDetail({
       
       const newWindow = window.open(blobUrl, '_blank');
       if (!newWindow) {
-        alert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
+        window.showAlert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
       }
     } catch (err) {
       console.error(err);
@@ -378,7 +388,7 @@ export default function SchoolDetail({
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      return alert('Ukuran file gambar terlalu besar! Maksimal 10MB.');
+      return window.showAlert('Ukuran file gambar terlalu besar! Maksimal 10MB.');
     }
 
     const reader = new FileReader();
@@ -409,7 +419,7 @@ export default function SchoolDetail({
           ...school,
           foto_banner: compressedBase64
         });
-        alert('Foto sekolah berhasil diperbarui!');
+        window.showAlert('Foto sekolah berhasil diperbarui!');
       };
     };
   };
@@ -423,7 +433,7 @@ export default function SchoolDetail({
           onClick={onBack}
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors bg-slate-900/40 border border-slate-800 px-3 py-1.5 rounded-xl cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar
+          <ArrowLeft className="w-4 h-4" /> Kembali
         </button>
       </div>
 
@@ -1257,10 +1267,10 @@ export default function SchoolDetail({
                               >
                                 <Download className="w-3.5 h-3.5" />
                               </button>
-                              {isAuthorizedToEdit && (
+                              {canDeleteDoc(file) && (
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm(`Hapus dokumen "${file.fileName}"?`)) {
+                                  onClick={async () => {
+                                    if (await window.showConfirm(`Hapus dokumen "${file.fileName}"?`)) {
                                       onDeleteSchoolDoc(file.id);
                                     }
                                   }}
@@ -1356,10 +1366,10 @@ export default function SchoolDetail({
                               >
                                 <Download className="w-3.5 h-3.5" />
                               </button>
-                              {isAuthorizedToEdit && (
+                              {canDeleteDoc(file) && (
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm(`Hapus dokumen "${file.fileName}"?`)) {
+                                  onClick={async () => {
+                                    if (await window.showConfirm(`Hapus dokumen "${file.fileName}"?`)) {
                                       onDeleteSchoolDoc(file.id);
                                     }
                                   }}

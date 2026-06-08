@@ -1,25 +1,279 @@
 @import "tailwindcss";
 
-/* Custom Scrollbar */
+@theme {
+  /* Overwrite default slate color palette to fit Institutional Clarity light theme */
+  --color-slate-50: #ffffff;
+  --color-slate-100: #151c27; /* main dark text color */
+  --color-slate-200: #151c27;
+  --color-slate-300: #151c27;
+  --color-slate-305: #444748;
+  --color-slate-350: #151c27;
+  --color-slate-400: #444748; /* variant/secondary text */
+  --color-slate-500: #747878; /* outline borders */
+  --color-slate-600: #747878;
+  --color-slate-650: #747878;
+  --color-slate-700: #c4c7c7; /* outline variant */
+  --color-slate-800: #e2e8f8; /* separator line / border */
+  --color-slate-850: #e2e8f8;
+  --color-slate-855: #e2e8f8;
+  --color-slate-900: #ffffff; /* surface level 1 (white containers) */
+  --color-slate-950: #f9f9ff; /* background level 0 */
+
+  /* Overwrite default indigo color palette (Primary & Secondary accents) */
+  --color-indigo-50: #f0f3ff;
+  --color-indigo-100: #e7eefe;
+  --color-indigo-200: #bddefe;
+  --color-indigo-300: #42617d;
+  --color-indigo-400: #42617d; /* secondary (sky blue active states & highlights) */
+  --color-indigo-500: #42617d;
+  --color-indigo-650: rgba(30, 30, 30, 0.1);
+  --color-indigo-600: #1e1e1e; /* primary (deep graphite buttons) */
+  --color-indigo-700: #040505;
+  --color-indigo-800: #1e1e1e;
+  --color-indigo-900: #1b1f21;
+  --color-indigo-950: #030607;
+
+  /* Overwrite default green (emerald) for success chips */
+  --color-emerald-50: #e8f5e9;
+  --color-emerald-100: #c8e6c9;
+  --color-emerald-200: #2e7d32;
+  --color-emerald-300: #2e7d32;
+  --color-emerald-400: #2e7d32;
+  --color-emerald-500: #2e7d32;
+  --color-emerald-600: #1b5e20;
+  --color-emerald-700: #1b5e20;
+  --color-emerald-800: #1b5e20;
+  --color-emerald-900: #1b5e20;
+  --color-emerald-950: #e8f5e9;
+
+  /* Overwrite default red (rose) for error chips */
+  --color-rose-50: #ffdad6;
+  --color-rose-100: #ffcdca;
+  --color-rose-200: #93000a;
+  --color-rose-300: #ba1a1a;
+  --color-rose-400: #ba1a1a;
+  --color-rose-500: #ba1a1a;
+  --color-rose-600: #93000a;
+  --color-rose-700: #93000a;
+  --color-rose-800: #93000a;
+  --color-rose-900: #ffdad6;
+  --color-rose-950: #ffdad6;
+
+  /* Overwrite default orange (amber) for warning chips */
+  --color-amber-50: #fff8e1;
+  --color-amber-100: #ffecb3;
+  --color-amber-200: #b56900;
+  --color-amber-300: #b56900;
+  --color-amber-400: #b56900;
+  --color-amber-500: #b56900;
+  --color-amber-600: #8a5000;
+  --color-amber-700: #8a5000;
+  --color-amber-800: #8a5000;
+  --color-amber-900: #fff8e1;
+  --color-amber-950: #fff8e1;
+
+  /* Overrides for typography and spacing */
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+
+  /* Radius mapping */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.0rem;
+  --radius-xl: 1.5rem;
+
+  /* Shadows mapping (diffused ambient shadow) */
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0px 4px 20px rgba(0, 0, 0, 0.03); /* Soft Float */
+  --shadow-lg: 0px 10px 30px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0px 20px 40px rgba(0, 0, 0, 0.05);
+  
+  --spacing-base: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}
+
+/* Force global font */
+* {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+/* Global scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: #f0f3ff;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.3);
+  background: #aacaea;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: #42617d;
 }
 
-/* Glassmorphism utility animations */
+/* Base resets for light mode */
+body {
+  background-color: #f9f9ff;
+  color: #151c27;
+}
+
+/* Invert all main titles from white to dark surface color */
+h1, h2, h3, h4, h5, h6 {
+  color: #151c27 !important;
+}
+
+/* Form input, textareas and selects layout resets */
+input, select, textarea {
+  background-color: #ffffff !important;
+  color: #151c27 !important;
+  border: 1px solid #c4c7c7 !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #747878 !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #42617d !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(66, 97, 125, 0.15) !important;
+}
+
+/* Override text-white classes contextually to maintain readability on surfaces vs buttons */
+.text-white:not(
+  button,
+  button *,
+  a,
+  a *,
+  .bg-indigo-600,
+  .bg-indigo-600 *,
+  .bg-indigo-700,
+  .bg-indigo-700 *,
+  .bg-indigo-800,
+  .bg-indigo-800 *,
+  .bg-emerald-600,
+  .bg-emerald-600 *,
+  .bg-rose-600,
+  .bg-rose-600 *,
+  .bg-gradient-to-tr,
+  .bg-gradient-to-tr *,
+  .bg-gradient-to-r,
+  .bg-gradient-to-r *,
+  .text-white-keep
+) {
+  color: #151c27 !important;
+}
+
+/* Sidebar background container layout override */
+.w-72.bg-slate-900 {
+  background-color: #e7eefe !important; /* surface-container */
+  border-right: 1px solid #dce2f3 !important;
+}
+
+.w-72.bg-slate-900 button {
+  color: #444748 !important;
+}
+
+/* Sidebar active navigation link button overrides */
+.w-72.bg-slate-900 button.bg-indigo-600 {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+.w-72.bg-slate-900 button.bg-indigo-600 * {
+  color: #ffffff !important;
+}
+
+.w-72.bg-slate-900 button:hover:not(.bg-indigo-600) {
+  background-color: #dce2f3 !important; /* surface-container-highest */
+  color: #151c27 !important;
+}
+
+/* Card and component wrapper background resets for light mode */
+.bg-slate-900, 
+.bg-slate-900\/30, 
+.bg-slate-900\/40, 
+.bg-slate-900\/20, 
+.bg-slate-900\/50, 
+.bg-slate-950\/40, 
+.bg-slate-950\/60,
+.bg-slate-950\/80,
+.bg-slate-950\/20 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f8 !important;
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.03) !important;
+  color: #151c27 !important;
+}
+
+/* Ensure secondary action buttons (like Batal) look clean on white background */
+button.bg-slate-950, button.bg-slate-900 {
+  background-color: #f0f3ff !important;
+  color: #43627e !important;
+  border: 1px solid #e2e8f8 !important;
+}
+
+button.bg-slate-950:hover, button.bg-slate-900:hover {
+  background-color: #e2e8f8 !important;
+}
+
+/* Custom Welcome Card styling for Institutional Clarity theme */
+.bg-gradient-to-r.from-indigo-950.via-slate-900.to-slate-950 {
+  background: linear-gradient(135deg, #e7eefe 0%, #bddefe 100%) !important; /* soft sky blue/frost white-blue gradient */
+  border-color: #bddefe !important;
+}
+
+.bg-gradient-to-r.from-indigo-950.via-slate-900.to-slate-950 h2 {
+  color: #151c27 !important;
+}
+
+.bg-gradient-to-r.from-indigo-950.via-slate-900.to-slate-950 p {
+  color: #43627e !important;
+}
+
+/* Progress bar gradients styling for Corporate Modernism */
+.bg-gradient-to-r.from-indigo-500.via-purple-500.to-emerald-400,
+.bg-gradient-to-r.from-indigo-500.to-emerald-400,
+.bg-gradient-to-r.from-emerald-500.to-emerald-400 {
+  background: linear-gradient(to right, #42617d, #2e7d32) !important;
+}
+
+/* UserSelect title gradient */
+.bg-gradient-to-r.from-indigo-400.via-purple-400.to-pink-400 {
+  background-image: linear-gradient(to right, #151c27, #42617d) !important;
+}
+
+/* Custom leaflet popups styles */
+.custom-leaflet-popup .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid #c4c7c7 !important;
+  border-radius: 16px !important;
+  padding: 6px !important;
+  box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.05) !important;
+}
+
+.custom-leaflet-popup .leaflet-popup-content {
+  margin: 4px 6px !important;
+  color: #151c27 !important;
+}
+
+.custom-leaflet-popup .leaflet-popup-tip {
+  background: #ffffff !important;
+  border-left: 1px solid #c4c7c7 !important;
+  border-bottom: 1px solid #c4c7c7 !important;
+  box-shadow: none !important;
+}
+
+/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -29,7 +283,6 @@
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Hide default scrollbars */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -38,30 +291,32 @@
   scrollbar-width: none;
 }
 
-/* Force dark color scheme for date inputs to ensure light-colored native icons (calendar) */
 input[type="date"] {
-  color-scheme: dark;
+  color-scheme: light !important;
 }
 
-/* Custom dark styling for Leaflet popups */
-.custom-leaflet-popup .leaflet-popup-content-wrapper {
-  background: rgba(15, 23, 42, 0.95) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.4) !important;
-  border-radius: 12px !important;
-  padding: 6px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+/* Specific styling for the custom dialog boxes */
+.fixed.inset-0.bg-slate-950\/60 {
+  background-color: rgba(21, 28, 39, 0.4) !important;
+}
+.relative.w-full.max-w-sm.bg-slate-900\/90 {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f8 !important;
+  box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.08) !important;
+}
+.relative.w-full.max-w-sm.bg-slate-900\/90 p {
+  color: #444748 !important;
 }
 
-.custom-leaflet-popup .leaflet-popup-content {
-  margin: 4px 6px !important;
-  color: #f1f5f9 !important;
-}
-
-.custom-leaflet-popup .leaflet-popup-tip {
-  background: rgba(15, 23, 42, 0.95) !important;
-  border-left: 1px solid rgba(51, 65, 85, 0.4) !important;
-  border-bottom: 1px solid rgba(51, 65, 85, 0.4) !important;
-  box-shadow: none !important;
-}
-
+/* Explicit max-width overrides to prevent Tailwind CSS v4 spacing scale fallback */
+.max-w-xs { max-width: 20rem !important; }
+.max-w-sm { max-width: 24rem !important; }
+.max-w-md { max-width: 28rem !important; }
+.max-w-lg { max-width: 32rem !important; }
+.max-w-xl { max-width: 36rem !important; }
+.max-w-2xl { max-width: 42rem !important; }
+.max-w-3xl { max-width: 48rem !important; }
+.max-w-4xl { max-width: 56rem !important; }
+.max-w-5xl { max-width: 64rem !important; }
+.max-w-6xl { max-width: 72rem !important; }
+.max-w-7xl { max-width: 80rem !important; }

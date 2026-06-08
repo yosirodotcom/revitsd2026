@@ -134,7 +134,7 @@ export default function FinancialDashboard({
     e.preventDefault();
     const amountNum = Number(atkForm.jumlah);
     if (!atkForm.deskripsi.trim() || isNaN(amountNum) || amountNum <= 0) {
-      return alert('Deskripsi dan Jumlah Uang harus valid');
+      return window.showAlert('Deskripsi dan Jumlah Uang harus valid');
     }
 
     const newExpense = {
@@ -147,14 +147,14 @@ export default function FinancialDashboard({
     };
 
     onAddExpense(newExpense);
-    alert('Pengeluaran ATK berhasil dicatat!');
+    window.showAlert('Pengeluaran ATK berhasil dicatat!');
     setTaskForm({ deskripsi: '', jumlah: '', tanggal: new Date().toISOString().split('T')[0] });
     setIsAddingAtk(false);
   };
 
-  const handlePayHonor = (user, component, amount) => {
-    if (!isAuthorized) return alert('Anda tidak memiliki akses otorisasi pembayaran');
-    if (window.confirm(`Konfirmasi pembayaran "${component.toUpperCase()}" untuk ${user.nama} sebesar Rp ${amount.toLocaleString('id-ID')}?`)) {
+  const handlePayHonor = async (user, component, amount) => {
+    if (!isAuthorized) return window.showAlert('Anda tidak memiliki akses otorisasi pembayaran');
+    if (await window.showConfirm(`Konfirmasi pembayaran "${component.toUpperCase()}" untuk ${user.nama} sebesar Rp ${amount.toLocaleString('id-ID')}?`)) {
       
       const paymentId = `payment-${user.id}-${component}`;
       const newPayment = {
@@ -175,16 +175,16 @@ export default function FinancialDashboard({
       };
 
       onAddPayment(newPayment, newExpense);
-      alert('Pembayaran honor berhasil dicatat dan masuk rekap pengeluaran!');
+      window.showAlert('Pembayaran honor berhasil dicatat dan masuk rekap pengeluaran!');
     }
   };
 
-  const handlePayTripClaim = (trip) => {
-    if (!isAuthorized) return alert('Anda tidak memiliki akses otorisasi pembayaran');
+  const handlePayTripClaim = async (trip) => {
+    if (!isAuthorized) return window.showAlert('Anda tidak memiliki akses otorisasi pembayaran');
     const amount = DINAS_RATES[trip.userRoleTim] || 2000000;
     const targetSchool = schools.find(s => s.npsn === trip.sekolahId);
     
-    if (window.confirm(`Konfirmasi pembayaran klaim Uang Harian Perjalanan Dinas untuk ${getFasilitatorName(trip.userId)} sebesar Rp ${amount.toLocaleString('id-ID')}?`)) {
+    if (await window.showConfirm(`Konfirmasi pembayaran klaim Uang Harian Perjalanan Dinas untuk ${getFasilitatorName(trip.userId)} sebesar Rp ${amount.toLocaleString('id-ID')}?`)) {
       
       const newExpense = {
         id: `exp-dinas-${Date.now()}`,
@@ -196,7 +196,7 @@ export default function FinancialDashboard({
       };
 
       onPayTrip(trip.id, newExpense);
-      alert('Klaim perjalanan dinas berhasil dibayarkan!');
+      window.showAlert('Klaim perjalanan dinas berhasil dibayarkan!');
     }
   };
 
@@ -426,8 +426,8 @@ export default function FinancialDashboard({
                             <td className="px-4 py-2 text-right">
                               {exp.kategori === 'atk' && (
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm('Hapus transaksi pengeluaran ATK ini?')) {
+                                  onClick={async () => {
+                                    if (await window.showConfirm('Hapus transaksi pengeluaran ATK ini?')) {
                                       onDeleteExpense(exp.id);
                                     }
                                   }}

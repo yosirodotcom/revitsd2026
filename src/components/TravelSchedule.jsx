@@ -114,7 +114,7 @@ export default function TravelSchedule({
     });
 
     if (eligibleSchools.length === 0) {
-      alert(`Tidak ada sekolah binaan yang siap/memenuhi syarat untuk Kunjungan ke-${collectiveType} saat ini.`);
+      window.showAlert(`Tidak ada sekolah dampingan yang siap/memenuhi syarat untuk Kunjungan ke-${collectiveType} saat ini.`);
       return;
     }
 
@@ -139,7 +139,7 @@ export default function TravelSchedule({
     }));
 
     onAddTrip(newTrips);
-    alert(`Jadwal Kunjungan Ke-${collectiveType} Kolektif berhasil disimpan untuk ${eligibleSchools.length} sekolah!`);
+    window.showAlert(`Jadwal Kunjungan Ke-${collectiveType} Kolektif berhasil disimpan untuk ${eligibleSchools.length} sekolah!`);
   };
 
   const handleSaveTripInline = (schoolNpsn, visitNum) => {
@@ -168,7 +168,7 @@ export default function TravelSchedule({
     };
 
     onAddTrip(newTrip);
-    alert(`Laporan Perjalanan Dinas Kunjungan ${visitNum} berhasil disimpan!`);
+    window.showAlert(`Laporan Perjalanan Dinas Kunjungan ${visitNum} berhasil disimpan!`);
   };
 
 
@@ -315,7 +315,7 @@ export default function TravelSchedule({
                     Atur Jadwal Kunjungan Kolektif (Fasilitator)
                   </h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Tentukan tanggal perjalanan dinas satu kali langsung untuk seluruh sekolah binaan Anda.
+                    Tentukan tanggal perjalanan dinas satu kali langsung untuk seluruh sekolah dampingan Anda.
                   </p>
                 </div>
 
@@ -421,7 +421,7 @@ export default function TravelSchedule({
                 {/* Affected Schools */}
                 <div className="bg-slate-950/60 border border-slate-855 p-4 rounded-xl">
                   <span className="block text-[10px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide">
-                    Sekolah Binaan yang Siap Dijadwalkan untuk Kunjungan {collectiveType === 1 ? 'I' : 'II'} ({
+                  Sekolah Dampingan yang Siap Dijadwalkan untuk Kunjungan {collectiveType === 1 ? 'I' : 'II'} ({
                       mySchools.filter(school => {
                         const schoolTrips = getSchoolTrips(school.npsn);
                         const triggers = getSchoolTriggers(school);
@@ -452,7 +452,7 @@ export default function TravelSchedule({
                       if (toSchedule.length === 0) {
                         return (
                           <p className="text-[11px] text-slate-500 italic py-1">
-                            Tidak ada sekolah binaan yang memenuhi syarat dan belum dijadwalkan untuk Kunjungan {collectiveType === 1 ? 'I' : 'II'} saat ini.
+                            Tidak ada sekolah dampingan yang memenuhi syarat dan belum dijadwalkan untuk Kunjungan {collectiveType === 1 ? 'I' : 'II'} saat ini.
                           </p>
                         );
                       }
@@ -474,7 +474,7 @@ export default function TravelSchedule({
               {/* Schools Status Details Panel */}
               <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 space-y-4">
                 <h3 className="font-semibold text-slate-200 text-sm border-b border-slate-850 pb-2 select-none">
-                  Daftar Sekolah Binaan & Status Dampingan
+                  Daftar Sekolah Dampingan & Status Dampingan
                 </h3>
 
                 {mySchools.length === 0 ? (
@@ -781,17 +781,17 @@ export default function TravelSchedule({
                             <button
                               onClick={() => {
                                 onApproveTrip(trip.id, activeUser.nama);
-                                alert('Perjalanan dinas berhasil disetujui!');
+                                window.showAlert('Perjalanan dinas berhasil disetujui!');
                               }}
                               className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer border-0"
                             >
                               <CheckCircle className="w-3 h-3" /> Setujui
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm('Tolak pengajuan perjalanan dinas ini?')) {
+                              onClick={async () => {
+                                if (await window.showConfirm('Tolak pengajuan perjalanan dinas ini?')) {
                                   onRejectTrip(trip.id);
-                                  alert('Perjalanan dinas ditolak.');
+                                  window.showAlert('Perjalanan dinas ditolak.');
                                 }
                               }}
                               className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer border-0"

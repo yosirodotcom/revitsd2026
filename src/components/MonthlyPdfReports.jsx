@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar } from 'lucide-react';
+import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2 } from 'lucide-react';
 
 export default function MonthlyPdfReports({ 
   reports, 
   users, 
   activeUser, 
-  onAddReport 
+  onAddReport,
+  onDeleteReport
 }) {
   const [isAdding, setIsAdding] = useState(false);
+  const uploadedMonths = reports.filter(r => r.userId === activeUser.id).map(r => r.bulanKe);
   const [selectedMonthFilter, setSelectedMonthFilter] = useState('Semua');
   const [selectedFasilitatorFilter, setSelectedFasilitatorFilter] = useState('Semua');
   
@@ -16,62 +18,74 @@ export default function MonthlyPdfReports({
   const canReview = ['Koordinator', 'Super Admin', 'Ketua Tim'].includes(activeUser.jabatanTim);
   const [subTab, setSubTab] = useState(canUpload ? 'my' : 'all');
 
+  // Hierarchical visibility helper
+  const getVisibleUsersForReview = () => {
+    const isSuperAdmin = activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin';
+    if (isSuperAdmin) {
+      return users.filter(u => u.role !== 'admin');
+    }
+    if (activeUser.jabatanTim === 'Ketua Tim') {
+      return users.filter(u => u.id !== activeUser.id && u.role !== 'admin');
+    }
+    if (activeUser.jabatanTim === 'Koordinator') {
+      return users.filter(u => u.jabatanTim === 'Fasilitator');
+    }
+    return [];
+  };
+
+  const visibleUsers = getVisibleUsersForReview();
+  const visibleUserIds = visibleUsers.map(u => u.id);
+
   const [formData, setFormData] = useState({
     bulanKe: 1,
     fileName: '',
     fileData: ''
   });
 
-  // Handle PDF upload conversion to Base64
+  // Handle PDF upload conversion to Base64 and auto-submit
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      return alert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
+      e.target.value = '';
+      return window.showAlert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
     }
 
     // Size limit of 1.5MB for LocalStorage protection
     if (file.size > 1.5 * 1024 * 1024) {
-      return alert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 1.5MB untuk kebutuhan demo lokal ini.');
+      e.target.value = '';
+      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 1.5MB untuk kebutuhan demo lokal ini.');
     }
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      setFormData((prev) => ({
-        ...prev,
-        fileName: file.name,
-        fileData: event.target.result // Base64 data URL
-      }));
-    };
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.fileData) return alert('Silakan pilih berkas PDF terlebih dahulu');
-
-    // Check if report for this month already exists
-    const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === Number(formData.bulanKe));
-    if (exists) {
-      if (!window.confirm(`Laporan untuk Bulan Ke-${formData.bulanKe} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
-        return;
+    reader.onload = async (event) => {
+      const targetMonth = Number(formData.bulanKe);
+      // Check if report for this month already exists
+      const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth);
+      if (exists) {
+        if (!await window.showConfirm(`Laporan untuk Bulan Ke-${targetMonth} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
+          e.target.value = '';
+          return;
+        }
       }
-    }
 
-    const newReport = {
-      id: `report-${activeUser.id}-bulan-${formData.bulanKe}`,
-      userId: activeUser.id,
-      bulanKe: Number(formData.bulanKe),
-      fileName: formData.fileName,
-      fileData: formData.fileData,
-      submittedAt: new Date().toISOString()
+      const newReport = {
+        id: `report-${activeUser.id}-bulan-${targetMonth}`,
+        userId: activeUser.id,
+        bulanKe: targetMonth,
+        fileName: file.name,
+        fileData: event.target.result, // Base64 data URL
+        submittedAt: new Date().toISOString()
+      };
+
+      onAddReport(newReport);
+      window.showAlert(`Laporan Bulanan Ke-${targetMonth} berhasil dikirim!`);
+      setFormData({ bulanKe: 1, fileName: '', fileData: '' });
+      e.target.value = '';
+      setIsAdding(false);
     };
-
-    onAddReport(newReport);
-    alert(`Laporan Bulanan Ke-${formData.bulanKe} berhasil dikirim!`);
-    setFormData({ bulanKe: 1, fileName: '', fileData: '' });
-    setIsAdding(false);
   };
 
   // Safe PDF opener from Base64 Data URL (converts to Blob first to avoid browser security blockages)
@@ -90,7 +104,7 @@ export default function MonthlyPdfReports({
       window.open(fileUrl, '_blank');
     } catch (err) {
       console.error(err);
-      alert('Gagal membuka file PDF');
+      window.showAlert('Gagal membuka file PDF');
     }
   };
 
@@ -106,11 +120,12 @@ export default function MonthlyPdfReports({
     let matchesUser = true;
     if (canUpload && subTab === 'my') {
       matchesUser = rep.userId === activeUser.id;
-    } else if (selectedFasilitatorFilter !== 'Semua') {
-      matchesUser = rep.userId === selectedFasilitatorFilter;
-    } else if (activeUser.jabatanTim === 'Koordinator') {
-      // Koordinator sees all facilitators' reports (not including own unless selected)
-      matchesUser = rep.userId !== activeUser.id;
+    } else {
+      if (selectedFasilitatorFilter !== 'Semua') {
+        matchesUser = rep.userId === selectedFasilitatorFilter && visibleUserIds.includes(rep.userId);
+      } else {
+        matchesUser = visibleUserIds.includes(rep.userId);
+      }
     }
 
     return matchesMonth && matchesUser;
@@ -132,7 +147,16 @@ export default function MonthlyPdfReports({
 
         {canUpload && subTab === 'my' && !isAdding && (
           <button
-            onClick={() => setIsAdding(true)}
+            onClick={() => {
+              const uploaded = reports.filter(r => r.userId === activeUser.id).map(r => r.bulanKe);
+              const available = [1, 2, 3, 4, 5, 6].filter(m => !uploaded.includes(m));
+              if (available.length === 0) {
+                window.showAlert('Semua laporan bulanan (Bulan 1 s/d 6) sudah diunggah.');
+                return;
+              }
+              setFormData({ bulanKe: available[0], fileName: '', fileData: '' });
+              setIsAdding(true);
+            }}
             className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Unggah Laporan Baru
@@ -142,7 +166,10 @@ export default function MonthlyPdfReports({
 
       {/* Dual Mode Sub-Tabs */}
       {canUpload && canReview && (
-        <div className="flex bg-slate-900/60 border border-slate-800 rounded-xl p-1 max-w-xs select-none">
+        <div 
+          className="flex bg-slate-900/60 border border-slate-800 rounded-xl p-1 select-none"
+          style={{ width: '320px', minWidth: '320px' }}
+        >
           <button
             onClick={() => { setSubTab('my'); setIsAdding(false); }}
             className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -187,7 +214,7 @@ export default function MonthlyPdfReports({
               className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
             >
               <option value="Semua">Semua Anggota</option>
-              {users.filter(u => u.id !== activeUser.id && u.role !== 'admin').map((f) => (
+              {visibleUsers.map((f) => (
                 <option key={f.id} value={f.id}>{f.nama} ({f.jabatanTim})</option>
               ))}
             </select>
@@ -201,7 +228,7 @@ export default function MonthlyPdfReports({
           <h3 className="font-semibold text-slate-200 text-base mb-4 flex items-center gap-2">
             <Plus className="w-4 h-4 text-indigo-400" /> Kirim Laporan Periodik Bulanan
           </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
@@ -212,11 +239,14 @@ export default function MonthlyPdfReports({
                   onChange={(e) => setFormData({ ...formData, bulanKe: Number(e.target.value) })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                 >
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
-                    <option key={num} value={num}>
-                      Laporan Bulan Ke-{num}
-                    </option>
-                  ))}
+                  {[1, 2, 3, 4, 5, 6].map((num) => {
+                    const isUploaded = uploadedMonths.includes(num);
+                    return (
+                      <option key={num} value={num} disabled={isUploaded}>
+                        Laporan Bulan Ke-{num} {isUploaded ? '(Sudah diunggah)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -234,12 +264,6 @@ export default function MonthlyPdfReports({
               </div>
             </div>
 
-            {formData.fileName && (
-              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-850 text-xs text-indigo-400 font-mono flex items-center gap-2 select-none">
-                <FileText className="w-4 h-4" /> {formData.fileName} (Berkas siap dikirim)
-              </div>
-            )}
-
             <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-850">
               <button
                 type="button"
@@ -251,15 +275,8 @@ export default function MonthlyPdfReports({
               >
                 Batal
               </button>
-              <button
-                type="submit"
-                disabled={!formData.fileData}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center gap-1.5 transition-colors shadow-lg"
-              >
-                <Check className="w-4 h-4" /> Kirim Laporan PDF
-              </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -295,19 +312,40 @@ export default function MonthlyPdfReports({
                   <td className="px-6 py-4 text-slate-300 font-mono text-xs max-w-xs truncate">
                     {rep.fileName}
                   </td>
-                  <td className="px-6 py-4 text-slate-400 text-xs flex items-center gap-1.5 mt-2.5 md:mt-0">
-                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                    {new Date(rep.submittedAt).toLocaleDateString('id-ID', {
-                      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
+                  <td className="px-6 py-4 text-slate-400 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                      <span>
+                        {new Date(rep.submittedAt).toLocaleDateString('id-ID', {
+                          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openPdf(rep.fileData, rep.fileName)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 transition-all flex items-center gap-1.5 ml-auto cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Lihat PDF
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openPdf(rep.fileData, rep.fileName)}
+                        className="p-2 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-indigo-400 transition-all cursor-pointer"
+                        title="Lihat PDF"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {((subTab === 'my' && rep.userId === activeUser.id) || (!canReview && rep.userId === activeUser.id)) && (
+                        <button
+                          onClick={async () => {
+                            if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe}?`)) {
+                              onDeleteReport(rep.id);
+                              window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 transition-all cursor-pointer"
+                          title="Hapus Laporan"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -7,7 +7,8 @@ export const initialUsers = [
     jabatanTim: "Super Admin",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
-    role: "admin"
+    role: "admin",
+    password: "4051"
   },
   {
     id: "etty-rabihati",
@@ -16,7 +17,8 @@ export const initialUsers = [
     jabatanTim: "Ketua Tim",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
-    role: "user"
+    role: "user",
+    password: "sipil"
   },
   {
     id: "chandra-bayu",
@@ -25,7 +27,8 @@ export const initialUsers = [
     jabatanTim: "Koordinator",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
-    role: "user"
+    role: "user",
+    password: "arsitektur"
   },
   {
     id: "rizal",

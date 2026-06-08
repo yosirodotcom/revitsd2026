@@ -18,7 +18,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog }) {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return alert('Hanya berkas gambar yang didukung!');
+    if (!file.type.startsWith('image/')) return window.showAlert('Hanya berkas gambar yang didukung!');
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -59,7 +59,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.aktivitas.trim()) return alert('Aktivitas harian wajib diisi');
+    if (!formData.aktivitas.trim()) return window.showAlert('Aktivitas harian wajib diisi');
 
     const newLog = {
       id: `log-${activeUser.id}-${Date.now()}`,
@@ -71,7 +71,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog }) {
     };
 
     onAddLog(newLog);
-    alert('Log kerja harian berhasil dicatat!');
+    window.showAlert('Log kerja harian berhasil dicatat!');
     setFormData({ tanggal: new Date().toISOString().split('T')[0], aktivitas: '', foto: '' });
     setPreviewImage(null);
     setIsAdding(false);

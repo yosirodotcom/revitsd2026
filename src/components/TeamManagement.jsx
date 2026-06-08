@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { UserPlus, Edit2, Trash2, Shield, User, Award, Check, X } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Shield, User, Award, Check, X, Eye, EyeOff, Lock } from 'lucide-react';
 
 export default function TeamManagement({ users, activeUser, onAddUser, onUpdateUser, onDeleteUser }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showPasswords, setShowPasswords] = useState({});
   
   const [formData, setFormData] = useState({
     nama: '',
@@ -11,7 +12,8 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
     jabatanTim: 'Fasilitator',
     pendidikan: 'Strata 2',
     statusPegawai: 'PNS',
-    role: 'user'
+    role: 'user',
+    password: ''
   });
 
   const resetForm = () => {
@@ -21,7 +23,8 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
       jabatanTim: 'Fasilitator',
       pendidikan: 'Strata 2',
       statusPegawai: 'PNS',
-      role: 'user'
+      role: 'user',
+      password: ''
     });
     setIsAdding(false);
     setEditingUser(null);
@@ -35,39 +38,40 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
       jabatanTim: user.jabatanTim || '',
       pendidikan: user.pendidikan || '',
       statusPegawai: user.statusPegawai || '',
-      role: user.role || 'user'
+      role: user.role || 'user',
+      password: user.password || ''
     });
     setIsAdding(false);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.nama.trim()) return alert('Nama harus diisi');
+    if (!formData.nama.trim()) return window.showAlert('Nama harus diisi');
 
     if (editingUser) {
       onUpdateUser({
         ...editingUser,
         ...formData
       });
-      alert('Data anggota tim berhasil diperbarui');
+      window.showAlert('Data anggota tim berhasil diperbarui');
     } else {
       const newUser = {
         id: formData.nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
         ...formData
       };
       onAddUser(newUser);
-      alert('Anggota tim baru berhasil ditambahkan');
+      window.showAlert('Anggota tim baru berhasil ditambahkan');
     }
     resetForm();
   };
 
-  const handleDeleteClick = (user) => {
+  const handleDeleteClick = async (user) => {
     if (user.id === activeUser.id) {
-      return alert('Anda tidak dapat menghapus akun Anda sendiri.');
+      return window.showAlert('Anda tidak dapat menghapus akun Anda sendiri.');
     }
-    if (window.confirm(`Apakah Anda yakin ingin menghapus anggota tim "${user.nama}"?`)) {
+    if (await window.showConfirm(`Apakah Anda yakin ingin menghapus anggota tim "${user.nama}"?`)) {
       onDeleteUser(user.id);
-      alert('Anggota tim berhasil dihapus.');
+      window.showAlert('Anggota tim berhasil dihapus.');
     }
   };
 
@@ -87,7 +91,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
         {!isAdding && !editingUser && (
           <button
             onClick={() => setIsAdding(true)}
-            className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/10"
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer"
           >
             <UserPlus className="w-4 h-4" /> Tambah Anggota
           </button>
@@ -192,6 +196,19 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
               </select>
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Password Akun
+              </label>
+              <input
+                type="text"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder="Sandi masuk (opsional)"
+              />
+            </div>
+
             <div className="md:col-span-3 pt-3 flex items-center justify-end gap-2 border-t border-slate-800/80">
               <button
                 type="button"
@@ -202,7 +219,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition-colors shadow-lg shadow-indigo-600/10"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer"
               >
                 <Check className="w-4 h-4" /> {editingUser ? 'Perbarui Anggota' : 'Tambahkan Anggota'}
               </button>
@@ -223,6 +240,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                 <th className="px-6 py-4 text-center">Pendidikan</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-center">Akses</th>
+                <th className="px-6 py-4 text-center">Password</th>
                 <th className="px-6 py-4 text-right">Aksi</th>
               </tr>
             </thead>
@@ -281,13 +299,49 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                       </span>
                     )}
                   </td>
+                  {/* Password (Koordinator specific visibility and reset) */}
+                  <td className="px-6 py-4 text-center">
+                    {user.jabatanTim === 'Koordinator' ? (
+                      <div className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-xl">
+                        <span className="font-mono text-xs text-slate-350 select-text">
+                          {showPasswords[user.id] ? (user.password || '(Kosong)') : '••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                          title={showPasswords[user.id] ? "Sembunyikan password" : "Lihat password"}
+                        >
+                          {showPasswords[user.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (await window.showConfirm(`Apakah Anda yakin ingin mereset password Koordinator "${user.nama}" menjadi "arsitektur"?`)) {
+                              onUpdateUser({
+                                ...user,
+                                password: 'arsitektur'
+                              });
+                              window.showAlert(`Password Koordinator "${user.nama}" berhasil direset menjadi "arsitektur"`);
+                            }
+                          }}
+                          className="px-2 py-1 text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/20 hover:border-transparent rounded-lg transition-all cursor-pointer"
+                          title="Reset Password"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs">-</span>
+                    )}
+                  </td>
                   {/* Aksi */}
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => handleEditClick(user)}
                         title="Edit data anggota"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-colors cursor-pointer"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -298,7 +352,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                         className={`p-1.5 rounded-lg text-slate-400 transition-colors ${
                           user.id === activeUser.id
                             ? 'opacity-30 cursor-not-allowed'
-                            : 'hover:text-rose-400 hover:bg-slate-800'
+                            : 'hover:text-rose-400 hover:bg-slate-800 cursor-pointer'
                         }`}
                       >
                         <Trash2 className="w-4 h-4" />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { initialUsers } from './data/initialData';
 import { initialSchools } from './data/initialSchools';
 import UserSelect from './components/UserSelect';
@@ -36,8 +37,10 @@ export default function App() {
   const [activeUser, setActiveUser] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedSchoolNpsn, setSelectedSchoolNpsn] = useState(null);
+  const [schoolDetailReferrer, setSchoolDetailReferrer] = useState(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSelectingUser, setIsSelectingUser] = useState(false);
+  const [dialog, setDialog] = useState(null);
   const [settings, setSettings] = useState({
     projectStartDate: '2026-06-12',
     projectEndDate: '2026-12-12',
@@ -48,8 +51,36 @@ export default function App() {
   useEffect(() => {
     // Users
     const storedUsers = localStorage.getItem('revit_users');
-    if (storedUsers) setUsers(JSON.parse(storedUsers));
-    else {
+    if (storedUsers) {
+      const parsedUsers = JSON.parse(storedUsers);
+      let migrated = false;
+      const updatedUsers = parsedUsers.map(u => {
+        let updated = { ...u };
+        if (updated.id === 'yosi-ronadi' && updated.password === undefined) {
+          updated.password = '4051';
+          migrated = true;
+        }
+        if (updated.id === 'etty-rabihati' && updated.password === undefined) {
+          updated.password = 'sipil';
+          migrated = true;
+        }
+        if (updated.id === 'chandra-bayu' && updated.password === undefined) {
+          updated.password = 'arsitektur';
+          migrated = true;
+        }
+        if (updated.password === undefined) {
+          updated.password = '';
+          migrated = true;
+        }
+        return updated;
+      });
+      if (migrated) {
+        localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
+        setUsers(updatedUsers);
+      } else {
+        setUsers(parsedUsers);
+      }
+    } else {
       setUsers(initialUsers);
       localStorage.setItem('revit_users', JSON.stringify(initialUsers));
     }
@@ -176,11 +207,33 @@ export default function App() {
     // Active User session if exists
     const storedActiveUser = localStorage.getItem('revit_active_user');
     if (storedActiveUser) setActiveUser(JSON.parse(storedActiveUser));
+
+    // Global Dialog Registration
+    window.showAlert = (message) => {
+      return new Promise((resolve) => {
+        setDialog({
+          type: 'alert',
+          message,
+          resolve
+        });
+      });
+    };
+
+    window.showConfirm = (message) => {
+      return new Promise((resolve) => {
+        setDialog({
+          type: 'confirm',
+          message,
+          resolve
+        });
+      });
+    };
   }, []);
 
   const handleViewChange = (viewId) => {
     setActiveView(viewId);
     setSelectedSchoolNpsn(null); // Reset detail page when switching tabs
+    setSchoolDetailReferrer(null);
   };
 
   // 3. User Select & Session Handlers
@@ -232,6 +285,20 @@ export default function App() {
   const handleSaveProfile = (updatedProfile) => {
     handleUpdateUser(updatedProfile);
     setIsEditingProfile(false);
+  };
+
+  const handleDialogConfirm = () => {
+    if (dialog && dialog.resolve) {
+      dialog.resolve(true);
+    }
+    setDialog(null);
+  };
+
+  const handleDialogCancel = () => {
+    if (dialog && dialog.resolve) {
+      dialog.resolve(false);
+    }
+    setDialog(null);
   };
 
   // 7. School Actions (Fase 2)
@@ -356,6 +423,12 @@ export default function App() {
     localStorage.setItem('revit_reports', JSON.stringify(updated));
   };
 
+  const handleDeleteReport = (reportId) => {
+    const updated = reports.filter(r => r.id !== reportId);
+    setReports(updated);
+    localStorage.setItem('revit_reports', JSON.stringify(updated));
+  };
+
   // 13. Duty Reports Actions (Fase 4)
   const handleSaveDutyReport = (newReport) => {
     const updated = dutyReports.filter(r => !(r.userId === newReport.userId && r.dutyIndex === newReport.dutyIndex));
@@ -470,6 +543,11 @@ export default function App() {
               trips={trips}
               onApproveTrip={handleApproveTrip}
               onRejectTrip={handleRejectTrip}
+              onSelectSchool={(npsn) => {
+                setSelectedSchoolNpsn(npsn);
+                setSchoolDetailReferrer('dashboard');
+                setActiveView('sekolah');
+              }}
             />
           )}
 
@@ -501,7 +579,12 @@ export default function App() {
                     contacts={contacts}
                     tasks={tasks}
                     activeUser={activeUser}
-                    onBack={() => setSelectedSchoolNpsn(null)}
+                    onBack={() => {
+                      setSelectedSchoolNpsn(null);
+                      if (schoolDetailReferrer === 'dashboard') {
+                        setActiveView('dashboard');
+                      }
+                    }}
                     onUpdateSchool={handleUpdateSchool}
                     onAddTask={handleAddTask}
                     onUpdateTaskStatus={handleUpdateTaskStatus}
@@ -518,7 +601,10 @@ export default function App() {
                     activeUser={activeUser}
                     onClaimSchool={handleClaimSchool}
                     onAddSchool={handleAddSchool}
-                    onSelectSchool={setSelectedSchoolNpsn}
+                    onSelectSchool={(npsn) => {
+                      setSelectedSchoolNpsn(npsn);
+                      setSchoolDetailReferrer('sekolah');
+                    }}
                     onUpdateSchool={handleUpdateSchool}
                     tasks={tasks}
                   />
@@ -554,6 +640,7 @@ export default function App() {
                   users={users}
                   activeUser={activeUser}
                   onAddReport={handleAddReport}
+                  onDeleteReport={handleDeleteReport}
                 />
               )}
 
@@ -610,6 +697,50 @@ export default function App() {
           onClose={() => setIsEditingProfile(false)}
           onSave={handleSaveProfile}
         />
+      )}
+
+      {/* Custom Global Dialog Modal */}
+      {dialog && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in select-none">
+          <div className="absolute inset-0" onClick={() => dialog.type === 'alert' && handleDialogConfirm()} />
+          <div className="relative w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-center items-center backdrop-blur-md">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+              dialog.type === 'confirm' 
+                ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' 
+                : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
+            }`}>
+              {dialog.type === 'confirm' ? (
+                <AlertTriangle className="w-6 h-6" />
+              ) : (
+                <Info className="w-6 h-6" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-extrabold text-white text-base">
+                {dialog.type === 'confirm' ? 'Konfirmasi Tindakan' : 'Informasi'}
+              </h3>
+              <p className="text-slate-305 text-xs leading-relaxed">
+                {dialog.message}
+              </p>
+            </div>
+            <div className="flex gap-2.5 w-full mt-2">
+              {dialog.type === 'confirm' && (
+                <button
+                  onClick={handleDialogCancel}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-slate-200 transition-all cursor-pointer border-0"
+                >
+                  Batal
+                </button>
+              )}
+              <button
+                onClick={handleDialogConfirm}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer shadow-lg shadow-indigo-650/10 border-0"
+              >
+                {dialog.type === 'confirm' ? 'Ya, Lanjutkan' : 'Mengerti'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
