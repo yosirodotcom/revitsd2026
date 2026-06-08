@@ -51,7 +51,8 @@ export default function UserSelect({ users, onSelectUser, onClose }) {
   const isPopup = typeof onClose === 'function';
 
   const handleCardClick = (user) => {
-    if (user.password && user.password.trim() !== '') {
+    const pwdStr = user.password !== undefined && user.password !== null ? String(user.password) : '';
+    if (pwdStr.trim() !== '') {
       setSelectedUser(user);
       setPasswordInput('');
       setShowPassword(false);
@@ -63,7 +64,8 @@ export default function UserSelect({ users, onSelectUser, onClose }) {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    if (passwordInput === selectedUser.password) {
+    const pwdStr = selectedUser.password !== undefined && selectedUser.password !== null ? String(selectedUser.password) : '';
+    if (passwordInput === pwdStr) {
       onSelectUser(selectedUser);
     } else {
       setError('Password salah! Silakan coba lagi.');

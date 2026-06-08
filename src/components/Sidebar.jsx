@@ -7,13 +7,14 @@ import {
   FileCheck, 
   FileText, 
   CalendarClock, 
+  Calendar,
   CircleDollarSign, 
   LogOut, 
   UserCog,
   ShieldAlert
 } from 'lucide-react';
 
-export default function Sidebar({ activeUser, activeView, onViewChange, onEditProfile, onLogout }) {
+export default function Sidebar({ activeUser, activeView, onViewChange, onEditProfile, onManageDocuments, onLogout }) {
   const getInitials = (name) => {
     return name
       .split(' ')
@@ -29,6 +30,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
     { id: 'tanggung-jawab', name: 'Tanggung Jawab Saya', icon: FileCheck, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator', 'Tenaga Administrasi'] },
     { id: 'laporan-bulanan', name: 'Laporan Bulanan', icon: FileText, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator'] },
     { id: 'dinas', name: 'Jadwal Perjalanan Dinas', icon: CalendarClock, roles: ['Fasilitator', 'Koordinator', 'Super Admin'] },
+    { id: 'rapat', name: activeUser.jabatanTim === 'Super Admin' ? 'Kelola Rapat' : 'Agenda Rapat', icon: Calendar, roles: ['*'] },
     
     // Keuangan & Pemantauan (Administrasi / Admin)
     { id: 'pantau-honor', name: 'Pantau & Bayar Honor', icon: CircleDollarSign, roles: ['Tenaga Administrasi', 'Super Admin'] },
@@ -73,6 +75,14 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
           className="mt-4 w-full px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/80 text-[11px] font-medium text-slate-300 hover:text-white flex items-center justify-center gap-1.5 transition-all duration-200"
         >
           <UserCog className="w-3.5 h-3.5" /> Ubah Profil
+        </button>
+
+        {/* Personnel Documents Button */}
+        <button
+          onClick={onManageDocuments}
+          className="mt-2 w-full px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/80 text-[11px] font-medium text-slate-300 hover:text-white flex items-center justify-center gap-1.5 transition-all duration-200"
+        >
+          <FileText className="w-3.5 h-3.5 text-indigo-400" /> Dokumen Personil
         </button>
       </div>
 

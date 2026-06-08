@@ -46,7 +46,9 @@ const getSchoolCoordinates = (school) => {
 export default function SchoolList({ schools, users, activeUser, onClaimSchool, onAddSchool, onSelectSchool, onUpdateSchool, tasks = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKabupaten, setSelectedKabupaten] = useState('Semua');
-  const [selectedFacilitatorFilter, setSelectedFacilitatorFilter] = useState('Semua');
+  const [selectedFacilitatorFilter, setSelectedFacilitatorFilter] = useState(
+    activeUser?.jabatanTim === 'Fasilitator' ? 'Saya' : 'Semua'
+  );
   const [viewMode, setViewMode] = useState('table');
   
   const mapRef = useRef(null);
@@ -65,31 +67,28 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   const isFacilitator = activeUser?.jabatanTim === 'Fasilitator';
 
   // Base list of schools to display
-  const displaySchools = isFacilitator
-    ? schools.filter((s) => s.fasilitatorId === activeUser.id)
-    : schools;
+  const displaySchools = schools;
 
   // Get unique Kabupatens
-  const kabupatens = ['Semua', ...new Set(displaySchools.map((s) => s.kabupaten))];
+  const kabupatens = ['Semua', ...new Set(displaySchools.filter(Boolean).map((s) => s.kabupaten).filter(Boolean))];
 
   // Filters logic
   const filteredSchools = displaySchools.filter((school) => {
+    if (!school) return false;
     const matchesSearch =
-      school.nama_sekolah.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      school.npsn.includes(searchTerm);
+      (school.nama_sekolah || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (school.npsn || '').includes(searchTerm);
       
     const matchesKabupaten =
       selectedKabupaten === 'Semua' || school.kabupaten === selectedKabupaten;
 
     let matchesFacilitator = true;
-    if (!isFacilitator) {
-      if (selectedFacilitatorFilter === 'Saya') {
-        matchesFacilitator = school.fasilitatorId === activeUser.id;
-      } else if (selectedFacilitatorFilter === 'Belum Ada') {
-        matchesFacilitator = !school.fasilitatorId;
-      } else if (selectedFacilitatorFilter !== 'Semua') {
-        matchesFacilitator = school.fasilitatorId === selectedFacilitatorFilter;
-      }
+    if (selectedFacilitatorFilter === 'Saya') {
+      matchesFacilitator = school.fasilitatorId === activeUser?.id;
+    } else if (selectedFacilitatorFilter === 'Belum Ada') {
+      matchesFacilitator = !school.fasilitatorId;
+    } else if (selectedFacilitatorFilter !== 'Semua') {
+      matchesFacilitator = school.fasilitatorId === selectedFacilitatorFilter;
     }
 
     return matchesSearch && matchesKabupaten && matchesFacilitator;
@@ -252,7 +251,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
             Daftar Sekolah
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            {activeUser.jabatanTim === 'Fasilitator' 
+            {activeUser?.jabatanTim === 'Fasilitator' 
               ? 'Kelola sekolah yang menjadi tanggung jawab Anda.'
               : 'Pantau status progres konstruksi dan alokasi fasilitator untuk seluruh sekolah dasar.'}
           </p>
@@ -284,7 +283,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
             </button>
           </div>
 
-          {activeUser.role === 'admin' && (
+          {activeUser?.role === 'admin' && (
             <button
               type="button"
               onClick={() => setIsAddingMaster(true)}
@@ -297,9 +296,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
       </div>
 
       {/* Filter Bar */}
-      <div className={`bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-1 ${
-        isFacilitator ? 'sm:grid-cols-3' : 'sm:grid-cols-4'
-      } gap-4`}>
+      <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -330,27 +327,35 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
         </div>
 
         {/* Facilitator Assignment Filter */}
-        {!isFacilitator && (
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
-            <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
-            <div className="flex-1">
-              <span className="block text-[8px] uppercase font-semibold text-slate-500">Fasilitator</span>
-              <select
-                value={selectedFacilitatorFilter}
-                onChange={(e) => setSelectedFacilitatorFilter(e.target.value)}
-                className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
-              >
-                <option value="Semua" className="bg-slate-950">Semua</option>
-                <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
-                {users
-                  .filter((u) => u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Ketua Tim')
-                  .map((f) => (
-                    <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
-                  ))}
-              </select>
-            </div>
+        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
+          <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
+          <div className="flex-1">
+            <span className="block text-[8px] uppercase font-semibold text-slate-500">Fasilitator</span>
+            <select
+              value={selectedFacilitatorFilter}
+              onChange={(e) => setSelectedFacilitatorFilter(e.target.value)}
+              className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
+            >
+              {isFacilitator ? (
+                <>
+                  <option value="Saya" className="bg-slate-950">Sekolah Saya</option>
+                  <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
+                  <option value="Semua" className="bg-slate-950">Semua Sekolah</option>
+                </>
+              ) : (
+                <>
+                  <option value="Semua" className="bg-slate-950">Semua</option>
+                  <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
+                  {users
+                    .filter((u) => u && (u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Ketua Tim'))
+                    .map((f) => (
+                      <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
+                    ))}
+                </>
+              )}
+            </select>
           </div>
-        )}
+        </div>
 
         {/* Stats Helper */}
         <div className="flex items-center justify-center sm:justify-end text-xs text-slate-400 font-semibold px-2">
@@ -400,9 +405,10 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
               </thead>
               <tbody className="divide-y divide-slate-800/50">
                 {filteredSchools.map((school) => {
+                  if (!school) return null;
                   const isMySchool = school.fasilitatorId === activeUser?.id;
                   const isAuthorizedToEdit = activeUser?.role === 'admin' || (activeUser?.jabatanTim === 'Fasilitator' && school.fasilitatorId === activeUser?.id);
-                  const schoolTasks = tasks ? tasks.filter((t) => t.sekolahId === school.npsn || t.schoolId === school.npsn) : [];
+                  const schoolTasks = tasks ? tasks.filter((t) => t && (t.sekolahId === school.npsn || t.schoolId === school.npsn)) : [];
                   const hasTasks = schoolTasks.length > 0;
 
                   return (
@@ -483,9 +489,9 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                           {isFacilitator && !school.fasilitatorId && (
                             <button
                               onClick={() => {
-                                onClaimSchool(school.npsn, activeUser.id);
+                                onClaimSchool(school.npsn, activeUser?.id);
                               }}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer border-0"
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-650 hover:bg-indigo-600 text-white transition-colors cursor-pointer border-0"
                             >
                               Klaim
                             </button>

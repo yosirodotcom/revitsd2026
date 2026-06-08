@@ -30,12 +30,12 @@ export default function Dashboard({
   trips = [],
   onApproveTrip,
   onRejectTrip,
-  onSelectSchool
+  onSelectSchool,
+  onViewChange
 }) {
   const [dates, setDates] = useState({
     projectStartDate: settings.projectStartDate || '2026-06-12',
     projectEndDate: settings.projectEndDate || '2026-12-12',
-    simulatedToday: settings.simulatedToday || '2026-09-14',
     googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
     googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN'
   });
@@ -49,7 +49,6 @@ export default function Dashboard({
     setDates({
       projectStartDate: settings.projectStartDate || '2026-06-12',
       projectEndDate: settings.projectEndDate || '2026-12-12',
-      simulatedToday: settings.simulatedToday || '2026-09-14',
       googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
       googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN'
     });
@@ -90,6 +89,7 @@ export default function Dashboard({
 
   // 1. KPI Calculations & Filtering based on role
   const isFacilitator = activeUser?.jabatanTim === 'Fasilitator';
+  const showRightColumn = (activeUser?.role === 'admin') || !isFacilitator;
 
   // Filter based on role
   const displaySchools = isFacilitator 
@@ -153,9 +153,18 @@ export default function Dashboard({
   }
 
   // 2. Timeline Elapsed Calculations
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
+  };
+  const todayStr = getTodayDateStr();
+
   const startMs = new Date(dates.projectStartDate).getTime();
   const endMs = new Date(dates.projectEndDate).getTime();
-  const todayMs = new Date(dates.simulatedToday).getTime();
+  const todayMs = new Date(todayStr).getTime();
   
   const totalDuration = endMs - startMs;
   const elapsedDuration = todayMs - startMs;
@@ -170,7 +179,7 @@ export default function Dashboard({
     const date2 = new Date(d2Str);
     return (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
   };
-  const monthsElapsed = getMonthsDifference(dates.projectStartDate, dates.simulatedToday);
+  const monthsElapsed = getMonthsDifference(dates.projectStartDate, todayStr);
 
   // 3. Kabupaten breakdown calculations
   const kabGroups = {};
@@ -381,10 +390,10 @@ export default function Dashboard({
       </div>
 
       {/* Main Grid: Left (Stats + Regional), Right (Timeline settings / active user info) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={showRightColumn ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "space-y-6"}>
         
-        {/* Left Column (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Left Column (2/3 width or full width) */}
+        <div className={showRightColumn ? "lg:col-span-2 space-y-6" : "space-y-6"}>
           
           {/* Project Timeline & Milestones Progress */}
           <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
@@ -401,7 +410,7 @@ export default function Dashboard({
               {/* Progress Bar */}
               <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-850">
                 <div className="flex justify-between items-center text-xs font-semibold text-slate-400 mb-2">
-                  <span>Waktu Berjalan (Simulasi)</span>
+                  <span>Waktu Berjalan</span>
                   <span className="text-indigo-400 font-bold">{timeProgress}% dari Total Waktu</span>
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
@@ -418,8 +427,8 @@ export default function Dashboard({
                     <span className="text-[11px] font-semibold text-slate-300">{formatLocalDate(dates.projectStartDate)}</span>
                   </div>
                   <div className="text-center bg-indigo-500/5 border border-indigo-500/10 rounded-xl px-2 py-1">
-                    <span className="block text-[8px] uppercase font-bold text-indigo-400">Simulasi Hari Ini</span>
-                    <span className="text-[11px] font-bold text-indigo-300">{formatLocalDate(dates.simulatedToday)}</span>
+                    <span className="block text-[8px] uppercase font-bold text-indigo-400">Hari Ini</span>
+                    <span className="text-[11px] font-bold text-indigo-300">{formatLocalDate(todayStr)}</span>
                   </div>
                   <div className="text-right">
                     <span className="block text-[8px] uppercase font-bold text-slate-500">Target</span>
@@ -533,9 +542,17 @@ export default function Dashboard({
               {displaySchools.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah dampingan.</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 mb-4">
                     Silakan buka menu <strong>"Daftar Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
                   </p>
+                  {onViewChange && (
+                    <button
+                      onClick={() => onViewChange('sekolah')}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-600/10 cursor-pointer border-0"
+                    >
+                      Buka Daftar Sekolah
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -587,7 +604,8 @@ export default function Dashboard({
         </div>
 
         {/* Right Column (1/3 width) */}
-        <div className="space-y-6">
+        {showRightColumn && (
+          <div className="space-y-6">
           
           {/* Dynamic Configuration (Super Admin) or Kepegawaian (Others) */}
           {activeUser ? (
@@ -617,18 +635,6 @@ export default function Dashboard({
                       type="date"
                       value={dates.projectEndDate}
                       onChange={(e) => setDates({ ...dates, projectEndDate: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                      Tanggal Simulasi Hari Ini
-                    </label>
-                    <input
-                      type="date"
-                      value={dates.simulatedToday}
-                      onChange={(e) => setDates({ ...dates, simulatedToday: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
                       required
                     />
@@ -700,7 +706,7 @@ export default function Dashboard({
           )}
 
           {/* Ranked School Progress — filtered by selectedFacilitator */}
-          {(() => {
+          {!isFacilitator && (() => {
             const selectedFacName = selectedFacilitator
               ? users.find(u => u.id === selectedFacilitator)?.nama || 'Fasilitator'
               : null;
@@ -781,7 +787,8 @@ export default function Dashboard({
             );
           })()}
 
-        </div>
+          </div>
+        )}
 
       </div>
 

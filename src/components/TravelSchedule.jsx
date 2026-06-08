@@ -12,21 +12,28 @@ export default function TravelSchedule({
   onApproveTrip,
   onRejectTrip
 }) {
-  // Let the user simulate the system date so they can test time-based triggers (e.g., September 2026)
-  const simulatedDate = settings.simulatedToday || '2026-09-14';
-  const [collectiveStart, setCollectiveStart] = useState(simulatedDate);
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
+  };
+  const todayDate = getTodayDateStr();
+
+  const [collectiveStart, setCollectiveStart] = useState(todayDate);
   const [collectiveEnd, setCollectiveEnd] = useState('');
   const [collectiveType, setCollectiveType] = useState(1); // 1 or 2
   const [tripDates, setTripDates] = useState({});
 
   useEffect(() => {
-    setCollectiveStart(simulatedDate);
-    if (simulatedDate) {
-      const d = new Date(simulatedDate);
+    setCollectiveStart(todayDate);
+    if (todayDate) {
+      const d = new Date(todayDate);
       d.setDate(d.getDate() + 4);
       setCollectiveEnd(d.toISOString().split('T')[0]);
     }
-  }, [simulatedDate]);
+  }, [todayDate]);
 
   const handleStartDateChange = (val) => {
     setCollectiveStart(val);
@@ -58,7 +65,7 @@ export default function TravelSchedule({
   // Determine triggers for a school
   const getSchoolTriggers = (school) => {
     const start = school.tanggal_mulai_sekolah || projectStart;
-    const monthsElapsed = getMonthsDifference(start, simulatedDate);
+    const monthsElapsed = getMonthsDifference(start, todayDate);
 
     const req1_progress = school.progres_fisik >= 50;
     const req1_time = monthsElapsed >= 3;
@@ -143,7 +150,7 @@ export default function TravelSchedule({
   };
 
   const handleSaveTripInline = (schoolNpsn, visitNum) => {
-    const tripDate = tripDates[`${schoolNpsn}-${visitNum}`] || simulatedDate;
+    const tripDate = tripDates[`${schoolNpsn}-${visitNum}`] || todayDate;
     
     const duration = activeUser.jabatanTim === 'Fasilitator' ? 5 : 4;
     const startDate = new Date(tripDate);
@@ -245,26 +252,6 @@ export default function TravelSchedule({
   return (
     <div className="space-y-6 animate-fade-in p-6">
       
-      {/* Simulation Tools */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-indigo-400" />
-          <div>
-            <h4 className="text-xs font-bold text-slate-200">Simulasi Penjadwalan Waktu</h4>
-            <p className="text-[10px] text-slate-500">Membantu pengujian sistem trigger dinas bulan ke-3 (Sept 2026) dan ke-6 (Des 2026).</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 w-full sm:w-auto">
-          <span className="text-[10px] font-semibold uppercase text-slate-500 mr-2">Tanggal Simulasi Hari Ini:</span>
-          <input
-            type="date"
-            value={simulatedDate}
-            onChange={(e) => onUpdateSettings({ ...settings, simulatedToday: e.target.value })}
-            className="bg-transparent border-0 text-slate-200 text-xs font-bold focus:outline-none"
-          />
-        </div>
-      </div>
-
       {/* Main Grid content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -698,7 +685,7 @@ export default function TravelSchedule({
                           <div className="flex items-center gap-1.5">
                             <input
                               type="date"
-                              value={tripDates[`${school.npsn}-${targetVisit}`] || simulatedDate}
+                              value={tripDates[`${school.npsn}-${targetVisit}`] || todayDate}
                               onChange={(e) => setTripDates({
                                 ...tripDates,
                                 [`${school.npsn}-${targetVisit}`]: e.target.value

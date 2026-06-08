@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { UserPlus, Edit2, Trash2, Shield, User, Award, Check, X, Eye, EyeOff, Lock } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Shield, User, Award, Check, X, Eye, EyeOff, Lock, FileText, Calendar } from 'lucide-react';
 
-export default function TeamManagement({ users, activeUser, onAddUser, onUpdateUser, onDeleteUser }) {
+export default function TeamManagement({ users, activeUser, onAddUser, onUpdateUser, onDeleteUser, onManageDocuments, onManageReports, onManageLogs }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPasswords, setShowPasswords] = useState({});
@@ -299,45 +299,67 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                       </span>
                     )}
                   </td>
-                  {/* Password (Koordinator specific visibility and reset) */}
+                  {/* Password (All users visibility and reset) */}
                   <td className="px-6 py-4 text-center">
-                    {user.jabatanTim === 'Koordinator' ? (
-                      <div className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-xl">
-                        <span className="font-mono text-xs text-slate-350 select-text">
-                          {showPasswords[user.id] ? (user.password || '(Kosong)') : '••••••••'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowPasswords(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
-                          className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
-                          title={showPasswords[user.id] ? "Sembunyikan password" : "Lihat password"}
-                        >
-                          {showPasswords[user.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (await window.showConfirm(`Apakah Anda yakin ingin mereset password Koordinator "${user.nama}" menjadi "arsitektur"?`)) {
-                              onUpdateUser({
-                                ...user,
-                                password: 'arsitektur'
-                              });
-                              window.showAlert(`Password Koordinator "${user.nama}" berhasil direset menjadi "arsitektur"`);
-                            }
-                          }}
-                          className="px-2 py-1 text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/20 hover:border-transparent rounded-lg transition-all cursor-pointer"
-                          title="Reset Password"
-                        >
-                          Reset
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-slate-600 text-xs">-</span>
-                    )}
+                    <div className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-xl">
+                      <span className="font-mono text-xs text-slate-350 select-text">
+                        {showPasswords[user.id] ? (user.password || '(Kosong)') : '••••••••'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                        title={showPasswords[user.id] ? "Sembunyikan password" : "Lihat password"}
+                      >
+                        {showPasswords[user.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const defaultPwd = user.jabatanTim === 'Super Admin' ? '4051' : 
+                                             user.jabatanTim === 'Ketua Tim' ? 'sipil' : 
+                                             user.jabatanTim === 'Koordinator' ? 'arsitektur' : 
+                                             user.jabatanTim === 'Fasilitator' ? 'fasilitator' : 
+                                             user.jabatanTim === 'Tenaga Administrasi' ? 'administrasi' : '123456';
+                          if (await window.showConfirm(`Apakah Anda yakin ingin mereset password ${user.jabatanTim} "${user.nama}" menjadi "${defaultPwd}"?`)) {
+                            onUpdateUser({
+                              ...user,
+                              password: defaultPwd
+                            });
+                            window.showAlert(`Password ${user.jabatanTim} "${user.nama}" berhasil direset menjadi "${defaultPwd}"`);
+                          }
+                        }}
+                        className="px-2 py-1 text-[10px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/20 hover:border-transparent rounded-lg transition-all cursor-pointer"
+                        title="Reset Password"
+                      >
+                        Reset
+                      </button>
+                    </div>
                   </td>
                   {/* Aksi */}
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => onManageDocuments(user)}
+                        title="Kelola dokumen personil"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onManageReports(user)}
+                        title="Kelola laporan bulanan"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        <Award className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onManageLogs(user)}
+                        title="Kelola log harian"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        <Calendar className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleEditClick(user)}
                         title="Edit data anggota"

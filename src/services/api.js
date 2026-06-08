@@ -50,7 +50,6 @@ export const syncService = {
         settings: {
           projectStartDate: state.settings.projectStartDate,
           projectEndDate: state.settings.projectEndDate,
-          simulatedToday: state.settings.simulatedToday,
           googleAppsScriptUrl: state.settings.googleAppsScriptUrl || '',
           googleAppsScriptToken: state.settings.googleAppsScriptToken || ''
         },
@@ -64,7 +63,23 @@ export const syncService = {
         duty_reports: state.dutyReports || [],
         expenses: state.expenses,
         payments: state.payments,
-        school_docs: state.schoolDocs || []
+        school_docs: state.schoolDocs || [],
+        personnel_docs: state.personnelDocs || [],
+        meetings: (state.meetings || []).map(m => ({
+          ...m,
+          pesertaIds: Array.isArray(m.pesertaIds) ? m.pesertaIds.join(',') : (m.pesertaIds || '')
+        })),
+        activity_logs: (state.activityLogs || []).map(l => ({
+          id: l.id,
+          userId: l.userId,
+          timestamp: l.timestamp,
+          actionType: l.actionType,
+          description: l.description,
+          fileRef_id: l.fileRef ? l.fileRef.id : '',
+          fileRef_type: l.fileRef ? l.fileRef.type : '',
+          fileRef_fileName: l.fileRef ? l.fileRef.fileName : '',
+          fileRef_fileData: l.fileRef ? l.fileRef.fileData : ''
+        }))
       }
     };
 
