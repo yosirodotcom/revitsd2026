@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CircleDollarSign, Plus, Check, Trash2, Receipt, ArrowUpRight, TrendingUp, AlertCircle, FileCheck, CheckCircle } from 'lucide-react';
 
 export default function FinancialDashboard({ 
@@ -12,10 +12,54 @@ export default function FinancialDashboard({
   onAddExpense, 
   onDeleteExpense, 
   onAddPayment, 
-  onPayTrip 
+  onPayTrip,
+  settings,
+  onUpdateSettings,
+  activeView
 }) {
   const [activeTab, setActiveTab] = useState('recap'); // 'recap' | 'payroll' | 'trips'
   const [isAddingAtk, setIsAddingAtk] = useState(false);
+
+  const [financialSettings, setFinancialSettings] = useState({
+    totalProjectContract: settings?.totalProjectContract || 1500000000,
+    honorKetuaTim: settings?.honorKetuaTim || 7000000,
+    honorKoordinator: settings?.honorKoordinator || 6000000,
+    honorFasilitator: settings?.honorFasilitator || 5000000,
+    honorAdministrasi: settings?.honorAdministrasi || 5000000,
+    deductionAdminFlat: settings?.deductionAdminFlat || 100000,
+    deductionAdminKetuaTim: settings?.deductionAdminKetuaTim || 100000,
+    deductionAdminKoordinator: settings?.deductionAdminKoordinator || 100000,
+    deductionAdminFasilitator: settings?.deductionAdminFasilitator || 100000,
+    deductionAdminAdministrasi: settings?.deductionAdminAdministrasi || 100000,
+    deductionTaxPct: settings?.deductionTaxPct || 15,
+    deductionLembagaPct: settings?.deductionLembagaPct || 10
+  });
+
+  useEffect(() => {
+    setFinancialSettings({
+      totalProjectContract: settings?.totalProjectContract || 1500000000,
+      honorKetuaTim: settings?.honorKetuaTim || 7000000,
+      honorKoordinator: settings?.honorKoordinator || 6000000,
+      honorFasilitator: settings?.honorFasilitator || 5000000,
+      honorAdministrasi: settings?.honorAdministrasi || 5000000,
+      deductionAdminFlat: settings?.deductionAdminFlat || 100000,
+      deductionAdminKetuaTim: settings?.deductionAdminKetuaTim || 100000,
+      deductionAdminKoordinator: settings?.deductionAdminKoordinator || 100000,
+      deductionAdminFasilitator: settings?.deductionAdminFasilitator || 100000,
+      deductionAdminAdministrasi: settings?.deductionAdminAdministrasi || 100000,
+      deductionTaxPct: settings?.deductionTaxPct || 15,
+      deductionLembagaPct: settings?.deductionLembagaPct || 10
+    });
+  }, [settings]);
+
+  const handleSaveFinancialSettings = (e) => {
+    e.preventDefault();
+    onUpdateSettings({
+      ...settings,
+      ...financialSettings
+    });
+    window.showAlert('Pengaturan anggaran dan honorarium berhasil disimpan!');
+  };
   
   const [atkForm, setTaskForm] = useState({
     deskripsi: '',
@@ -24,16 +68,18 @@ export default function FinancialDashboard({
   });
 
   const isAdministrasi = activeUser.jabatanTim === 'Tenaga Administrasi';
-  const isSuperAdmin = activeUser.role === 'admin';
+  const isSuperAdmin = activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin';
   const isAuthorized = isAdministrasi || isSuperAdmin;
 
-  // BASE RATES DEFINITIONS
-  const BASE_RATES = {
-    'Ketua Tim': { baseMonthly: 7000000, totalContract: 42000000, fixedPct: 0.5, outputPct: 0.25, outcomePct: 0.25 },
-    'Koordinator': { baseMonthly: 6000000, totalContract: 36000000, fixedPct: 0.5, outputPct: 0.25, outcomePct: 0.25 },
-    'Fasilitator': { baseMonthly: 5000000, totalContract: 30000000, fixedPct: 0.7, outputPct: 0.2, outcomePct: 0.1 },
-    'Tenaga Administrasi': { baseMonthly: 5000000, totalContract: 30000000, fixedPct: 1.0, outputPct: 0, outcomePct: 0 }
-  };
+  useEffect(() => {
+    if (activeView === 'pantau-honor' || activeView === 'bayar-honor') {
+      setActiveTab('payroll');
+    } else if (activeView === 'keuangan') {
+      setActiveTab('recap');
+    } else if (activeView === 'settings-anggaran') {
+      setActiveTab('settings');
+    }
+  }, [activeView]);
 
   const DINAS_RATES = {
     'Fasilitator': 2500000, // Rp 500k/day * 5 days
@@ -52,81 +98,130 @@ export default function FinancialDashboard({
   const pctDinas = grandTotal > 0 ? Math.round((totalDinas / grandTotal) * 100) : 0;
 
   // 2. PAYROLL ELIGIBILITY CALCULATION FOR A USER
-  const getUserPayrollStatus = (user) => {
-    const rates = BASE_RATES[user.jabatanTim] || { baseMonthly: 0, totalContract: 0, fixedPct: 0, outputPct: 0, outcomePct: 0 };
-    const userReports = reports.filter(r => r.userId === user.id);
-    const userPayments = payments.filter(p => p.userId === user.id);
+  const getUserPayrollStatus = (user, month) => {
+    const baseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+      'Ketua Tim': 7000000,
+      'Koordinator': 6000000,
+      'Fasilitator': 5000000,
+      'Tenaga Administrasi': 5000000
+    }[user.jabatanTim] || 5000000;
 
-    // Find supervised schools
+    const taxPct = Number(settings.deductionTaxPct ?? 15);
+    const lembagaPct = Number(settings.deductionLembagaPct ?? 10);
+    
+    let adminFlat = 100000;
+    if (user.jabatanTim === 'Ketua Tim') {
+      adminFlat = Number(settings.deductionAdminKetuaTim ?? settings.deductionAdminFlat ?? 100000);
+    } else if (user.jabatanTim === 'Koordinator') {
+      adminFlat = Number(settings.deductionAdminKoordinator ?? settings.deductionAdminFlat ?? 100000);
+    } else if (user.jabatanTim === 'Fasilitator') {
+      adminFlat = Number(settings.deductionAdminFasilitator ?? settings.deductionAdminFlat ?? 100000);
+    } else if (user.jabatanTim === 'Tenaga Administrasi') {
+      adminFlat = Number(settings.deductionAdminAdministrasi ?? settings.deductionAdminFlat ?? 100000);
+    } else {
+      adminFlat = Number(settings.deductionAdminFlat ?? 100000);
+    }
+
+    let pctPart1 = 0;
+    let pctPart2 = 0;
+    let pctPart3 = 0;
+
+    if (user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') {
+      pctPart1 = 0.50;
+      pctPart2 = 0.25;
+      pctPart3 = 0.25;
+    } else if (user.jabatanTim === 'Fasilitator') {
+      pctPart1 = 0.70;
+      pctPart2 = 0.20;
+      pctPart3 = 0.10;
+    } else {
+      pctPart1 = 1.00;
+      pctPart2 = 0;
+      pctPart3 = 0;
+    }
+
+    const grossPart1 = baseMonthly * pctPart1;
+    const grossPart2 = baseMonthly * pctPart2;
+    const grossPart3 = baseMonthly * pctPart3;
+
+    // Check month report
+    const userReport = reports.find(r => r.userId === user.id && Number(r.bulanKe) === Number(month));
+    const reportFinished = user.jabatanTim === 'Tenaga Administrasi' || (userReport && userReport.status === 'approved');
+
+    // Overseen schools progress
     let mySchools = [];
     if (user.jabatanTim === 'Fasilitator') {
       mySchools = schools.filter(s => s.fasilitatorId === user.id);
-    } else if (user.jabatanTim === 'Koordinator') {
-      mySchools = schools.filter(s => s.fasilitatorId); // binaan schools
     } else {
-      mySchools = schools; // Ketua Tim oversees all
+      mySchools = schools; // Ketua Tim & Koordinator supervise all
     }
-
     const totalBinaan = mySchools.length;
-    const binProgress50 = mySchools.filter(s => s.progres_fisik >= 50).length;
-    const binProgress100 = mySchools.filter(s => s.progres_fisik === 100).length;
 
-    // Check if reports are fully reviewed
-    const allReports50Reviewed = totalBinaan > 0 && mySchools.every(s => 
-      s.dokumen_mingguan === 'direviu' && 
-      s.dokumen_bulanan === 'direviu' && 
-      s.dokumen_progres_50 === 'direviu'
+    const binProgress50 = mySchools.filter(s => (s.progres_fisik || 0) >= 50).length;
+    const pctProgress50 = totalBinaan > 0 ? (binProgress50 / totalBinaan) : 0;
+    const allProgress50DocsUploaded = totalBinaan > 0 && mySchools.every(s => 
+      s.dokumen_mingguan !== 'belum' && s.dokumen_bulanan !== 'belum' && s.dokumen_progres_50 !== 'belum'
     );
+    const part2Eligible = totalBinaan > 0 && pctProgress50 >= 0.75 && allProgress50DocsUploaded;
 
-    const allReports100Reviewed = totalBinaan > 0 && mySchools.every(s => 
-      s.dokumen_mingguan === 'direviu' && 
-      s.dokumen_bulanan === 'direviu' && 
-      s.dokumen_progres_100 === 'direviu'
+    const binProgress100 = mySchools.filter(s => (s.progres_fisik || 0) === 100).length;
+    const pctProgress100 = totalBinaan > 0 ? (binProgress100 / totalBinaan) : 0;
+    const allProgress100DocsUploaded = totalBinaan > 0 && mySchools.every(s => 
+      s.dokumen_mingguan !== 'belum' && s.dokumen_bulanan !== 'belum' && s.dokumen_progres_100 !== 'belum'
     );
+    const part3Eligible = totalBinaan > 0 && pctProgress100 >= 0.90 && allProgress100DocsUploaded;
 
-    // Dynamic Criteria Checks
-    // Output: 75% schools >= 50% AND reports reviewed
-    const pct50 = totalBinaan > 0 ? (binProgress50 / totalBinaan) : 0;
-    const outputEligible = totalBinaan > 0 && pct50 >= 0.75 && allReports50Reviewed;
-    const outputReason = `Sekolah >= 50%: ${binProgress50}/${totalBinaan} (${Math.round(pct50*100)}%), Dokumen direviu: ${allReports50Reviewed ? 'YA' : 'BELUM'}`;
-
-    // Outcome: 90% schools = 100% AND reports reviewed
-    const pct100 = totalBinaan > 0 ? (binProgress100 / totalBinaan) : 0;
-    const outcomeEligible = totalBinaan > 0 && pct100 >= 0.90 && allReports100Reviewed;
-    const outcomeReason = `Sekolah 100%: ${binProgress100}/${totalBinaan} (${Math.round(pct100*100)}%), Dokumen direviu: ${allReports100Reviewed ? 'YA' : 'BELUM'}`;
-
-    // Fixed Payout: Monthly eligible if User submitted report for that month
-    // Note: Tenaga Administrasi can be paid if they submitted any log
-    const fixedMonths = [1, 2, 3, 4, 5, 6].map(m => {
-      const reportSubmitted = user.jabatanTim === 'Tenaga Administrasi' || userReports.some(r => r.bulanKe === m);
-      const isPaid = userPayments.some(p => p.komponen === `tetap_bulan_${m}`);
-      
-      return {
-        month: m,
-        eligible: reportSubmitted,
-        isPaid,
-        amount: rates.baseMonthly * rates.fixedPct
-      };
-    });
-
-    const outputAmount = rates.totalContract * rates.outputPct;
-    const outcomeAmount = rates.totalContract * rates.outcomePct;
+    const getDeductionDetails = (gross) => {
+      if (gross === 0) return { tax: 0, lembaga: 0, admin: 0, net: 0 };
+      const tax = Math.round(gross * (taxPct / 100));
+      const lembaga = Math.round(gross * (lembagaPct / 100));
+      const admin = adminFlat;
+      const net = Math.max(0, gross - tax - lembaga - admin);
+      return { tax, lembaga, admin, net };
+    };
 
     return {
-      rates,
-      fixedMonths,
-      output: {
-        eligible: outputEligible,
-        isPaid: userPayments.some(p => p.komponen === 'output'),
-        amount: outputAmount,
-        reason: outputReason
-      },
-      outcome: {
-        eligible: outcomeEligible,
-        isPaid: userPayments.some(p => p.komponen === 'outcome'),
-        amount: outcomeAmount,
-        reason: outcomeReason
-      }
+      baseMonthly,
+      adminFlat,
+      totalBinaan,
+      binProgress50,
+      pctProgress50,
+      allProgress50DocsUploaded,
+      binProgress100,
+      pctProgress100,
+      allProgress100DocsUploaded,
+      parts: [
+        {
+          id: 'part1',
+          name: user.jabatanTim === 'Tenaga Administrasi' ? 'Honor Bulanan (100%)' : `Bagian 1 (Laporan Bulanan - ${pctPart1 * 100}%)`,
+          gross: grossPart1,
+          eligible: reportFinished,
+          isPaid: payments.some(p => p.userId === user.id && (p.komponen === `tetap_bulan_${month}_part1` || p.komponen === `tetap_bulan_${month}`)),
+          conditions: user.jabatanTim === 'Tenaga Administrasi' ? 'Diterima penuh setiap bulan' : 'Laporan bulanan PDF disetujui (Approved)',
+          key: `tetap_bulan_${month}_part1`,
+          ...getDeductionDetails(grossPart1)
+        },
+        {
+          id: 'part2',
+          name: `Bagian 2 (Target 50% - ${pctPart2 * 100}%)`,
+          gross: grossPart2,
+          eligible: part2Eligible,
+          isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part2`),
+          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah`,
+          key: `tetap_bulan_${month}_part2`,
+          ...getDeductionDetails(grossPart2)
+        },
+        {
+          id: 'part3',
+          name: `Bagian 3 (Target 100% - ${pctPart3 * 100}%)`,
+          gross: grossPart3,
+          eligible: part3Eligible,
+          isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part3`),
+          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah`,
+          key: `tetap_bulan_${month}_part3`,
+          ...getDeductionDetails(grossPart3)
+        }
+      ].filter(p => p.gross > 0)
     };
   };
 
@@ -152,10 +247,27 @@ export default function FinancialDashboard({
     setIsAddingAtk(false);
   };
 
-  const handlePayHonor = async (user, component, amount) => {
+  const handlePayHonor = async (user, component, grossAmount, netAmount, taxAmount, lembagaAmount, adminFlatAmount) => {
     if (!isAuthorized) return window.showAlert('Anda tidak memiliki akses otorisasi pembayaran');
-    if (await window.showConfirm(`Konfirmasi pembayaran "${component.toUpperCase()}" untuk ${user.nama} sebesar Rp ${amount.toLocaleString('id-ID')}?`)) {
-      
+    
+    const labelComponent = component
+      .replace('tetap_bulan_', 'Bulan Ke-')
+      .replace('_part1', ' Bagian 1 (Laporan)')
+      .replace('_part2', ' Bagian 2 (Target 50%)')
+      .replace('_part3', ' Bagian 3 (Target 100%)');
+
+    const confirmMsg = `Konfirmasi pembayaran honor "${labelComponent}" untuk ${user.nama}:
+    
+- Honor Kotor: Rp ${grossAmount.toLocaleString('id-ID')}
+- Potongan Pajak (${settings.deductionTaxPct || 15}%): Rp ${taxAmount.toLocaleString('id-ID')}
+- Potongan Lembaga (${settings.deductionLembagaPct || 10}%): Rp ${lembagaAmount.toLocaleString('id-ID')}
+- Potongan Admin Flat: Rp ${adminFlatAmount.toLocaleString('id-ID')}
+-----------------------------------------------------------
+- Bersih Dibayarkan: Rp ${netAmount.toLocaleString('id-ID')}
+
+Apakah Anda yakin ingin memproses pembayaran ini?`;
+
+    if (await window.showConfirm(confirmMsg)) {
       const paymentId = `payment-${user.id}-${component}`;
       const newPayment = {
         id: paymentId,
@@ -168,8 +280,8 @@ export default function FinancialDashboard({
       const newExpense = {
         id: `exp-honor-${Date.now()}`,
         kategori: 'honor',
-        deskripsi: `Pembayaran Honor ${component.replace('tetap_bulan_', 'Tetap Bulan ')} - ${user.nama}`,
-        jumlah: amount,
+        deskripsi: `Honor ${labelComponent} - ${user.nama} (Kotor: Rp ${grossAmount.toLocaleString('id-ID')}, Pajak: Rp ${taxAmount.toLocaleString('id-ID')}, Lembaga: Rp ${lembagaAmount.toLocaleString('id-ID')}, Admin: Rp ${adminFlatAmount.toLocaleString('id-ID')}. Bersih: Rp ${netAmount.toLocaleString('id-ID')})`,
+        jumlah: grossAmount, // gross amount for budget absorption
         tanggal: new Date().toISOString().split('T')[0],
         createdAt: new Date().toISOString()
       };
@@ -209,54 +321,64 @@ export default function FinancialDashboard({
   const unpaidTrips = trips.filter(t => !t.isPaid); // add isPaid key on trips
   const paidTrips = trips.filter(t => t.isPaid);
 
-  return (
-    <div className="space-y-6 animate-fade-in p-6">
-      
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-        <div>
-          <h2 className="text-xl md:text-2xl font-semibold text-slate-100 flex items-center gap-2">
-            <CircleDollarSign className="w-6 h-6 text-indigo-400" /> Administrasi & Keuangan
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Menu khusus Tenaga Administrasi untuk mencatat pengeluaran ATK, memantau pengeluaran honorarium, dan membayar klaim dinas.
-          </p>
-        </div>
-      </div>
+  const showTabsControl = activeView !== 'bayar-honor' && activeView !== 'settings-anggaran';
 
+  return (
+    <div className="space-y-6 animate-fade-in">
+      
       {/* Tabs Control */}
-      <div className="flex border-b border-slate-800 gap-2 select-none">
-        <button
-          onClick={() => setActiveTab('recap')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-            activeTab === 'recap'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Rekapitulasi Pengeluaran
-        </button>
-        <button
-          onClick={() => setActiveTab('payroll')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-            activeTab === 'payroll'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Pantau & Bayar Honorarium
-        </button>
-        <button
-          onClick={() => setActiveTab('trips')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-            activeTab === 'trips'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Klaim Perjalanan Dinas ({unpaidTrips.length})
-        </button>
-      </div>
+      {showTabsControl && (
+        <div className="flex border-b border-slate-800 gap-2 select-none">
+          {(activeView === 'keuangan' || activeView === 'pantau-honor' || !activeView) && (
+            <button
+              onClick={() => setActiveTab('recap')}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                activeTab === 'recap'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Rekapitulasi Pengeluaran
+            </button>
+          )}
+          {activeView !== 'keuangan' && (
+            <button
+              onClick={() => setActiveTab('payroll')}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                activeTab === 'payroll'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Pantau & Bayar Honorarium
+            </button>
+          )}
+          {(activeView === 'keuangan' || activeView === 'pantau-honor' || !activeView) && (
+            <button
+              onClick={() => setActiveTab('trips')}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                activeTab === 'trips'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Klaim Perjalanan Dinas ({unpaidTrips.length})
+            </button>
+          )}
+          {activeView !== 'keuangan' && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Pengaturan Anggaran
+            </button>
+          )}
+        </div>
+      )}
 
       {/* TAB 1: REKAPITULASI PENGELUARAN */}
       {activeTab === 'recap' && (
@@ -470,7 +592,12 @@ export default function FinancialDashboard({
 
           <div className="space-y-6">
             {users.filter(u => u.jabatanTim !== 'Super Admin').map((user) => {
-              const status = getUserPayrollStatus(user);
+              const baseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+                'Ketua Tim': 7000000,
+                'Koordinator': 6000000,
+                'Fasilitator': 5000000,
+                'Tenaga Administrasi': 5000000
+              }[user.jabatanTim] || 5000000;
 
               return (
                 <div key={user.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-5 space-y-4">
@@ -479,115 +606,69 @@ export default function FinancialDashboard({
                   <div className="flex justify-between items-center border-b border-slate-900 pb-3 flex-wrap gap-2">
                     <div>
                       <h4 className="font-bold text-slate-200 text-sm">{user.nama}</h4>
-                      <p className="text-[10px] text-slate-500 font-medium">Jabatan Tim: {user.jabatanTim} • Pokok: Rp {status.rates.baseMonthly.toLocaleString('id-ID')}/bln</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Jabatan Tim: {user.jabatanTim} • Pokok: Rp {baseMonthly.toLocaleString('id-ID')}/bln</p>
                     </div>
                   </div>
 
-                  {/* Components breakdown */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs select-none">
+                  {/* Monthly breakdown */}
+                  <div className="space-y-4">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Rincian Pembayaran per Bulan</span>
                     
-                    {/* Fixed Component */}
-                    <div className="bg-slate-900/40 p-4 border border-slate-850 rounded-xl space-y-3">
-                      <div className="flex justify-between items-center border-b border-slate-850 pb-2">
-                        <span className="font-bold text-indigo-400">Honor Tetap</span>
-                        <span className="text-[10px] font-semibold text-slate-500">{(status.rates.fixedPct*100)}% Pokok/bln</span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {status.fixedMonths.map((m) => (
-                          <div key={m.month} className="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-slate-900">
-                            <span className="font-medium text-slate-400">Bulan ke-{m.month}</span>
-                            <div className="flex items-center gap-2">
-                              {m.isPaid ? (
-                                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> Dibayar</span>
-                              ) : m.eligible ? (
-                                <button
-                                  onClick={() => handlePayHonor(user, `tetap_bulan_${m.month}`, m.amount)}
-                                  className="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-bold cursor-pointer"
-                                >
-                                  Bayar Rp{(m.amount/1000).toLocaleString('id-ID')}k
-                                </button>
-                              ) : (
-                                <span className="text-[9px] text-slate-600 font-medium italic">Menunggu Laporan</span>
-                              )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1, 2, 3, 4, 5, 6].map((month) => {
+                        const mStatus = getUserPayrollStatus(user, month);
+                        return (
+                          <div key={month} className="bg-slate-900/40 p-4 border border-slate-850 rounded-xl space-y-3">
+                            <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                              <span className="font-bold text-indigo-400">Bulan Ke-{month}</span>
+                              <span className="text-[9px] text-slate-500 font-semibold">Total Pokok: Rp {mStatus.baseMonthly.toLocaleString('id-ID')}</span>
+                            </div>
+                            
+                            <div className="space-y-2.5">
+                              {mStatus.parts.map((part) => (
+                                <div key={part.id} className="bg-slate-950/60 p-3 rounded-lg border border-slate-900 space-y-2">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <span className="text-xs font-bold text-slate-200 block">{part.name}</span>
+                                      <span className="text-[9px] text-slate-500 block leading-normal mt-0.5" title={part.conditions}>
+                                        Syarat: {part.conditions}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {part.isPaid ? (
+                                        <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-0.5">
+                                          <CheckCircle className="w-3.5 h-3.5" /> Lunas
+                                        </span>
+                                      ) : part.eligible ? (
+                                        <button
+                                          onClick={() => handlePayHonor(user, part.key, part.gross, part.net, part.tax, part.lembaga, part.admin)}
+                                          className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer border-0 shadow"
+                                        >
+                                          Bayar
+                                        </button>
+                                      ) : (
+                                        <span className="text-[9px] text-slate-600 font-medium italic flex items-center gap-1"><AlertCircle className="w-3 h-3 text-slate-600" /> Belum Layak</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Deductions detail */}
+                                  <div className="pt-2 border-t border-slate-900/60 text-[9px] text-slate-500 grid grid-cols-2 gap-1.5 font-mono">
+                                    <div>Kotor: <strong className="text-slate-300">Rp {part.gross.toLocaleString('id-ID')}</strong></div>
+                                    <div>Pajak ({settings.deductionTaxPct || 15}%): <strong className="text-slate-300">Rp {part.tax.toLocaleString('id-ID')}</strong></div>
+                                    <div>Lembaga ({settings.deductionLembagaPct || 10}%): <strong className="text-slate-300">Rp {part.lembaga.toLocaleString('id-ID')}</strong></div>
+                                    <div>Admin: <strong className="text-slate-300">Rp {part.admin.toLocaleString('id-ID')}</strong></div>
+                                    <div className="col-span-2 pt-1 border-t border-dashed border-slate-900/60 text-xs font-bold text-emerald-450">
+                                      Bersih: Rp {part.net.toLocaleString('id-ID')}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-
-                    {/* Output Component */}
-                    <div className="bg-slate-900/40 p-4 border border-slate-850 rounded-xl flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center border-b border-slate-850 pb-2">
-                          <span className="font-bold text-indigo-400">Honor Output</span>
-                          <span className="text-[10px] font-semibold text-slate-500">{(status.rates.outputPct*100)}% Kontrak</span>
-                        </div>
-                        <div className="bg-slate-950/40 border border-slate-900 rounded-lg p-2.5 text-[10px] text-slate-400 leading-relaxed">
-                          <span className="block font-bold text-slate-300">Kriteria Kelayakan:</span>
-                          <ul className="list-disc list-inside mt-1 space-y-0.5">
-                            <li>75% sekolah dampingan progres &ge; 50%</li>
-                            <li>Laporan 50% direviu Koordinator</li>
-                          </ul>
-                        </div>
-                        <div className="text-[10px] text-slate-500 bg-slate-950/20 border border-slate-900 rounded-lg p-2 leading-relaxed">
-                          <strong>Kondisi:</strong> {status.output.reason}
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-850 mt-4 flex items-center justify-between">
-                        <span className="font-bold text-slate-300">Rp {status.output.amount.toLocaleString('id-ID')}</span>
-                        {status.output.isPaid ? (
-                          <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> Dibayar</span>
-                        ) : status.output.eligible ? (
-                          <button
-                            onClick={() => handlePayHonor(user, 'output', status.output.amount)}
-                            className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] cursor-pointer"
-                          >
-                            Bayar Honor
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-slate-600 font-medium italic flex items-center gap-1"><AlertCircle className="w-3 h-3 text-slate-600" /> Belum Layak</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Outcome Component */}
-                    <div className="bg-slate-900/40 p-4 border border-slate-850 rounded-xl flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center border-b border-slate-850 pb-2">
-                          <span className="font-bold text-indigo-400">Honor Outcome</span>
-                          <span className="text-[10px] font-semibold text-slate-500">{(status.rates.outcomePct*100)}% Kontrak</span>
-                        </div>
-                        <div className="bg-slate-950/40 border border-slate-900 rounded-lg p-2.5 text-[10px] text-slate-400 leading-relaxed">
-                          <span className="block font-bold text-slate-300">Kriteria Kelayakan:</span>
-                          <ul className="list-disc list-inside mt-1 space-y-0.5">
-                            <li>90% sekolah dampingan progres 100%</li>
-                            <li>Laporan 100% direviu Koordinator</li>
-                          </ul>
-                        </div>
-                        <div className="text-[10px] text-slate-500 bg-slate-950/20 border border-slate-900 rounded-lg p-2 leading-relaxed">
-                          <strong>Kondisi:</strong> {status.outcome.reason}
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-850 mt-4 flex items-center justify-between">
-                        <span className="font-bold text-slate-300">Rp {status.outcome.amount.toLocaleString('id-ID')}</span>
-                        {status.outcome.isPaid ? (
-                          <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> Dibayar</span>
-                        ) : status.outcome.eligible ? (
-                          <button
-                            onClick={() => handlePayHonor(user, 'outcome', status.outcome.amount)}
-                            className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] cursor-pointer"
-                          >
-                            Bayar Honor
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-slate-600 font-medium italic flex items-center gap-1"><AlertCircle className="w-3 h-3 text-slate-600" /> Belum Layak</span>
-                        )}
-                      </div>
-                    </div>
-
                   </div>
                 </div>
               );
@@ -682,6 +763,167 @@ export default function FinancialDashboard({
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* TAB 4: PENGATURAN ANGGARAN & HONORARIUM */}
+      {activeTab === 'settings' && (
+        <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-md flex flex-col justify-between">
+          <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2 border-b border-slate-850 pb-3 mb-4">
+            Pengaturan Anggaran & Honorarium
+          </h3>
+                   <form onSubmit={handleSaveFinancialSettings} className="space-y-6 flex-1">
+            
+            {/* GROUP 1: ALOKASI DANA KONTRAK & HONORARIUM */}
+            <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 space-y-4">
+              <h4 className="text-xs font-bold text-indigo-405 uppercase tracking-wider border-b border-slate-900 pb-2">
+                Alokasi Dana Proyek & Honorarium Pokok
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Nilai Kontrak Proyek (Rp)</label>
+                  <input
+                    type="number"
+                    value={financialSettings.totalProjectContract}
+                    onChange={(e) => setFinancialSettings({ ...financialSettings, totalProjectContract: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Ketua Tim / Bulan (Rp)</label>
+                  <input
+                    type="number"
+                    value={financialSettings.honorKetuaTim}
+                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorKetuaTim: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Koordinator / Bulan (Rp)</label>
+                  <input
+                    type="number"
+                    value={financialSettings.honorKoordinator}
+                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorKoordinator: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Fasilitator / Bulan (Rp)</label>
+                  <input
+                    type="number"
+                    value={financialSettings.honorFasilitator}
+                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorFasilitator: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Tenaga Administrasi / Bulan (Rp)</label>
+                  <input
+                    type="number"
+                    value={financialSettings.honorAdministrasi}
+                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorAdministrasi: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* GROUP 2: VARIABEL POTONGAN (DEDUCTIONS) */}
+            <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 space-y-5">
+              <h4 className="text-xs font-bold text-rose-450 uppercase tracking-wider border-b border-slate-900 pb-2 flex justify-between items-center">
+                <span>Variabel Potongan (Pajak, Lembaga & Administrasi)</span>
+                <span className="text-[9px] text-slate-500 font-medium normal-case">Dipotong otomatis dari nilai kotor saat pembayaran</span>
+              </h4>
+              
+              {/* Flat Admin Deductions */}
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">Potongan Administrasi Flat (Rp)</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Ketua Tim / Bulan (Rp)</label>
+                    <input
+                      type="number"
+                      value={financialSettings.deductionAdminKetuaTim}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminKetuaTim: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Koordinator / Bulan (Rp)</label>
+                    <input
+                      type="number"
+                      value={financialSettings.deductionAdminKoordinator}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminKoordinator: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Fasilitator / Bulan (Rp)</label>
+                    <input
+                      type="number"
+                      value={financialSettings.deductionAdminFasilitator}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminFasilitator: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Tenaga Administrasi / Bulan (Rp)</label>
+                    <input
+                      type="number"
+                      value={financialSettings.deductionAdminAdministrasi}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminAdministrasi: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Percentage Deductions */}
+              <div className="pt-3 border-t border-slate-900/60">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">Potongan Persentase (%)</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pajak (%)</label>
+                    <input
+                      type="number"
+                      value={financialSettings.deductionTaxPct}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionTaxPct: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Lembaga (%)</label>
+                    <input
+                      type="number"
+                      value={financialSettings.deductionLembagaPct}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionLembagaPct: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3">
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md border-0 cursor-pointer"
+              >
+                Simpan Pengaturan Keuangan
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

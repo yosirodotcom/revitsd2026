@@ -65,7 +65,19 @@ export default function App() {
     projectStartDate: '2026-06-12',
     projectEndDate: '2026-12-12',
     googleAppsScriptUrl: '',
-    googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN'
+    googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+    totalProjectContract: 1500000000,
+    honorKetuaTim: 7000000,
+    honorKoordinator: 6000000,
+    honorFasilitator: 5000000,
+    honorAdministrasi: 5000000,
+    deductionAdminFlat: 100000,
+    deductionAdminKetuaTim: 100000,
+    deductionAdminKoordinator: 100000,
+    deductionAdminFasilitator: 100000,
+    deductionAdminAdministrasi: 100000,
+    deductionTaxPct: 15,
+    deductionLembagaPct: 10
   });
 
   const latestStateRef = React.useRef();
@@ -331,6 +343,18 @@ export default function App() {
         projectEndDate: '2026-12-12',
         googleAppsScriptUrl: '',
         googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+        totalProjectContract: 1500000000,
+        honorKetuaTim: 7000000,
+        honorKoordinator: 6000000,
+        honorFasilitator: 5000000,
+        honorAdministrasi: 5000000,
+        deductionAdminFlat: 100000,
+        deductionAdminKetuaTim: 100000,
+        deductionAdminKoordinator: 100000,
+        deductionAdminFasilitator: 100000,
+        deductionAdminAdministrasi: 100000,
+        deductionTaxPct: 15,
+        deductionLembagaPct: 10,
         ...parsed 
       }));
     } else {
@@ -338,7 +362,19 @@ export default function App() {
         projectStartDate: '2026-06-12',
         projectEndDate: '2026-12-12',
         googleAppsScriptUrl: '',
-        googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN'
+        googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+        totalProjectContract: 1500000000,
+        honorKetuaTim: 7000000,
+        honorKoordinator: 6000000,
+        honorFasilitator: 5000000,
+        honorAdministrasi: 5000000,
+        deductionAdminFlat: 100000,
+        deductionAdminKetuaTim: 100000,
+        deductionAdminKoordinator: 100000,
+        deductionAdminFasilitator: 100000,
+        deductionAdminAdministrasi: 100000,
+        deductionTaxPct: 15,
+        deductionLembagaPct: 10
       }));
     }
 
@@ -1139,6 +1175,8 @@ export default function App() {
                 {activeView === 'rapat' && (activeUser?.jabatanTim === 'Super Admin' ? 'Kelola Rapat Swakelola' : 'Agenda Rapat Swakelola')}
                 {activeView === 'pantau-tanggung-jawab' && 'Pantau Tugas Tim'}
                 {activeView === 'pantau-honor' && 'Pantau & Bayar Honorarium'}
+                {activeView === 'bayar-honor' && 'Bayar Honorarium Tim'}
+                {activeView === 'settings-anggaran' && 'Pengaturan Anggaran & Honorarium'}
                 {activeView === 'keuangan' && 'Rekapitulasi Keuangan Proyek'}
                 {activeView === 'kelola-fasilitator' && 'Kelola Tugas Fasilitator'}
               </h1>
@@ -1175,7 +1213,7 @@ export default function App() {
                     onClick={() => setIsActivitySidebarOpen(!isActivitySidebarOpen)}
                     className={`flex md:hidden items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none ${
                       isActivitySidebarOpen
-                        ? 'bg-indigo-650 border-indigo-500 text-white shadow-lg shadow-indigo-650/10'
+                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-650/10'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-750'
                     }`}
                     title="Buka/Tutup Log Aktivitas Kerja"
@@ -1224,6 +1262,8 @@ export default function App() {
                 setActiveView('sekolah');
               }}
               onViewChange={handleViewChange}
+              expenses={expenses}
+              payments={payments}
             />
           )}
 
@@ -1332,7 +1372,7 @@ export default function App() {
                 />
               )}
 
-              {(activeView === 'pantau-honor' || activeView === 'keuangan') && (
+              {(activeView === 'pantau-honor' || activeView === 'keuangan' || activeView === 'bayar-honor' || activeView === 'settings-anggaran') && (
                 <FinancialDashboard
                   users={users}
                   schools={schools}
@@ -1345,6 +1385,9 @@ export default function App() {
                   onDeleteExpense={handleDeleteExpense}
                   onAddPayment={handleAddPayment}
                   onPayTrip={handlePayTrip}
+                  settings={settings}
+                  onUpdateSettings={handleUpdateSettings}
+                  activeView={activeView}
                 />
               )}
 

@@ -752,7 +752,7 @@ export default function MeetingManagement({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-650 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-650/20 border-0 cursor-pointer"
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-650/20 border-0 cursor-pointer"
                 >
                   Simpan Notulen
                 </button>
@@ -835,7 +835,7 @@ export default function MeetingManagement({
                           key={pid} 
                           className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-950/40 border border-slate-850/60 select-none"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-indigo-650 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                             {getInitials(foundUser.nama)}
                           </div>
                           <div className="min-w-0">

@@ -11,7 +11,8 @@ import {
   CircleDollarSign, 
   LogOut, 
   UserCog,
-  ShieldAlert
+  ShieldAlert,
+  Settings
 } from 'lucide-react';
 
 export default function Sidebar({ activeUser, activeView, onViewChange, onEditProfile, onManageDocuments, onLogout }) {
@@ -33,7 +34,8 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
     { id: 'rapat', name: activeUser.jabatanTim === 'Super Admin' ? 'Kelola Rapat' : 'Agenda Rapat', icon: Calendar, roles: ['*'] },
     
     // Keuangan & Pemantauan (Administrasi / Admin)
-    { id: 'pantau-honor', name: 'Pantau & Bayar Honor', icon: CircleDollarSign, roles: ['Tenaga Administrasi', 'Super Admin'] },
+    { id: 'settings-anggaran', name: 'Pengaturan Anggaran', icon: Settings, roles: ['Tenaga Administrasi', 'Super Admin'] },
+    { id: 'bayar-honor', name: 'Bayar Honor', icon: CircleDollarSign, roles: ['Tenaga Administrasi', 'Super Admin'] },
     { id: 'keuangan', name: 'Rekapitulasi Keuangan', icon: CircleDollarSign, roles: ['Tenaga Administrasi', 'Super Admin'] },
     
     // Super Admin Only
@@ -43,6 +45,9 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
   ];
 
   const filteredMenu = menuItems.filter(item => {
+    if (activeUser?.jabatanTim === 'Tenaga Administrasi') {
+      return ['dashboard', 'settings-anggaran', 'bayar-honor', 'keuangan'].includes(item.id);
+    }
     if (item.roles.includes('*')) return true;
     if (activeUser.role === 'admin' && (item.roles.includes('Super Admin') || item.id === 'pantau-honor' || item.id === 'keuangan' || item.id === 'pantau-tanggung-jawab')) return true;
     if (item.id === 'tanggung-jawab' && ['Fasilitator', 'Ketua Tim', 'Koordinator'].includes(activeUser.jabatanTim)) return false;
@@ -102,7 +107,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
                 onClick={() => onViewChange(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group relative ${
                   isActive 
-                    ? 'bg-indigo-650 text-white shadow-lg shadow-indigo-650/10' 
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-650/10' 
                     : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -126,7 +131,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
               onClick={() => onViewChange('tanggung-jawab')}
               className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border-0 ${
                 activeView === 'tanggung-jawab'
-                  ? 'bg-indigo-650 text-white shadow-md'
+                  ? 'bg-indigo-600 text-white shadow-md'
                   : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-slate-800'
               }`}
             >

@@ -190,7 +190,7 @@ export default function MemberLogsModal({
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-650 hover:bg-indigo-500 text-white shadow shadow-indigo-650/10 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow shadow-indigo-650/10 cursor-pointer"
                 >
                   Simpan Jurnal
                 </button>

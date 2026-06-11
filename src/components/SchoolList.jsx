@@ -491,7 +491,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                               onClick={() => {
                                 onClaimSchool(school.npsn, activeUser?.id);
                               }}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-650 hover:bg-indigo-600 text-white transition-colors cursor-pointer border-0"
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer border-0"
                             >
                               Klaim
                             </button>
