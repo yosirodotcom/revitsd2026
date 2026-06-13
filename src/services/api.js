@@ -63,23 +63,40 @@ export const syncService = {
           deductionAdminFasilitator: state.settings.deductionAdminFasilitator || 100000,
           deductionAdminAdministrasi: state.settings.deductionAdminAdministrasi || 100000,
           deductionTaxPct: state.settings.deductionTaxPct || 15,
-          deductionLembagaPct: state.settings.deductionLembagaPct || 10
+          deductionLembagaPct: state.settings.deductionLembagaPct || 10,
+          biayaOperasional: state.settings.biayaOperasional || 0
         },
         users: state.users,
         schools: state.schools,
         contacts: state.contacts,
         tasks: state.tasks,
         trips: state.trips,
-        logs: state.logs,
-        reports: state.reports,
+        logs: (state.logs || []).map(l => ({
+          ...l,
+          // Strip Base64 foto jika sudah berupa URL Drive (mengurangi ukuran payload)
+          foto: (l.foto && l.foto.startsWith('http')) ? l.foto : (l.foto || '')
+        })),
+        reports: (state.reports || []).map(r => ({
+          ...r,
+          // Strip Base64 fileData jika sudah berupa URL Drive
+          fileData: (r.fileData && r.fileData.startsWith('http')) ? r.fileData : (r.fileData || '')
+        })),
         duty_reports: state.dutyReports || [],
         expenses: state.expenses,
         payments: state.payments,
-        school_docs: state.schoolDocs || [],
-        personnel_docs: state.personnelDocs || [],
+        school_docs: (state.schoolDocs || []).map(d => ({
+          ...d,
+          fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
+        })),
+        personnel_docs: (state.personnelDocs || []).map(d => ({
+          ...d,
+          fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
+        })),
         meetings: (state.meetings || []).map(m => ({
           ...m,
-          pesertaIds: Array.isArray(m.pesertaIds) ? m.pesertaIds.join(',') : (m.pesertaIds || '')
+          pesertaIds: Array.isArray(m.pesertaIds) ? m.pesertaIds.join(',') : (m.pesertaIds || ''),
+          // Strip Base64 fotoKegiatan jika sudah berupa URL Drive
+          fotoKegiatan: (m.fotoKegiatan && m.fotoKegiatan.startsWith('http')) ? m.fotoKegiatan : (m.fotoKegiatan || '')
         })),
         activity_logs: (state.activityLogs || []).map(l => ({
           id: l.id,
@@ -90,25 +107,44 @@ export const syncService = {
           fileRef_id: l.fileRef ? l.fileRef.id : '',
           fileRef_type: l.fileRef ? l.fileRef.type : '',
           fileRef_fileName: l.fileRef ? l.fileRef.fileName : '',
-          fileRef_fileData: l.fileRef ? l.fileRef.fileData : ''
+          fileRef_fileData: (l.fileRef && l.fileRef.fileData && l.fileRef.fileData.startsWith('http'))
+            ? l.fileRef.fileData : (l.fileRef ? (l.fileRef.fileData || '') : '')
         }))
       }
     };
 
+    const bodyStr = JSON.stringify(payload);
+    const payloadSizeMB = (bodyStr.length / (1024 * 1024)).toFixed(2);
+    console.log(`[Sync] Mengirim data ke Google Sheets... (ukuran payload: ${payloadSizeMB} MB)`);
+
+    // Google Apps Script Web App menggunakan redirect (302) untuk POST.
     const response = await fetch(url, {
       method: 'POST',
-      mode: 'cors',
+      redirect: 'follow',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8'
       },
-      body: JSON.stringify(payload)
+      body: bodyStr
     });
 
-    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-    
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
-    
+    // Cek apakah response valid
+    const responseText = await response.text();
+    console.log(`[Sync] Response status: ${response.status}, ukuran: ${responseText.length} chars`);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseErr) {
+      console.error('[Sync] Gagal parse JSON response:', responseText.substring(0, 500));
+      throw new Error(`Response bukan JSON valid. Status: ${response.status}. Periksa deploy Google Apps Script Anda (pastikan sudah deploy versi terbaru).`);
+    }
+
+    if (data.error) {
+      console.error('[Sync] Error dari server:', data.error);
+      throw new Error(data.error);
+    }
+
+    console.log('[Sync] Sinkronisasi berhasil:', data.message);
     return data;
   }
 };

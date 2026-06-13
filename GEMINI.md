@@ -126,3 +126,39 @@ Setiap kali terjadi perubahan kode (terutama pada state, schema, atau penambahan
 2. **Evaluasi Dampak Backend**: Tentukan apakah perubahan kode tersebut memerlukan penyesuaian pada skema tabel Google Sheets atau penanganan berkas Google Drive.
 3. **Perbarui Walkthrough**: Jika backend memerlukan perubahan struktur, perbarui berkas panduan setup [walkthrough.md](file:///C:/Users/Kerja%20Sama%20Polnep/.gemini/antigravity-ide/brain/c7484b94-d046-4809-bd51-1ffcaf7df6d6/walkthrough.md) (khususnya skema `SCHEMAS` dan kode `Code.gs` di dalamnya) agar tetap sinkron.
 4. **Instruksi Pengguna**: Tampilkan saran instruksi yang jelas kepada pengguna di akhir giliran untuk segera memperbarui kode Apps Script di Google Sheets secara manual agar sinkronisasi data tetap berjalan lancar.
+
+---
+
+## 🌐 8. Dokumentasi Sinkronisasi & Penanganan Masalah
+
+Bagian ini mencatat daftar kendala sinkronisasi yang pernah dialami beserta solusi penyelesaiannya untuk referensi tim pengembang atau AI Agent di masa mendatang.
+
+### A. Kendala Kolom Baru (Kasus: `taxPct`) Hilang atau Kembali ke Default
+* **Gejala**: Ketika nilai pajak diubah dan disimpan, nilainya kembali menjadi kosong (*Default*). Dan jika kolom dibuat manual di Sheets, kolom tersebut tiba-tiba terhapus kembali saat halaman direfresh.
+* **Penyebab**: Google Apps Script di server masih menjalankan **kode versi lama** yang tidak menyertakan nama kolom baru pada konstanta `SCHEMAS.users`. Saat terjadi sinkronisasi, Apps Script membersihkan tabel (`sheet.clearContents()`) dan menulis ulang header sesuai skema lama yang tidak memiliki kolom baru tersebut.
+* **Solusi**:
+  1. Perbarui skema pada `Code.gs` di Google Apps Script editor.
+  2. Lakukan deployment ulang dengan memilih **Deploy** → **Manage deployments** → **Edit** → Pilih **New version** (Wajib) → **Deploy**.
+  3. Tambahkan kembali kolom baru di baris header spreadsheet (misalnya `taxPct` pada sheet `users`), atau hapus sheet tersebut agar sistem membuatkannya yang baru secara otomatis saat disinkronisasikan.
+
+### B. Masalah Tabrakan Data Antar-Browser (Data Terhapus oleh Browser Lain)
+* **Gejala**: Ketika browser A mengupdate data dengan sukses, lalu browser B (yang masih menampilkan data lama) dibuka dan menekan tombol sinkronisasi, data di browser B yang kosong/outdated menimpa database Google Sheets sehingga data dari browser A hilang.
+* **Penyebab**: Aliran sinkronisasi bawaan selalu bertipe *Push-then-Fetch* (mengirim data lokal terlebih dahulu secara membabi buta, baru mengambil data server). Browser yang lama mengirimkan datanya yang kosong/ketinggalan zaman dan menimpa server.
+* **Solusi**:
+  * Implementasikan **Smart Sync** dengan memantau status data lokal menggunakan flag kotor (`isDirty` / `revit_is_dirty` di `localStorage`).
+  * Jika browser **tidak melakukan perubahan data lokal** (status *Clean*), browser hanya diperbolehkan melakukan **penarikan saja (*Pull-Only*)** dan melewati proses *Push*. Browser hanya akan melakukan *Push* jika statusnya *Dirty* (ada perubahan lokal yang belum tersimpan).
+
+### C. CORS Error & Kegagalan Koneksi Bergantian (Chrome vs Edge)
+* **Gejala**: Koneksi sukses di satu browser (misal Chrome), tetapi saat dibuka di browser lain (Edge/Firefox/Incognito) mengalami error CORS / 404 (Not Found). Jika diperbaiki di Edge, gantian Chrome yang putus.
+* **Penyebab**: 
+  1. Penggunaan URL deployment pengujian (`/dev`). URL `/dev` hanya bekerja pada browser yang sedang login dengan akun Google pemilik script.
+  2. Pengaturan **Execute as** diatur ke "User accessing the web app" atau **Who has access** tidak diatur ke "Anyone".
+* **Solusi**:
+  * Gunakan URL deployment resmi yang berakhiran dengan `/exec`.
+  * Konfigurasikan deployment Apps Script dengan opsi: **Execute as: Me (email Anda)** dan **Who has access: Anyone**.
+
+### D. Perubahan Kunci di `.env` Tidak Berefek (Stale Cache URL/Token)
+* **Gejala**: Pengembang sudah mengubah URL atau Token Apps Script di file `.env` dan me-restart server Vite, tetapi aplikasi tetap mencoba menghubungi URL lama.
+* **Penyebab**: Aplikasi menyimpan pengaturan URL/Token di `localStorage` (`revit_settings`), dan React memprioritaskan data dari `localStorage` dibandingkan variabel lingkungan `.env`.
+* **Solusi**: Ditambahkan logika pendeteksi perubahan `.env` di `App.jsx`. Jika variabel lingkungan `.env` berubah, aplikasi akan otomatis menimpa cache `localStorage` dengan nilai `.env` terbaru saat server dijalankan ulang.
+

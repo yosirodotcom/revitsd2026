@@ -174,26 +174,26 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Sidebar background container layout override */
-.w-72.bg-slate-900 {
+.sidebar-container {
   background-color: #e7eefe !important; /* surface-container */
   border-right: 1px solid #dce2f3 !important;
 }
 
-.w-72.bg-slate-900 button {
+.sidebar-container button {
   color: #444748 !important;
 }
 
 /* Sidebar active navigation link button overrides */
-.w-72.bg-slate-900 button.bg-indigo-600 {
+.sidebar-container button.bg-indigo-600 {
   background-color: #1e1e1e !important;
   color: #ffffff !important;
 }
 
-.w-72.bg-slate-900 button.bg-indigo-600 * {
+.sidebar-container button.bg-indigo-600 * {
   color: #ffffff !important;
 }
 
-.w-72.bg-slate-900 button:hover:not(.bg-indigo-600) {
+.sidebar-container button:hover:not(.bg-indigo-600) {
   background-color: #dce2f3 !important; /* surface-container-highest */
   color: #151c27 !important;
 }

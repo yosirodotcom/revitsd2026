@@ -21,9 +21,36 @@ import MemberReportsModal from './components/MemberReportsModal';
 import MemberLogsModal from './components/MemberLogsModal';
 import MeetingManagement from './components/MeetingManagement';
 import RightActivitySidebar from './components/RightActivitySidebar';
+import HonorBatchSettings from './components/HonorBatchSettings';
 import { syncService } from './services/api';
 
 const isValidId = (val) => val !== undefined && val !== null && String(val).trim() !== '';
+
+const parseSettings = (rawSettings) => {
+  if (!rawSettings) return null;
+  const numFields = [
+    'totalProjectContract',
+    'honorKetuaTim',
+    'honorKoordinator',
+    'honorFasilitator',
+    'honorAdministrasi',
+    'deductionAdminFlat',
+    'deductionAdminKetuaTim',
+    'deductionAdminKoordinator',
+    'deductionAdminFasilitator',
+    'deductionAdminAdministrasi',
+    'deductionTaxPct',
+    'deductionLembagaPct',
+    'biayaOperasional'
+  ];
+  const parsed = { ...rawSettings };
+  numFields.forEach(field => {
+    if (parsed[field] !== undefined && parsed[field] !== null && parsed[field] !== '') {
+      parsed[field] = Number(parsed[field]);
+    }
+  });
+  return parsed;
+};
 
 export default function App() {
   // 1. Core State
@@ -60,12 +87,16 @@ export default function App() {
   // Sync state
   const [syncStatus, setSyncStatus] = useState('offline'); // 'offline' | 'connecting' | 'success' | 'error'
   const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [isBlockingSync, setIsBlockingSync] = useState(false);
+  const [isDirty, setIsDirty] = useState(() => {
+    return localStorage.getItem('revit_is_dirty') === 'true';
+  });
 
   const [settings, setSettings] = useState({
     projectStartDate: '2026-06-12',
     projectEndDate: '2026-12-12',
-    googleAppsScriptUrl: '',
-    googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+    googleAppsScriptUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '',
+    googleAppsScriptToken: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN',
     totalProjectContract: 1500000000,
     honorKetuaTim: 7000000,
     honorKoordinator: 6000000,
@@ -77,7 +108,8 @@ export default function App() {
     deductionAdminFasilitator: 100000,
     deductionAdminAdministrasi: 100000,
     deductionTaxPct: 15,
-    deductionLembagaPct: 10
+    deductionLembagaPct: 10,
+    biayaOperasional: 0
   });
 
   const latestStateRef = React.useRef();
@@ -132,6 +164,19 @@ export default function App() {
           if (updated.password === undefined) {
             updated.password = '';
             migrated = true;
+          }
+          // Normalisasi taxPct
+          if (updated.taxPct === undefined || updated.taxPct === null || String(updated.taxPct).trim() === '') {
+            if (updated.taxPct !== null) {
+              updated.taxPct = null;
+              migrated = true;
+            }
+          } else {
+            const parsedTax = Number(updated.taxPct);
+            if (updated.taxPct !== parsedTax) {
+              updated.taxPct = parsedTax;
+              migrated = true;
+            }
           }
           return updated;
         });
@@ -330,6 +375,13 @@ export default function App() {
       localStorage.setItem('revit_meetings', JSON.stringify([]));
     }
 
+    // Diagnostics
+    console.log("=== SINKRONISASI DIAGNOSTIC ===");
+    console.log("1. .env URL:", import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL);
+    console.log("2. .env Token:", import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN);
+    console.log("3. localStorage revit_last_env_url:", localStorage.getItem('revit_last_env_url'));
+    console.log("4. localStorage revit_settings:", localStorage.getItem('revit_settings'));
+
     // Settings
     const storedSettings = localStorage.getItem('revit_settings');
     if (storedSettings) {
@@ -338,11 +390,49 @@ export default function App() {
       if (parsed.projectEndDate === '2027-12-12') parsed.projectEndDate = '2026-12-12';
       // Hapus simulatedToday dari settings ter-parse jika ada
       delete parsed.simulatedToday;
+
+      // Deteksi jika VITE_GOOGLE_APPS_SCRIPT_URL/Token di .env berubah, kita timpa data di localStorage
+      // agar developer tidak terjebak dengan cache URL/token lama di localStorage saat memodifikasi file .env.
+      const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
+      const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+
+      let finalUrl = parsed.googleAppsScriptUrl || envUrl;
+      let finalToken = parsed.googleAppsScriptToken || envToken;
+
+      let hasEnvChanged = false;
+
+      const lastEnvUrl = localStorage.getItem('revit_last_env_url');
+      if (envUrl && (lastEnvUrl !== envUrl || parsed.googleAppsScriptUrl !== envUrl)) {
+        finalUrl = envUrl;
+        localStorage.setItem('revit_last_env_url', envUrl);
+        parsed.googleAppsScriptUrl = envUrl;
+        hasEnvChanged = true;
+      } else if (!lastEnvUrl && envUrl) {
+        localStorage.setItem('revit_last_env_url', envUrl);
+      }
+
+      const lastEnvToken = localStorage.getItem('revit_last_env_token');
+      if (envToken && (lastEnvToken !== envToken || parsed.googleAppsScriptToken !== envToken)) {
+        finalToken = envToken;
+        localStorage.setItem('revit_last_env_token', envToken);
+        parsed.googleAppsScriptToken = envToken;
+        hasEnvChanged = true;
+      } else if (!lastEnvToken && envToken) {
+        localStorage.setItem('revit_last_env_token', envToken);
+      }
+
+      // Jika URL atau Token ter-update, simpan kembali ke localStorage
+      if (hasEnvChanged || parsed.googleAppsScriptUrl !== finalUrl || parsed.googleAppsScriptToken !== finalToken) {
+        parsed.googleAppsScriptUrl = finalUrl;
+        parsed.googleAppsScriptToken = finalToken;
+        localStorage.setItem('revit_settings', JSON.stringify(parsed));
+      }
+
       setSettings(prev => ({ 
         projectStartDate: '2026-06-12',
         projectEndDate: '2026-12-12',
-        googleAppsScriptUrl: '',
-        googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+        googleAppsScriptUrl: finalUrl,
+        googleAppsScriptToken: finalToken,
         totalProjectContract: 1500000000,
         honorKetuaTim: 7000000,
         honorKoordinator: 6000000,
@@ -355,14 +445,19 @@ export default function App() {
         deductionAdminAdministrasi: 100000,
         deductionTaxPct: 15,
         deductionLembagaPct: 10,
+        biayaOperasional: 0,
         ...parsed 
       }));
     } else {
+      const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
+      const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+      localStorage.setItem('revit_last_env_url', envUrl);
+      localStorage.setItem('revit_last_env_token', envToken);
       localStorage.setItem('revit_settings', JSON.stringify({
         projectStartDate: '2026-06-12',
         projectEndDate: '2026-12-12',
-        googleAppsScriptUrl: '',
-        googleAppsScriptToken: 'REVITSD2026_SECURE_TOKEN',
+        googleAppsScriptUrl: envUrl,
+        googleAppsScriptToken: envToken,
         totalProjectContract: 1500000000,
         honorKetuaTim: 7000000,
         honorKoordinator: 6000000,
@@ -374,7 +469,8 @@ export default function App() {
         deductionAdminFasilitator: 100000,
         deductionAdminAdministrasi: 100000,
         deductionTaxPct: 15,
-        deductionLembagaPct: 10
+        deductionLembagaPct: 10,
+        biayaOperasional: 0
       }));
     }
 
@@ -382,11 +478,15 @@ export default function App() {
     const checkAndFetchInitialData = async () => {
       if (syncService.isConfigured()) {
         setSyncStatus('connecting');
+        setIsBlockingSync(true);
         try {
           const remoteData = await syncService.fetchData();
           
           if (remoteData.users) {
-            const clean = remoteData.users.filter(u => u && isValidId(u.id));
+            const clean = remoteData.users.filter(u => u && isValidId(u.id)).map(u => ({
+              ...u,
+              taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
+            }));
             if (clean.length > 0) {
               setUsers(clean);
               localStorage.setItem('revit_users', JSON.stringify(clean));
@@ -460,14 +560,23 @@ export default function App() {
             localStorage.setItem('revit_meetings', JSON.stringify(clean));
           }
           if (remoteData.settings) {
-            setSettings(prev => ({ ...prev, ...remoteData.settings }));
-            localStorage.setItem('revit_settings', JSON.stringify(remoteData.settings));
+            const parsedSettings = parseSettings(remoteData.settings);
+            // Cegah URL/Token remote menimpa URL/Token lokal kita
+            delete parsedSettings.googleAppsScriptUrl;
+            delete parsedSettings.googleAppsScriptToken;
+            setSettings(prev => {
+              const next = { ...prev, ...parsedSettings };
+              localStorage.setItem('revit_settings', JSON.stringify(next));
+              return next;
+            });
           }
           setSyncStatus('success');
           setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+          setIsBlockingSync(false);
         } catch (err) {
           console.error("Initial load from Sheets failed, using localStorage fallback:", err);
           setSyncStatus('error');
+          setIsBlockingSync(false);
         }
       } else {
         setSyncStatus('offline');
@@ -542,18 +651,23 @@ export default function App() {
 
   const handleLogout = () => {
     setActiveUser(null);
-    localStorage.removeItem('revit_active_user');
+    localStorage.clear();
+    window.location.reload();
   };
 
   // 3b. Synchronization Core Functions
-  const triggerSync = async (currentState = null) => {
+  const triggerSync = async (currentState = null, isManual = false) => {
     if (!syncService.isConfigured()) {
       setSyncStatus('offline');
       return;
     }
 
     setSyncStatus('connecting');
+    if (isManual) {
+      setIsBlockingSync(true);
+    }
     try {
+      const localDirty = localStorage.getItem('revit_is_dirty') === 'true';
       const stateToPush = currentState || latestStateRef.current || {
         users,
         schools,
@@ -571,11 +685,22 @@ export default function App() {
         settings
       };
 
-      await syncService.pushData(stateToPush);
+      // Hanya pushData jika ada state baru (currentState) atau data lokal ditandai kotor (localDirty)
+      if (currentState || localDirty) {
+        console.log('[Sync] Terdapat perubahan lokal. Mengirim data ke Google Sheets...');
+        await syncService.pushData(stateToPush);
+        localStorage.removeItem('revit_is_dirty');
+        setIsDirty(false);
+      } else {
+        console.log('[Sync] Tidak ada perubahan lokal. Hanya mengambil data dari Google Sheets...');
+      }
       const remoteData = await syncService.fetchData();
 
       if (remoteData.users) {
-        const clean = remoteData.users.filter(u => u && isValidId(u.id));
+        const clean = remoteData.users.filter(u => u && isValidId(u.id)).map(u => ({
+          ...u,
+          taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
+        }));
         if (clean.length > 0) {
           setUsers(clean);
           localStorage.setItem('revit_users', JSON.stringify(clean));
@@ -670,19 +795,37 @@ export default function App() {
         localStorage.setItem('revit_activity_logs', JSON.stringify(clean));
       }
       if (remoteData.settings) {
-        setSettings(prev => ({ ...prev, ...remoteData.settings }));
-        localStorage.setItem('revit_settings', JSON.stringify(remoteData.settings));
+        const parsedSettings = parseSettings(remoteData.settings);
+        // Cegah URL/Token remote menimpa URL/Token lokal kita
+        delete parsedSettings.googleAppsScriptUrl;
+        delete parsedSettings.googleAppsScriptToken;
+        setSettings(prev => {
+          const next = { ...prev, ...parsedSettings };
+          localStorage.setItem('revit_settings', JSON.stringify(next));
+          return next;
+        });
       }
 
       setSyncStatus('success');
       setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+      setIsBlockingSync(false);
     } catch (error) {
       console.error('Sync Error:', error);
       setSyncStatus('error');
+      setIsBlockingSync(false);
+      // Tampilkan error detail ke user agar bisa di-diagnosa
+      const errMsg = error?.message || String(error);
+      console.error('[Sync] Detail error sinkronisasi:', errMsg, 'URL aktif:', syncService.getApiConfig().url);
+      // Simpan error terakhir untuk UI
+      setLastSyncTime(`Error: ${errMsg.substring(0, 100)}`);
     }
   };
 
-  const syncWithNewState = (updatedStateKeys) => {
+
+  const syncWithNewState = (updatedStateKeys, isManual = false) => {
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
+    
     const nextState = {
       users,
       schools,
@@ -701,6 +844,7 @@ export default function App() {
       settings,
       ...updatedStateKeys
     };
+    triggerSync(nextState, isManual);
   };
 
   // Auto-seed welcome log on Facilitator login
@@ -737,7 +881,7 @@ export default function App() {
   const handleUpdateSettings = (newSettings) => {
     setSettings(newSettings);
     localStorage.setItem('revit_settings', JSON.stringify(newSettings));
-    syncWithNewState({ settings: newSettings });
+    syncWithNewState({ settings: newSettings }, true);
   };
 
   // 5. CRUD Team Members (Super Admin)
@@ -759,6 +903,20 @@ export default function App() {
       localStorage.setItem('revit_active_user', JSON.stringify(updatedUser));
     }
     syncWithNewState({ users: updated });
+  };
+
+  const handleUpdateUsers = (updatedUsers) => {
+    setUsers(updatedUsers);
+    localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
+    syncWithNewState({ users: updatedUsers });
+  };
+
+  const handleUpdateSettingsAndUsers = (newSettings, updatedUsers) => {
+    setSettings(newSettings);
+    localStorage.setItem('revit_settings', JSON.stringify(newSettings));
+    setUsers(updatedUsers);
+    localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
+    syncWithNewState({ settings: newSettings, users: updatedUsers }, true);
   };
 
   const handleDeleteUser = (userId) => {
@@ -1018,6 +1176,28 @@ export default function App() {
     syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses });
   };
 
+  const handleSetPaymentsStatus = (paymentUpdates, expenseAdditions = [], paymentIdsToRemove = []) => {
+    let updatedPayments = [...payments];
+    if (paymentIdsToRemove.length > 0) {
+      updatedPayments = updatedPayments.filter(p => !paymentIdsToRemove.includes(p.id));
+    }
+    if (paymentUpdates.length > 0) {
+      const updatedIds = paymentUpdates.map(p => p.id);
+      updatedPayments = updatedPayments.filter(p => !updatedIds.includes(p.id));
+      updatedPayments = [...updatedPayments, ...paymentUpdates];
+    }
+    setPayments(updatedPayments);
+    localStorage.setItem('revit_payments', JSON.stringify(updatedPayments));
+
+    let updatedExpenses = [...expenses];
+    if (expenseAdditions.length > 0) {
+      updatedExpenses = [...updatedExpenses, ...expenseAdditions];
+      setExpenses(updatedExpenses);
+      localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
+    }
+    syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses });
+  };
+
   const handleAddSchoolDoc = (newDoc) => {
     const targetSchool = schools.find(s => s.npsn === newDoc.sekolahId);
     const schoolName = targetSchool ? targetSchool.nama_sekolah : newDoc.sekolahId;
@@ -1179,6 +1359,7 @@ export default function App() {
                 {activeView === 'settings-anggaran' && 'Pengaturan Anggaran & Honorarium'}
                 {activeView === 'keuangan' && 'Rekapitulasi Keuangan Proyek'}
                 {activeView === 'kelola-fasilitator' && 'Kelola Tugas Fasilitator'}
+                {activeView === 'batch-honor' && 'Pelunasan Batch Honorarium'}
               </h1>
             </div>
             
@@ -1186,7 +1367,7 @@ export default function App() {
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Indikator Sinkronisasi Google Sheets */}
                 <button
-                  onClick={() => triggerSync()}
+                  onClick={() => triggerSync(null, true)}
                   disabled={syncStatus === 'connecting'}
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none ${
                     syncStatus === 'connecting'
@@ -1197,13 +1378,20 @@ export default function App() {
                       ? 'bg-rose-500/10 border-rose-500/20 text-rose-450 hover:bg-rose-500/20'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'
                   }`}
-                  title={lastSyncTime ? `Terakhir sinkronisasi: ${lastSyncTime}. Klik untuk sinkronisasi ulang.` : 'Klik untuk sinkronisasi dengan Google Sheets'}
+                  title={
+                    `URL Aktif: ${settings.googleAppsScriptUrl || 'Belum diatur'}\n` +
+                    (syncStatus === 'error' && lastSyncTime 
+                      ? `${lastSyncTime}. Klik untuk coba ulang.` 
+                      : lastSyncTime 
+                      ? `Terakhir sinkronisasi: ${lastSyncTime}. Klik untuk sinkronisasi ulang.` 
+                      : 'Klik untuk sinkronisasi dengan Google Sheets')
+                  }
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === 'connecting' ? 'animate-spin' : ''}`} />
                   <span>
                     {syncStatus === 'connecting' && 'Sinkronisasi...'}
                     {syncStatus === 'success' && `Tersambung (${lastSyncTime})`}
-                    {syncStatus === 'error' && 'Gagal Sinkronisasi'}
+                    {syncStatus === 'error' && (lastSyncTime?.startsWith('Error:') ? lastSyncTime.substring(0, 60) : 'Gagal Sinkronisasi')}
                     {syncStatus === 'offline' && 'Mode Lokal'}
                   </span>
                 </button>
@@ -1387,6 +1575,8 @@ export default function App() {
                   onPayTrip={handlePayTrip}
                   settings={settings}
                   onUpdateSettings={handleUpdateSettings}
+                  onUpdateUsers={handleUpdateUsers}
+                  onUpdateSettingsAndUsers={handleUpdateSettingsAndUsers}
                   activeView={activeView}
                 />
               )}
@@ -1399,6 +1589,17 @@ export default function App() {
                   onAddMeeting={handleAddMeeting}
                   onUpdateMeeting={handleUpdateMeeting}
                   onDeleteMeeting={handleDeleteMeeting}
+                />
+              )}
+
+              {activeView === 'batch-honor' && (
+                <HonorBatchSettings
+                  users={users}
+                  schools={schools}
+                  reports={reports}
+                  payments={payments}
+                  settings={settings}
+                  onSetPaymentsStatus={handleSetPaymentsStatus}
                 />
               )}
             </>
@@ -1510,6 +1711,28 @@ export default function App() {
               >
                 {dialog.type === 'confirm' ? 'Ya, Lanjutkan' : 'Mengerti'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Syncing Overlay */}
+      {isBlockingSync && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fade-in select-none">
+          <div className="relative w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col gap-6 text-center items-center backdrop-blur-lg">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400 relative">
+              <RefreshCw className="w-8 h-8 animate-spin" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-extrabold text-white text-base uppercase tracking-wider">
+                Sinkronisasi Data
+              </h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Sedang menyelaraskan data dengan Google Sheets & Drive...
+              </p>
+              <p className="text-rose-450 text-[10px] font-bold mt-2 animate-pulse">
+                Mohon jangan menutup atau merefresh browser sampai proses selesai.
+              </p>
             </div>
           </div>
         </div>

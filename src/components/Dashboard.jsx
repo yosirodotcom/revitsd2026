@@ -16,7 +16,9 @@ import {
   Users,
   Plane,
   X,
-  CircleDollarSign
+  CircleDollarSign,
+  Pencil,
+  Check
 } from 'lucide-react';
 
 export default function Dashboard({ 
@@ -47,74 +49,35 @@ export default function Dashboard({
   const [facModalId, setFacModalId] = useState(null);
   const [facModalTab, setFacModalTab] = useState('reports');
   const [payrollDetailModal, setPayrollDetailModal] = useState(null);
+  const [isEditingOperasional, setIsEditingOperasional] = useState(false);
+  const [editOperasionalVal, setEditOperasionalVal] = useState('');
+
+  const formatNumberWithDots = (val) => {
+    if (val === undefined || val === null || isNaN(val)) return '';
+    return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const parseNumberFromDots = (str) => {
+    if (!str) return 0;
+    const cleaned = str.toString().replace(/\./g, '');
+    const parsed = parseInt(cleaned, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   const isAdministrasi = activeUser?.jabatanTim === 'Tenaga Administrasi';
   const isSuperAdmin = activeUser?.role === 'admin' || activeUser?.jabatanTim === 'Super Admin';
 
-  const [financialSettings, setFinancialSettings] = useState({
-    totalProjectContract: settings.totalProjectContract || 1500000000,
-    honorKetuaTim: settings.honorKetuaTim || 7000000,
-    honorKoordinator: settings.honorKoordinator || 6000000,
-    honorFasilitator: settings.honorFasilitator || 5000000,
-    honorAdministrasi: settings.honorAdministrasi || 5000000,
-    deductionAdminFlat: settings.deductionAdminFlat || 100000,
-    deductionAdminKetuaTim: settings.deductionAdminKetuaTim || 100000,
-    deductionAdminKoordinator: settings.deductionAdminKoordinator || 100000,
-    deductionAdminFasilitator: settings.deductionAdminFasilitator || 100000,
-    deductionAdminAdministrasi: settings.deductionAdminAdministrasi || 100000,
-    deductionTaxPct: settings.deductionTaxPct || 15,
-    deductionLembagaPct: settings.deductionLembagaPct || 10
-  });
-
-  useEffect(() => {
-    setFinancialSettings({
-      totalProjectContract: settings.totalProjectContract || 1500000000,
-      honorKetuaTim: settings.honorKetuaTim || 7000000,
-      honorKoordinator: settings.honorKoordinator || 6000000,
-      honorFasilitator: settings.honorFasilitator || 5000000,
-      honorAdministrasi: settings.honorAdministrasi || 5000000,
-      deductionAdminFlat: settings.deductionAdminFlat || 100000,
-      deductionAdminKetuaTim: settings.deductionAdminKetuaTim || 100000,
-      deductionAdminKoordinator: settings.deductionAdminKoordinator || 100000,
-      deductionAdminFasilitator: settings.deductionAdminFasilitator || 100000,
-      deductionAdminAdministrasi: settings.deductionAdminAdministrasi || 100000,
-      deductionTaxPct: settings.deductionTaxPct || 15,
-      deductionLembagaPct: settings.deductionLembagaPct || 10
-    });
-  }, [settings]);
-
-  const handleSaveFinancialSettings = (e) => {
-    e.preventDefault();
-    onUpdateSettings({
-      ...settings,
-      ...financialSettings
-    });
-    window.showAlert('Pengaturan anggaran dan honorarium berhasil disimpan!');
-  };
 
   const getUserPayrollStatus = (user, month) => {
-    const baseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+    const baseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings.honorAdministrasi : settings[`honor${user.jabatanTim.replace(' ', '')}`]) || {
       'Ketua Tim': 7000000,
       'Koordinator': 6000000,
       'Fasilitator': 5000000,
       'Tenaga Administrasi': 5000000
     }[user.jabatanTim] || 5000000;
 
-    const taxPct = Number(settings.deductionTaxPct ?? 15);
+    const taxPct = user.taxPct !== undefined && user.taxPct !== null ? Number(user.taxPct) : Number(settings.deductionTaxPct ?? 15);
     const lembagaPct = Number(settings.deductionLembagaPct ?? 10);
-    
-    let adminFlat = 100000;
-    if (user.jabatanTim === 'Ketua Tim') {
-      adminFlat = Number(settings.deductionAdminKetuaTim ?? settings.deductionAdminFlat ?? 100000);
-    } else if (user.jabatanTim === 'Koordinator') {
-      adminFlat = Number(settings.deductionAdminKoordinator ?? settings.deductionAdminFlat ?? 100000);
-    } else if (user.jabatanTim === 'Fasilitator') {
-      adminFlat = Number(settings.deductionAdminFasilitator ?? settings.deductionAdminFlat ?? 100000);
-    } else if (user.jabatanTim === 'Tenaga Administrasi') {
-      adminFlat = Number(settings.deductionAdminAdministrasi ?? settings.deductionAdminFlat ?? 100000);
-    } else {
-      adminFlat = Number(settings.deductionAdminFlat ?? 100000);
-    }
 
     let pctPart1 = 0;
     let pctPart2 = 0;
@@ -140,7 +103,20 @@ export default function Dashboard({
 
     // Check month report
     const userReport = reports.find(r => r.userId === user.id && Number(r.bulanKe) === Number(month));
-    const reportFinished = user.jabatanTim === 'Tenaga Administrasi' || (userReport && userReport.status === 'approved');
+    const reportFinished = 
+      user.jabatanTim === 'Tenaga Administrasi' || 
+      ((user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') 
+        ? !!userReport 
+        : (userReport && userReport.status === 'approved'));
+
+    // Time restriction: payment is allowed only after the month has been completed
+    const projectStart = settings.projectStartDate || '2026-06-12';
+    const start = new Date(projectStart);
+    start.setMonth(start.getMonth() + Number(month));
+    const targetDateStr = start.toISOString().split('T')[0];
+    const todayVal = new Date(settings.simulatedToday || new Date().toISOString().split('T')[0]);
+    const targetVal = new Date(targetDateStr);
+    const isTimeReached = todayVal >= targetVal;
 
     // Overseen schools progress
     let mySchools = [];
@@ -166,17 +142,15 @@ export default function Dashboard({
     const part3Eligible = totalBinaan > 0 && pctProgress100 >= 0.90 && allProgress100DocsUploaded;
 
     const getDeductionDetails = (gross) => {
-      if (gross === 0) return { tax: 0, lembaga: 0, admin: 0, net: 0 };
+      if (gross === 0) return { tax: 0, lembaga: 0, net: 0 };
       const tax = Math.round(gross * (taxPct / 100));
       const lembaga = Math.round(gross * (lembagaPct / 100));
-      const admin = adminFlat;
-      const net = Math.max(0, gross - tax - lembaga - admin);
-      return { tax, lembaga, admin, net };
+      const net = Math.max(0, gross - tax - lembaga);
+      return { tax, lembaga, net };
     };
 
     return {
       baseMonthly,
-      adminFlat,
       totalBinaan,
       binProgress50,
       pctProgress50,
@@ -186,14 +160,19 @@ export default function Dashboard({
       allProgress100DocsUploaded,
       userReport,
       reportFinished,
+      taxPct,
       parts: [
         {
           id: 'part1',
           name: user.jabatanTim === 'Tenaga Administrasi' ? 'Honor Bulanan (100%)' : `Bagian 1 (Laporan Bulanan - ${pctPart1 * 100}%)`,
           gross: grossPart1,
-          eligible: reportFinished,
+          eligible: reportFinished && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && (p.komponen === `tetap_bulan_${month}_part1` || p.komponen === `tetap_bulan_${month}`)),
-          conditions: user.jabatanTim === 'Tenaga Administrasi' ? 'Diterima penuh setiap bulan' : 'Laporan bulanan PDF disetujui (Approved)',
+          conditions: user.jabatanTim === 'Tenaga Administrasi' 
+            ? `Telah melewati Bulan ke-${month}` 
+            : (user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator')
+            ? `Laporan bulanan PDF diunggah & telah melewati Bulan ke-${month}`
+            : `Laporan bulanan PDF disetujui (Approved) & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part1`,
           ...getDeductionDetails(grossPart1)
         },
@@ -201,9 +180,9 @@ export default function Dashboard({
           id: 'part2',
           name: `Bagian 2 (Target 50% - ${pctPart2 * 100}%)`,
           gross: grossPart2,
-          eligible: part2Eligible,
+          eligible: part2Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part2`),
-          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah`,
+          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part2`,
           ...getDeductionDetails(grossPart2)
         },
@@ -211,9 +190,9 @@ export default function Dashboard({
           id: 'part3',
           name: `Bagian 3 (Target 100% - ${pctPart3 * 100}%)`,
           gross: grossPart3,
-          eligible: part3Eligible,
+          eligible: part3Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part3`),
-          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah`,
+          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part3`,
           ...getDeductionDetails(grossPart3)
         }
@@ -227,11 +206,16 @@ export default function Dashboard({
   const totalAtk = expenses.filter(e => e.kategori === 'atk').reduce((acc, curr) => acc + curr.jumlah, 0);
   const totalHonor = expenses.filter(e => e.kategori === 'honor').reduce((acc, curr) => acc + curr.jumlah, 0);
   const totalDinas = expenses.filter(e => e.kategori === 'dinas').reduce((acc, curr) => acc + curr.jumlah, 0);
-  const grandTotalExpenses = totalAtk + totalHonor + totalDinas;
+  
+  const biayaNonOperasional = totalHonor;
+  const biayaOperasional = settings.biayaOperasional !== undefined && settings.biayaOperasional !== null 
+    ? Number(settings.biayaOperasional) 
+    : (totalAtk + totalDinas);
+  const grandTotalExpenses = biayaOperasional + biayaNonOperasional;
 
   // Stage 2 & 3 checks
   const ketuaTim = users.find(u => u.jabatanTim === 'Ketua Tim');
-  const cond1 = reports.some(r => r.userId === (ketuaTim?.id || 'etty-rabihati') && Number(r.bulanKe) === 4 && r.status === 'approved');
+  const cond1 = reports.some(r => r.userId === (ketuaTim?.id || 'etty-rabihati') && Number(r.bulanKe) === 4);
   const cond2 = grandTotalExpenses >= 0.50 * totalProjectContract;
   
   const progress50Schools = schools.filter(s => (s.progres_fisik || 0) >= 50);
@@ -242,7 +226,7 @@ export default function Dashboard({
 
   const isTahap2Eligible = cond1 && cond2 && cond3 && cond4;
 
-  const cond1_t3 = [1,2,3,4,5,6].every(m => reports.some(r => r.userId === (ketuaTim?.id || 'etty-rabihati') && Number(r.bulanKe) === m && r.status === 'approved'));
+  const cond1_t3 = [1,2,3,4,5,6].every(m => reports.some(r => r.userId === (ketuaTim?.id || 'etty-rabihati') && Number(r.bulanKe) === m));
   const progress100Schools = schools.filter(s => (s.progres_fisik || 0) === 100);
   const cond2_t3 = schools.length > 0 && (progress100Schools.length / schools.length) >= 0.90;
   const cond3_t3 = progress100Schools.length > 0 && progress100Schools.every(s => 
@@ -251,9 +235,9 @@ export default function Dashboard({
 
   const isTahap3Eligible = cond1_t3 && cond2_t3 && cond3_t3;
 
-  const totalDanaPusatDiterima = (0.60 * totalProjectContract) + 
-                                  (isTahap2Eligible ? 0.25 * totalProjectContract : 0) + 
-                                  (isTahap3Eligible ? 0.15 * totalProjectContract : 0);
+  const totalDanaPusatDiterima = (settings?.danaTahap1Diterima ? 0.60 * totalProjectContract : 0) + 
+                                  (settings?.danaTahap2Diterima ? 0.25 * totalProjectContract : 0) + 
+                                  (settings?.danaTahap3Diterima ? 0.15 * totalProjectContract : 0);
 
   // Sync state if settings change (e.g. from TravelSchedule or another tab)
   useEffect(() => {
@@ -267,8 +251,27 @@ export default function Dashboard({
 
   const handleSaveSettings = (e) => {
     e.preventDefault();
-    onUpdateSettings(dates);
+    onUpdateSettings({
+      ...settings,
+      ...dates
+    });
     window.showAlert('Konfigurasi linimasa global berhasil disimpan!');
+  };
+
+  const handleToggleDanaTahap = async (tahapNumber, currentVal) => {
+    if (!isAdministrasi && !isSuperAdmin) {
+      return window.showAlert('Hanya Tenaga Administrasi atau Super Admin yang dapat mengubah status penerimaan dana.');
+    }
+    const confirmMsg = currentVal
+      ? `Apakah Anda yakin ingin membatalkan konfirmasi penerimaan Dana Tahap ${tahapNumber}?`
+      : `Apakah Anda yakin ingin mengonfirmasi bahwa Dana Tahap ${tahapNumber} telah DITERIMA di rekening bendahara?`;
+    if (await window.showConfirm(confirmMsg)) {
+      onUpdateSettings({
+        ...settings,
+        [`danaTahap${tahapNumber}Diterima`]: !currentVal
+      });
+      window.showAlert(`Status Dana Tahap ${tahapNumber} berhasil diperbarui.`);
+    }
   };
 
   const getRoleDescription = (role) => {
@@ -491,14 +494,78 @@ export default function Dashboard({
               </div>
             </div>
 
-            <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-md">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Realisasi Pengeluaran</span>
-                <span className="text-xl font-extrabold text-amber-400 block">Rp {grandTotalExpenses.toLocaleString('id-ID')}</span>
-                <span className="text-xs text-slate-400 font-medium">{Math.round((grandTotalExpenses / totalProjectContract) * 100)}% Penyerapan Dana</span>
+            <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-md min-h-[170px]">
+              <div className="flex items-start justify-between w-full">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Realisasi Pengeluaran</span>
+                  <span className="text-xl font-extrabold text-amber-400 block">Rp {grandTotalExpenses.toLocaleString('id-ID')}</span>
+                  <span className="text-xs text-slate-400 font-medium block">{Math.round((grandTotalExpenses / totalProjectContract) * 100)}% Penyerapan Dana</span>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                <TrendingUp className="w-6 h-6" />
+              
+              <div className="mt-4 pt-3 border-t border-slate-800/60 grid grid-cols-2 gap-4 text-[10px]">
+                {/* Biaya Operasional */}
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-semibold block">Biaya Operasional</span>
+                  {isEditingOperasional ? (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-[10px] font-bold text-slate-400">Rp</span>
+                      <input
+                        type="text"
+                        value={formatNumberWithDots(editOperasionalVal)}
+                        onChange={(e) => setEditOperasionalVal(parseNumberFromDots(e.target.value))}
+                        className="bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-slate-100 font-bold focus:outline-none focus:border-indigo-500 w-24"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => {
+                          onUpdateSettings({
+                            ...settings,
+                            biayaOperasional: Number(editOperasionalVal)
+                          });
+                          setIsEditingOperasional(false);
+                        }}
+                        className="p-1 rounded bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer transition-colors"
+                        title="Simpan"
+                      >
+                        <Check className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => setIsEditingOperasional(false)}
+                        className="p-1 rounded bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer transition-colors animate-fade-in"
+                        title="Batal"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-bold text-slate-350">Rp {biayaOperasional.toLocaleString('id-ID')}</span>
+                      {isAdministrasi && (
+                        <button
+                          onClick={() => {
+                            setIsEditingOperasional(true);
+                            setEditOperasionalVal(biayaOperasional);
+                          }}
+                          className="text-slate-500 hover:text-indigo-400 transition-colors p-0.5 cursor-pointer"
+                          title="Ubah Biaya Operasional"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Biaya Non-Operasional */}
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-semibold block">Biaya Non-Operasional</span>
+                  <span className="font-bold text-indigo-400 block mt-0.5">Rp {biayaNonOperasional.toLocaleString('id-ID')}</span>
+                  <span className="text-[8px] text-slate-500 italic block leading-none mt-0.5">Otomatis dari honor</span>
+                </div>
               </div>
             </div>
 
@@ -524,77 +591,155 @@ export default function Dashboard({
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Tahap 1 */}
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-emerald-500/30 bg-emerald-500/5 relative animate-fade-in">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded">Tahap 1 (60%)</span>
-                    <h4 className="font-bold text-slate-200 text-xs mt-1.5">Rp {(0.60 * totalProjectContract).toLocaleString('id-ID')}</h4>
+              <div className={`bg-slate-950/60 rounded-2xl p-4 border ${settings?.danaTahap1Diterima ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800'} relative animate-fade-in flex flex-col justify-between min-h-[180px]`}>
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className={`text-[10px] font-bold ${settings?.danaTahap1Diterima ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-slate-400 bg-slate-900 border border-slate-800'} px-2.5 py-0.5 rounded`}>Tahap 1 (60%)</span>
+                      <h4 className="font-bold text-slate-200 text-xs mt-1.5">Rp {(0.60 * totalProjectContract).toLocaleString('id-ID')}</h4>
+                    </div>
+                    {settings?.danaTahap1Diterima ? (
+                      <span className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> SUDAH CAIR</span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-extrabold flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> SIAP CAIR</span>
+                    )}
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> SUDAH CAIR</span>
+                  <p className="text-[10px] text-slate-400 leading-normal mb-3">
+                    Pencairan awal sebesar 60% disalurkan ke rekening bendahara saat proyek dimulai.
+                  </p>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-normal">
-                  Pencairan awal sebesar 60% langsung disalurkan ke rekening bendahara saat proyek dimulai.
-                </p>
+                {(isAdministrasi || isSuperAdmin) && (
+                  <button
+                    onClick={() => handleToggleDanaTahap(1, settings?.danaTahap1Diterima)}
+                    className={`w-full py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all border-0 shadow cursor-pointer ${
+                      settings?.danaTahap1Diterima 
+                        ? 'bg-slate-800 text-slate-400 hover:bg-slate-750 hover:text-white' 
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/15'
+                    }`}
+                  >
+                    {settings?.danaTahap1Diterima ? 'Batalkan Konfirmasi' : 'Konfirmasi Dana Diterima'}
+                  </button>
+                )}
               </div>
 
               {/* Tahap 2 */}
-              <div className={`bg-slate-950/60 rounded-2xl p-4 border ${isTahap2Eligible ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800'} relative`}>
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <span className={`text-[10px] font-bold ${isTahap2Eligible ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-slate-400 bg-slate-900 border border-slate-800'} px-2.5 py-0.5 rounded`}>Tahap 2 (25%)</span>
-                    <h4 className="font-bold text-slate-200 text-xs mt-1.5">Rp {(0.25 * totalProjectContract).toLocaleString('id-ID')}</h4>
+              <div className={`bg-slate-950/60 rounded-2xl p-4 border ${settings?.danaTahap2Diterima ? 'border-emerald-500/30 bg-emerald-500/5' : isTahap2Eligible ? 'border-indigo-500/30 bg-indigo-500/5' : 'border-slate-800'} relative flex flex-col justify-between min-h-[260px]`}>
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className={`text-[10px] font-bold ${settings?.danaTahap2Diterima ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : isTahap2Eligible ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20' : 'text-slate-400 bg-slate-900 border border-slate-800'} px-2.5 py-0.5 rounded`}>Tahap 2 (25%)</span>
+                      <h4 className="font-bold text-slate-200 text-xs mt-1.5">Rp {(0.25 * totalProjectContract).toLocaleString('id-ID')}</h4>
+                    </div>
+                    {settings?.danaTahap2Diterima ? (
+                      <span className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> SUDAH CAIR</span>
+                    ) : isTahap2Eligible ? (
+                      <span className="text-[10px] text-indigo-400 font-extrabold flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> SIAP CAIR</span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-extrabold flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> MENUNGGU SYARAT</span>
+                    )}
                   </div>
-                  <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${isTahap2Eligible ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {isTahap2Eligible ? 'LAYAK CAIR' : 'MENUNGGU SYARAT'}
-                  </span>
+                  
+                  <div className="mt-3 pt-3 border-t border-slate-900/60 space-y-2 text-[10px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">1. Lap. Ketua Tim (B4):</span>
+                      <span className={`font-bold ${cond1 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond1 ? '✓ Selesai' : '✗ Belum'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">2. Penyerapan &ge; 50%:</span>
+                      <span className={`font-bold ${cond2 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond2 ? '✓ Terpenuhi' : '✗ Belum'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">3. &ge; 75% SD progres &ge; 50%:</span>
+                      <span className={`font-bold ${cond3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond3 ? '✓ Terpenuhi' : '✗ Belum'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">4. Dokumen 50% terunggah:</span>
+                      <span className={`font-bold ${cond4 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond4 ? '✓ Lengkap' : '✗ Belum'}</span>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="mt-3 pt-3 border-t border-slate-900/60 space-y-2 text-[10px]">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">1. Lap. Ketua Tim (B4):</span>
-                    <span className={`font-bold ${cond1 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond1 ? '✓ Selesai' : '✗ Belum'}</span>
+
+                {settings?.danaTahap2Diterima ? (
+                  (isAdministrasi || isSuperAdmin) && (
+                    <button
+                      onClick={() => handleToggleDanaTahap(2, true)}
+                      className="w-full mt-4 py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all border bg-slate-800 text-slate-400 hover:bg-slate-750 hover:text-white border-0 shadow cursor-pointer"
+                    >
+                      Batalkan Konfirmasi
+                    </button>
+                  )
+                ) : isTahap2Eligible ? (
+                  (isAdministrasi || isSuperAdmin) && (
+                    <button
+                      onClick={() => handleToggleDanaTahap(2, false)}
+                      className="w-full mt-4 py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all border bg-indigo-600 hover:bg-indigo-500 text-white border-0 shadow cursor-pointer shadow-indigo-600/15"
+                    >
+                      Konfirmasi Dana Diterima
+                    </button>
+                  )
+                ) : (
+                  <div className="w-full mt-4 py-1.5 rounded-xl text-[10px] font-bold text-center text-slate-500 bg-slate-900 border border-slate-850 select-none">
+                    Belum Memenuhi Syarat
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">2. Penyerapan &ge; 50%:</span>
-                    <span className={`font-bold ${cond2 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond2 ? '✓ Terpenuhi' : '✗ Belum'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">3. &ge; 75% SD progres &ge; 50%:</span>
-                    <span className={`font-bold ${cond3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond3 ? '✓ Terpenuhi' : '✗ Belum'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">4. Dokumen 50% terunggah:</span>
-                    <span className={`font-bold ${cond4 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond4 ? '✓ Lengkap' : '✗ Belum'}</span>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Tahap 3 */}
-              <div className={`bg-slate-950/60 rounded-2xl p-4 border ${isTahap3Eligible ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800'} relative`}>
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <span className={`text-[10px] font-bold ${isTahap3Eligible ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-slate-400 bg-slate-900 border border-slate-800'} px-2.5 py-0.5 rounded`}>Tahap 3 (15%)</span>
-                    <h4 className="font-bold text-slate-200 text-xs mt-1.5">Rp {(0.15 * totalProjectContract).toLocaleString('id-ID')}</h4>
+              <div className={`bg-slate-950/60 rounded-2xl p-4 border ${settings?.danaTahap3Diterima ? 'border-emerald-500/30 bg-emerald-500/5' : isTahap3Eligible ? 'border-indigo-500/30 bg-indigo-500/5' : 'border-slate-800'} relative flex flex-col justify-between min-h-[260px]`}>
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className={`text-[10px] font-bold ${settings?.danaTahap3Diterima ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : isTahap3Eligible ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20' : 'text-slate-400 bg-slate-900 border border-slate-800'} px-2.5 py-0.5 rounded`}>Tahap 3 (15%)</span>
+                      <h4 className="font-bold text-slate-200 text-xs mt-1.5">Rp {(0.15 * totalProjectContract).toLocaleString('id-ID')}</h4>
+                    </div>
+                    {settings?.danaTahap3Diterima ? (
+                      <span className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-0.5"><CheckCircle className="w-3.5 h-3.5" /> SUDAH CAIR</span>
+                    ) : isTahap3Eligible ? (
+                      <span className="text-[10px] text-indigo-400 font-extrabold flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> SIAP CAIR</span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-extrabold flex items-center gap-0.5"><Clock className="w-3.5 h-3.5" /> MENUNGGU SYARAT</span>
+                    )}
                   </div>
-                  <span className={`text-[10px] font-extrabold flex items-center gap-0.5 ${isTahap3Eligible ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {isTahap3Eligible ? 'LAYAK CAIR' : 'MENUNGGU SYARAT'}
-                  </span>
+                  
+                  <div className="mt-3 pt-3 border-t border-slate-900/60 space-y-2 text-[10px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">1. Semua Lap. Ketua Tim:</span>
+                      <span className={`font-bold ${cond1_t3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond1_t3 ? '✓ Selesai' : '✗ Belum'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">2. &ge; 90% SD progres 100%:</span>
+                      <span className={`font-bold ${cond2_t3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond2_t3 ? '✓ Terpenuhi' : '✗ Belum'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">3. Dokumen 100% terunggah:</span>
+                      <span className={`font-bold ${cond3_t3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond3_t3 ? '✓ Lengkap' : '✗ Belum'}</span>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="mt-3 pt-3 border-t border-slate-900/60 space-y-2 text-[10px]">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">1. Semua Lap. Ketua Tim:</span>
-                    <span className={`font-bold ${cond1_t3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond1_t3 ? '✓ Selesai' : '✗ Belum'}</span>
+
+                {settings?.danaTahap3Diterima ? (
+                  (isAdministrasi || isSuperAdmin) && (
+                    <button
+                      onClick={() => handleToggleDanaTahap(3, true)}
+                      className="w-full mt-4 py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all border bg-slate-800 text-slate-400 hover:bg-slate-750 hover:text-white border-0 shadow cursor-pointer"
+                    >
+                      Batalkan Konfirmasi
+                    </button>
+                  )
+                ) : isTahap3Eligible ? (
+                  (isAdministrasi || isSuperAdmin) && (
+                    <button
+                      onClick={() => handleToggleDanaTahap(3, false)}
+                      className="w-full mt-4 py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all border bg-indigo-600 hover:bg-indigo-500 text-white border-0 shadow cursor-pointer shadow-indigo-600/15"
+                    >
+                      Konfirmasi Dana Diterima
+                    </button>
+                  )
+                ) : (
+                  <div className="w-full mt-4 py-1.5 rounded-xl text-[10px] font-bold text-center text-slate-500 bg-slate-900 border border-slate-850 select-none">
+                    Belum Memenuhi Syarat
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">2. &ge; 90% SD progres 100%:</span>
-                    <span className={`font-bold ${cond2_t3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond2_t3 ? '✓ Terpenuhi' : '✗ Belum'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">3. Dokumen 100% terunggah:</span>
-                    <span className={`font-bold ${cond3_t3 ? 'text-emerald-400' : 'text-rose-450'}`}>{cond3_t3 ? '✓ Lengkap' : '✗ Belum'}</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -608,12 +753,6 @@ export default function Dashboard({
                 </h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">Status kelayakan pembayaran honor per bulan (Bulan 1 s/d 6). Klik peran untuk detail.</p>
               </div>
-              <button
-                onClick={() => onViewChange('bayar-honor')}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow flex items-center gap-1 cursor-pointer border-0"
-              >
-                Buka Halaman Pembayaran Honor <ArrowRight className="w-3.5 h-3.5" />
-              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -629,9 +768,9 @@ export default function Dashboard({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-850">
-                  {users.filter(u => u.jabatanTim !== 'Super Admin').map(user => {
+                   {users.filter(u => u.jabatanTim !== 'Super Admin').map(user => {
                     const helper = (month) => {
-                      const userBaseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+                      const userBaseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings.honorAdministrasi : settings[`honor${user.jabatanTim.replace(' ', '')}`]) || {
                         'Ketua Tim': 7000000,
                         'Koordinator': 6000000,
                         'Fasilitator': 5000000,
@@ -648,7 +787,20 @@ export default function Dashboard({
                       }
 
                       const userReport = reports.find(r => r.userId === user.id && Number(r.bulanKe) === Number(month));
-                      const reportFinished = user.jabatanTim === 'Tenaga Administrasi' || (userReport && userReport.status === 'approved');
+                      const reportFinished = 
+                        user.jabatanTim === 'Tenaga Administrasi' || 
+                        ((user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') 
+                          ? !!userReport 
+                          : (userReport && userReport.status === 'approved'));
+
+                      // Time restriction: payment is allowed only after the month has been completed
+                      const projectStart = settings.projectStartDate || '2026-06-12';
+                      const start = new Date(projectStart);
+                      start.setMonth(start.getMonth() + Number(month));
+                      const targetDateStr = start.toISOString().split('T')[0];
+                      const todayVal = new Date(settings.simulatedToday || new Date().toISOString().split('T')[0]);
+                      const targetVal = new Date(targetDateStr);
+                      const isTimeReached = todayVal >= targetVal;
 
                       let mySchools = [];
                       if (user.jabatanTim === 'Fasilitator') {
@@ -678,9 +830,9 @@ export default function Dashboard({
 
                       const totalParts = (pctPart1 > 0 ? 1 : 0) + (pctPart2 > 0 ? 1 : 0) + (pctPart3 > 0 ? 1 : 0);
                       const paidParts = (part1Paid ? 1 : 0) + (part2Paid ? 1 : 0) + (part3Paid ? 1 : 0);
-                      const eligibleUnpaidParts = ((reportFinished && !part1Paid) ? 1 : 0) + 
-                                                   ((part2Eligible && !part2Paid) ? 1 : 0) + 
-                                                   ((part3Eligible && !part3Paid) ? 1 : 0);
+                      const eligibleUnpaidParts = (((reportFinished && isTimeReached) && !part1Paid) ? 1 : 0) + 
+                                                   (((part2Eligible && isTimeReached) && !part2Paid) ? 1 : 0) + 
+                                                   (((part3Eligible && isTimeReached) && !part3Paid) ? 1 : 0);
 
                       if (paidParts === totalParts) return 'all-paid';
                       if (paidParts > 0) return 'part-paid';
@@ -688,7 +840,7 @@ export default function Dashboard({
                       return 'waiting';
                     };
 
-                    const userBaseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+                    const userBaseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings.honorAdministrasi : settings[`honor${user.jabatanTim.replace(' ', '')}`]) || {
                       'Ketua Tim': 7000000,
                       'Koordinator': 6000000,
                       'Fasilitator': 5000000,
@@ -1290,6 +1442,8 @@ export default function Dashboard({
         )}
 
       </div>
+    </div>
+  )}
 
       {/* ===== FACILITATOR DETAIL MODAL ===== */}
       {facModalId && (() => {
@@ -1536,7 +1690,7 @@ export default function Dashboard({
                   <div className="text-right">
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Skema Potongan</span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      Pajak {settings.deductionTaxPct || 15}% • Lembaga {settings.deductionLembagaPct || 10}% • Flat Rp {(details.adminFlat || 100000).toLocaleString('id-ID')}
+                      Pajak {details.taxPct}% • Lembaga {settings.deductionLembagaPct || 10}%
                     </span>
                   </div>
                 </div>
@@ -1590,7 +1744,6 @@ export default function Dashboard({
                         <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/60 text-[9px] text-slate-400 grid grid-cols-2 gap-1.5 font-mono">
                           <div>Pajak: Rp {part.tax.toLocaleString('id-ID')}</div>
                           <div>Lembaga: Rp {part.lembaga.toLocaleString('id-ID')}</div>
-                          <div>Admin: Rp {part.admin.toLocaleString('id-ID')}</div>
                           <div className="col-span-2 pt-1 border-t border-dashed border-slate-900/60 text-[10px] font-bold text-emerald-400">
                             Penerimaan Bersih: Rp {part.net.toLocaleString('id-ID')}
                           </div>
@@ -1608,7 +1761,9 @@ export default function Dashboard({
                                 {details.reportFinished ? '✓' : '✗'}
                               </span>
                               <span className="text-slate-300">
-                                Laporan bulanan PDF disetujui
+                                {(user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') 
+                                  ? 'Laporan bulanan PDF diunggah' 
+                                  : 'Laporan bulanan PDF disetujui'}
                               </span>
                             </div>
                           )}
@@ -1678,7 +1833,7 @@ export default function Dashboard({
                 >
                   Tutup
                 </button>
-                {hasUnpaidReady && (
+                {hasUnpaidReady && activeUser?.jabatanTim === 'Super Admin' && (
                   <button
                     onClick={() => {
                       setPayrollDetailModal(null);
@@ -1698,8 +1853,6 @@ export default function Dashboard({
         );
       })()}
 
-      </div>
-      )}
     </div>
   );
 }

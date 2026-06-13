@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CircleDollarSign, Plus, Check, Trash2, Receipt, ArrowUpRight, TrendingUp, AlertCircle, FileCheck, CheckCircle } from 'lucide-react';
+import { CircleDollarSign, Plus, Check, Trash2, Receipt, ArrowUpRight, TrendingUp, AlertCircle, FileCheck, CheckCircle, Pencil, X } from 'lucide-react';
 
 export default function FinancialDashboard({ 
   users, 
@@ -15,10 +15,30 @@ export default function FinancialDashboard({
   onPayTrip,
   settings,
   onUpdateSettings,
+  onUpdateUsers,
+  onUpdateSettingsAndUsers,
   activeView
 }) {
-  const [activeTab, setActiveTab] = useState('recap'); // 'recap' | 'payroll' | 'trips'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (activeView === 'pantau-honor' || activeView === 'bayar-honor') {
+      return 'payroll';
+    } else if (activeView === 'keuangan') {
+      return 'recap';
+    } else if (activeView === 'settings-anggaran') {
+      return 'settings';
+    }
+    return 'recap';
+  }); // 'recap' | 'payroll' | 'trips' | 'settings'
   const [isAddingAtk, setIsAddingAtk] = useState(false);
+  const [localUsers, setLocalUsers] = useState([]);
+  const [isEditingOperasional, setIsEditingOperasional] = useState(false);
+  const [editOperasionalVal, setEditOperasionalVal] = useState('');
+
+  useEffect(() => {
+    if (users) {
+      setLocalUsers(users);
+    }
+  }, [users]);
 
   const [financialSettings, setFinancialSettings] = useState({
     totalProjectContract: settings?.totalProjectContract || 1500000000,
@@ -26,13 +46,9 @@ export default function FinancialDashboard({
     honorKoordinator: settings?.honorKoordinator || 6000000,
     honorFasilitator: settings?.honorFasilitator || 5000000,
     honorAdministrasi: settings?.honorAdministrasi || 5000000,
-    deductionAdminFlat: settings?.deductionAdminFlat || 100000,
-    deductionAdminKetuaTim: settings?.deductionAdminKetuaTim || 100000,
-    deductionAdminKoordinator: settings?.deductionAdminKoordinator || 100000,
-    deductionAdminFasilitator: settings?.deductionAdminFasilitator || 100000,
-    deductionAdminAdministrasi: settings?.deductionAdminAdministrasi || 100000,
     deductionTaxPct: settings?.deductionTaxPct || 15,
-    deductionLembagaPct: settings?.deductionLembagaPct || 10
+    deductionLembagaPct: settings?.deductionLembagaPct || 10,
+    biayaOperasional: settings?.biayaOperasional || 0
   });
 
   useEffect(() => {
@@ -42,22 +58,43 @@ export default function FinancialDashboard({
       honorKoordinator: settings?.honorKoordinator || 6000000,
       honorFasilitator: settings?.honorFasilitator || 5000000,
       honorAdministrasi: settings?.honorAdministrasi || 5000000,
-      deductionAdminFlat: settings?.deductionAdminFlat || 100000,
-      deductionAdminKetuaTim: settings?.deductionAdminKetuaTim || 100000,
-      deductionAdminKoordinator: settings?.deductionAdminKoordinator || 100000,
-      deductionAdminFasilitator: settings?.deductionAdminFasilitator || 100000,
-      deductionAdminAdministrasi: settings?.deductionAdminAdministrasi || 100000,
       deductionTaxPct: settings?.deductionTaxPct || 15,
-      deductionLembagaPct: settings?.deductionLembagaPct || 10
+      deductionLembagaPct: settings?.deductionLembagaPct || 10,
+      biayaOperasional: settings?.biayaOperasional || 0
     });
   }, [settings]);
 
+  const formatNumberWithDots = (val) => {
+    if (val === undefined || val === null || isNaN(val)) return '';
+    return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const parseNumberFromDots = (str) => {
+    if (!str) return 0;
+    const cleaned = str.toString().replace(/\./g, '');
+    const parsed = parseInt(cleaned, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const handleSaveFinancialSettings = (e) => {
     e.preventDefault();
-    onUpdateSettings({
-      ...settings,
-      ...financialSettings
-    });
+    if (onUpdateSettingsAndUsers) {
+      onUpdateSettingsAndUsers(
+        {
+          ...settings,
+          ...financialSettings
+        },
+        localUsers
+      );
+    } else {
+      onUpdateSettings({
+        ...settings,
+        ...financialSettings
+      });
+      if (onUpdateUsers) {
+        onUpdateUsers(localUsers);
+      }
+    }
     window.showAlert('Pengaturan anggaran dan honorarium berhasil disimpan!');
   };
   
@@ -87,40 +124,33 @@ export default function FinancialDashboard({
   };
 
   // 1. CALCULATE TOTAL SPENDING
-  const totalAtk = expenses.filter(e => e.kategori === 'atk').reduce((acc, curr) => acc + curr.jumlah, 0);
-  const totalHonor = expenses.filter(e => e.kategori === 'honor').reduce((acc, curr) => acc + curr.jumlah, 0);
-  const totalDinas = expenses.filter(e => e.kategori === 'dinas').reduce((acc, curr) => acc + curr.jumlah, 0);
-  const grandTotal = totalAtk + totalHonor + totalDinas;
+  const totalAtk = (expenses || []).filter(e => e && e.kategori === 'atk').reduce((acc, curr) => acc + (curr.jumlah || 0), 0);
+  const totalHonor = (expenses || []).filter(e => e && e.kategori === 'honor').reduce((acc, curr) => acc + (curr.jumlah || 0), 0);
+  const totalDinas = (expenses || []).filter(e => e && e.kategori === 'dinas').reduce((acc, curr) => acc + (curr.jumlah || 0), 0);
+  
+  const biayaNonOperasional = totalHonor;
+  const biayaOperasional = settings?.biayaOperasional !== undefined && settings?.biayaOperasional !== null 
+    ? Number(settings.biayaOperasional) 
+    : (totalAtk + totalDinas);
+  const grandTotal = biayaOperasional + biayaNonOperasional;
 
   // Percentage Calculations for Chart
-  const pctAtk = grandTotal > 0 ? Math.round((totalAtk / grandTotal) * 100) : 0;
-  const pctHonor = grandTotal > 0 ? Math.round((totalHonor / grandTotal) * 100) : 0;
-  const pctDinas = grandTotal > 0 ? Math.round((totalDinas / grandTotal) * 100) : 0;
+  const pctOperasional = grandTotal > 0 ? Math.round((biayaOperasional / grandTotal) * 100) : 0;
+  const pctNonOperasional = grandTotal > 0 ? Math.round((biayaNonOperasional / grandTotal) * 100) : 0;
 
   // 2. PAYROLL ELIGIBILITY CALCULATION FOR A USER
   const getUserPayrollStatus = (user, month) => {
-    const baseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+    if (!user) return { baseMonthly: 0, parts: [] };
+    const jabatanSafe = typeof user.jabatanTim === 'string' ? user.jabatanTim.replace(' ', '') : '';
+    const baseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings?.honorAdministrasi : settings?.[`honor${jabatanSafe}`]) || {
       'Ketua Tim': 7000000,
       'Koordinator': 6000000,
       'Fasilitator': 5000000,
       'Tenaga Administrasi': 5000000
     }[user.jabatanTim] || 5000000;
 
-    const taxPct = Number(settings.deductionTaxPct ?? 15);
-    const lembagaPct = Number(settings.deductionLembagaPct ?? 10);
-    
-    let adminFlat = 100000;
-    if (user.jabatanTim === 'Ketua Tim') {
-      adminFlat = Number(settings.deductionAdminKetuaTim ?? settings.deductionAdminFlat ?? 100000);
-    } else if (user.jabatanTim === 'Koordinator') {
-      adminFlat = Number(settings.deductionAdminKoordinator ?? settings.deductionAdminFlat ?? 100000);
-    } else if (user.jabatanTim === 'Fasilitator') {
-      adminFlat = Number(settings.deductionAdminFasilitator ?? settings.deductionAdminFlat ?? 100000);
-    } else if (user.jabatanTim === 'Tenaga Administrasi') {
-      adminFlat = Number(settings.deductionAdminAdministrasi ?? settings.deductionAdminFlat ?? 100000);
-    } else {
-      adminFlat = Number(settings.deductionAdminFlat ?? 100000);
-    }
+    const taxPct = user.taxPct !== undefined && user.taxPct !== null ? Number(user.taxPct) : Number(settings?.deductionTaxPct ?? 15);
+    const lembagaPct = Number(settings?.deductionLembagaPct ?? 10);
 
     let pctPart1 = 0;
     let pctPart2 = 0;
@@ -146,7 +176,20 @@ export default function FinancialDashboard({
 
     // Check month report
     const userReport = reports.find(r => r.userId === user.id && Number(r.bulanKe) === Number(month));
-    const reportFinished = user.jabatanTim === 'Tenaga Administrasi' || (userReport && userReport.status === 'approved');
+    const reportFinished = 
+      user.jabatanTim === 'Tenaga Administrasi' || 
+      ((user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') 
+        ? !!userReport 
+        : (userReport && userReport.status === 'approved'));
+
+    // Time restriction: payment is allowed only after the month has been completed
+    const projectStart = settings?.projectStartDate || '2026-06-12';
+    const start = new Date(projectStart);
+    start.setMonth(start.getMonth() + Number(month));
+    const targetDateStr = start.toISOString().split('T')[0];
+    const todayVal = new Date(settings?.simulatedToday || new Date().toISOString().split('T')[0]);
+    const targetVal = new Date(targetDateStr);
+    const isTimeReached = todayVal >= targetVal;
 
     // Overseen schools progress
     let mySchools = [];
@@ -172,17 +215,15 @@ export default function FinancialDashboard({
     const part3Eligible = totalBinaan > 0 && pctProgress100 >= 0.90 && allProgress100DocsUploaded;
 
     const getDeductionDetails = (gross) => {
-      if (gross === 0) return { tax: 0, lembaga: 0, admin: 0, net: 0 };
+      if (gross === 0) return { tax: 0, lembaga: 0, net: 0 };
       const tax = Math.round(gross * (taxPct / 100));
       const lembaga = Math.round(gross * (lembagaPct / 100));
-      const admin = adminFlat;
-      const net = Math.max(0, gross - tax - lembaga - admin);
-      return { tax, lembaga, admin, net };
+      const net = Math.max(0, gross - tax - lembaga);
+      return { tax, lembaga, net };
     };
 
     return {
       baseMonthly,
-      adminFlat,
       totalBinaan,
       binProgress50,
       pctProgress50,
@@ -190,14 +231,19 @@ export default function FinancialDashboard({
       binProgress100,
       pctProgress100,
       allProgress100DocsUploaded,
+      taxPct,
       parts: [
         {
           id: 'part1',
           name: user.jabatanTim === 'Tenaga Administrasi' ? 'Honor Bulanan (100%)' : `Bagian 1 (Laporan Bulanan - ${pctPart1 * 100}%)`,
           gross: grossPart1,
-          eligible: reportFinished,
+          eligible: reportFinished && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && (p.komponen === `tetap_bulan_${month}_part1` || p.komponen === `tetap_bulan_${month}`)),
-          conditions: user.jabatanTim === 'Tenaga Administrasi' ? 'Diterima penuh setiap bulan' : 'Laporan bulanan PDF disetujui (Approved)',
+          conditions: user.jabatanTim === 'Tenaga Administrasi' 
+            ? `Telah melewati Bulan ke-${month}` 
+            : (user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator')
+            ? `Laporan bulanan PDF diunggah & telah melewati Bulan ke-${month}`
+            : `Laporan bulanan PDF disetujui (Approved) & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part1`,
           ...getDeductionDetails(grossPart1)
         },
@@ -205,9 +251,9 @@ export default function FinancialDashboard({
           id: 'part2',
           name: `Bagian 2 (Target 50% - ${pctPart2 * 100}%)`,
           gross: grossPart2,
-          eligible: part2Eligible,
+          eligible: part2Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part2`),
-          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah`,
+          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part2`,
           ...getDeductionDetails(grossPart2)
         },
@@ -215,9 +261,9 @@ export default function FinancialDashboard({
           id: 'part3',
           name: `Bagian 3 (Target 100% - ${pctPart3 * 100}%)`,
           gross: grossPart3,
-          eligible: part3Eligible,
+          eligible: part3Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part3`),
-          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah`,
+          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part3`,
           ...getDeductionDetails(grossPart3)
         }
@@ -247,7 +293,7 @@ export default function FinancialDashboard({
     setIsAddingAtk(false);
   };
 
-  const handlePayHonor = async (user, component, grossAmount, netAmount, taxAmount, lembagaAmount, adminFlatAmount) => {
+  const handlePayHonor = async (user, component, grossAmount, netAmount, taxAmount, lembagaAmount) => {
     if (!isAuthorized) return window.showAlert('Anda tidak memiliki akses otorisasi pembayaran');
     
     const labelComponent = component
@@ -256,12 +302,13 @@ export default function FinancialDashboard({
       .replace('_part2', ' Bagian 2 (Target 50%)')
       .replace('_part3', ' Bagian 3 (Target 100%)');
 
-    const confirmMsg = `Konfirmasi pembayaran honor "${labelComponent}" untuk ${user.nama}:
+    const userTaxPct = user && user.taxPct !== undefined && user.taxPct !== null ? Number(user.taxPct) : Number(settings?.deductionTaxPct ?? 15);
+
+    const confirmMsg = `Konfirmasi pembayaran honor "${labelComponent}" untuk ${user?.nama || 'Anggota'}:
     
 - Honor Kotor: Rp ${grossAmount.toLocaleString('id-ID')}
-- Potongan Pajak (${settings.deductionTaxPct || 15}%): Rp ${taxAmount.toLocaleString('id-ID')}
-- Potongan Lembaga (${settings.deductionLembagaPct || 10}%): Rp ${lembagaAmount.toLocaleString('id-ID')}
-- Potongan Admin Flat: Rp ${adminFlatAmount.toLocaleString('id-ID')}
+- Potongan Pajak (${userTaxPct}%): Rp ${taxAmount.toLocaleString('id-ID')}
+- Potongan Lembaga (${settings?.deductionLembagaPct || 10}%): Rp ${lembagaAmount.toLocaleString('id-ID')}
 -----------------------------------------------------------
 - Bersih Dibayarkan: Rp ${netAmount.toLocaleString('id-ID')}
 
@@ -280,7 +327,7 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
       const newExpense = {
         id: `exp-honor-${Date.now()}`,
         kategori: 'honor',
-        deskripsi: `Honor ${labelComponent} - ${user.nama} (Kotor: Rp ${grossAmount.toLocaleString('id-ID')}, Pajak: Rp ${taxAmount.toLocaleString('id-ID')}, Lembaga: Rp ${lembagaAmount.toLocaleString('id-ID')}, Admin: Rp ${adminFlatAmount.toLocaleString('id-ID')}. Bersih: Rp ${netAmount.toLocaleString('id-ID')})`,
+        deskripsi: `Honor ${labelComponent} - ${user.nama} (Kotor: Rp ${grossAmount.toLocaleString('id-ID')}, Pajak: Rp ${taxAmount.toLocaleString('id-ID')}, Lembaga: Rp ${lembagaAmount.toLocaleString('id-ID')}. Bersih: Rp ${netAmount.toLocaleString('id-ID')})`,
         jumlah: grossAmount, // gross amount for budget absorption
         tanggal: new Date().toISOString().split('T')[0],
         createdAt: new Date().toISOString()
@@ -341,7 +388,7 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
               Rekapitulasi Pengeluaran
             </button>
           )}
-          {activeView !== 'keuangan' && (
+          {(activeView === 'keuangan' || activeView === 'pantau-honor' || activeView === 'bayar-honor' || !activeView) && (
             <button
               onClick={() => setActiveTab('payroll')}
               className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
@@ -350,7 +397,7 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
-              Pantau & Bayar Honorarium
+              {isSuperAdmin ? 'Pantau & Bayar Honorarium' : 'Pantau Honorarium'}
             </button>
           )}
           {(activeView === 'keuangan' || activeView === 'pantau-honor' || !activeView) && (
@@ -386,28 +433,81 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
           
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 select-none">
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Pengeluaran</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-white mt-1">Rp {grandTotal.toLocaleString('id-ID')}</h3>
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Pengeluaran</span>
+                <h3 className="text-xl md:text-2xl font-extrabold text-white mt-1">Rp {grandTotal.toLocaleString('id-ID')}</h3>
+              </div>
               <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-indigo-500/5 rounded-full blur-xl"></div>
             </div>
             
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Pengeluaran ATK</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-teal-400 mt-1">Rp {totalAtk.toLocaleString('id-ID')}</h3>
-              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctAtk}% dari total biaya</span>
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Biaya Operasional</span>
+                {isEditingOperasional ? (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-xs font-bold text-slate-400">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(editOperasionalVal)}
+                      onChange={(e) => setEditOperasionalVal(parseNumberFromDots(e.target.value))}
+                      className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-100 font-bold focus:outline-none focus:border-indigo-500 w-32"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        onUpdateSettings({
+                          ...settings,
+                          biayaOperasional: Number(editOperasionalVal)
+                        });
+                        setIsEditingOperasional(false);
+                      }}
+                      className="p-1 rounded bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
+                      title="Simpan"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setIsEditingOperasional(false)}
+                      className="p-1 rounded bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
+                      title="Batal"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <h3 className="text-xl md:text-2xl font-extrabold text-teal-400">Rp {biayaOperasional.toLocaleString('id-ID')}</h3>
+                    {isAdministrasi && (
+                      <button
+                        onClick={() => {
+                          setIsEditingOperasional(true);
+                          setEditOperasionalVal(biayaOperasional);
+                        }}
+                        className="text-slate-500 hover:text-teal-400 transition-colors p-1 cursor-pointer"
+                        title="Ubah Biaya Operasional"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctOperasional}% dari total biaya</span>
+            </div>
+
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Biaya Non-Operasional (Honor)</span>
+                <h3 className="text-xl md:text-2xl font-extrabold text-indigo-400 mt-1">Rp {biayaNonOperasional.toLocaleString('id-ID')}</h3>
+              </div>
+              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctNonOperasional}% dari total biaya</span>
             </div>
 
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Pengeluaran Honor</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-indigo-400 mt-1">Rp {totalHonor.toLocaleString('id-ID')}</h3>
-              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctHonor}% dari total biaya</span>
-            </div>
-
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Biaya Perjalanan Dinas</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-amber-400 mt-1">Rp {totalDinas.toLocaleString('id-ID')}</h3>
-              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctDinas}% dari total biaya</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Sisa Anggaran Proyek</span>
+              <h3 className="text-xl md:text-2xl font-extrabold text-amber-400 mt-1">Rp {(financialSettings.totalProjectContract - grandTotal).toLocaleString('id-ID')}</h3>
+              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{Math.round(((financialSettings.totalProjectContract - grandTotal) / financialSettings.totalProjectContract) * 100)}% Sisa Anggaran</span>
             </div>
           </div>
 
@@ -421,35 +521,28 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
               </h3>
               
               {grandTotal === 0 ? (
-                <p className="text-xs text-slate-500 italic text-center py-12">Belum ada data pengeluaran masuk</p>
+                <p className="text-xs text-slate-505 italic text-center py-12">Belum ada data pengeluaran masuk</p>
               ) : (
                 <div className="space-y-4">
                   {/* Progress Flex-Bar */}
                   <div className="w-full bg-slate-850 h-6 rounded-xl overflow-hidden flex">
-                    {totalAtk > 0 && <div className="bg-teal-500 h-full" style={{ width: `${pctAtk}%` }} title="ATK" />}
-                    {totalHonor > 0 && <div className="bg-indigo-500 h-full" style={{ width: `${pctHonor}%` }} title="Honor" />}
-                    {totalDinas > 0 && <div className="bg-amber-500 h-full" style={{ width: `${pctDinas}%` }} title="Perjalanan Dinas" />}
+                    {biayaOperasional > 0 && <div className="bg-teal-500 h-full" style={{ width: `${pctOperasional}%` }} title="Biaya Operasional" />}
+                    {biayaNonOperasional > 0 && <div className="bg-indigo-500 h-full" style={{ width: `${pctNonOperasional}%` }} title="Biaya Non-Operasional" />}
                   </div>
 
                   {/* Legend list */}
                   <div className="space-y-2.5 text-xs text-slate-400">
                     <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
                       <span className="flex items-center gap-1.5 font-medium">
-                        <span className="w-2.5 h-2.5 bg-teal-500 rounded-full"></span> ATK (Kertas, Tinta, dll.)
+                        <span className="w-2.5 h-2.5 bg-teal-500 rounded-full"></span> Biaya Operasional (Manual/Default)
                       </span>
-                      <span className="font-bold text-slate-200">{pctAtk}%</span>
+                      <span className="font-bold text-slate-200">{pctOperasional}%</span>
                     </div>
                     <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
                       <span className="flex items-center gap-1.5 font-medium">
-                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span> Honor Pelaksana
+                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span> Biaya Non-Operasional (Honor)
                       </span>
-                      <span className="font-bold text-slate-200">{pctHonor}%</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span> Perjalanan Dinas
-                      </span>
-                      <span className="font-bold text-slate-200">{pctDinas}%</span>
+                      <span className="font-bold text-slate-200">{pctNonOperasional}%</span>
                     </div>
                   </div>
                 </div>
@@ -528,7 +621,7 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-850">
-                      {expenses.sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal)).map((exp) => (
+                      {[...expenses].sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal)).map((exp) => (
                         <tr key={exp.id} className="hover:bg-slate-900/10">
                           <td className="px-4 py-2 text-slate-400">{exp.tanggal}</td>
                           <td className="px-4 py-2 uppercase font-bold text-[9px]">
@@ -591,8 +684,9 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
           </div>
 
           <div className="space-y-6">
-            {users.filter(u => u.jabatanTim !== 'Super Admin').map((user) => {
-              const baseMonthly = settings[`honor${user.jabatanTim.replace(' ', '')}`] || {
+            {(users || []).filter(u => u && u.jabatanTim && u.jabatanTim !== 'Super Admin').map((user) => {
+              const jabatanSafe = typeof user.jabatanTim === 'string' ? user.jabatanTim.replace(' ', '') : '';
+              const baseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings?.honorAdministrasi : settings?.[`honor${jabatanSafe}`]) || {
                 'Ketua Tim': 7000000,
                 'Koordinator': 6000000,
                 'Fasilitator': 5000000,
@@ -640,12 +734,18 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
                                           <CheckCircle className="w-3.5 h-3.5" /> Lunas
                                         </span>
                                       ) : part.eligible ? (
-                                        <button
-                                          onClick={() => handlePayHonor(user, part.key, part.gross, part.net, part.tax, part.lembaga, part.admin)}
-                                          className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer border-0 shadow"
-                                        >
-                                          Bayar
-                                        </button>
+                                        isSuperAdmin ? (
+                                          <button
+                                            onClick={() => handlePayHonor(user, part.key, part.gross, part.net, part.tax, part.lembaga)}
+                                            className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer border-0 shadow"
+                                          >
+                                            Bayar
+                                          </button>
+                                        ) : (
+                                          <span className="text-[10px] text-indigo-400 font-semibold flex items-center gap-0.5">
+                                            Siap Dibayar
+                                          </span>
+                                        )
                                       ) : (
                                         <span className="text-[9px] text-slate-600 font-medium italic flex items-center gap-1"><AlertCircle className="w-3 h-3 text-slate-600" /> Belum Layak</span>
                                       )}
@@ -655,10 +755,9 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
                                   {/* Deductions detail */}
                                   <div className="pt-2 border-t border-slate-900/60 text-[9px] text-slate-500 grid grid-cols-2 gap-1.5 font-mono">
                                     <div>Kotor: <strong className="text-slate-300">Rp {part.gross.toLocaleString('id-ID')}</strong></div>
-                                    <div>Pajak ({settings.deductionTaxPct || 15}%): <strong className="text-slate-300">Rp {part.tax.toLocaleString('id-ID')}</strong></div>
-                                    <div>Lembaga ({settings.deductionLembagaPct || 10}%): <strong className="text-slate-300">Rp {part.lembaga.toLocaleString('id-ID')}</strong></div>
-                                    <div>Admin: <strong className="text-slate-300">Rp {part.admin.toLocaleString('id-ID')}</strong></div>
-                                    <div className="col-span-2 pt-1 border-t border-dashed border-slate-900/60 text-xs font-bold text-emerald-450">
+                                    <div>Pajak ({mStatus.taxPct}%): <strong className="text-slate-300">Rp {part.tax.toLocaleString('id-ID')}</strong></div>
+                                    <div>Lembaga ({settings?.deductionLembagaPct || 10}%): <strong className="text-slate-300">Rp {part.lembaga.toLocaleString('id-ID')}</strong></div>
+                                    <div className="col-span-2 pt-1 border-t border-dashed border-slate-900/60 text-xs font-bold text-emerald-600">
                                       Bersih: Rp {part.net.toLocaleString('id-ID')}
                                     </div>
                                   </div>
@@ -728,12 +827,18 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
                   <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
                     <span className="font-bold text-slate-200 text-sm shrink-0">Rp {amount.toLocaleString('id-ID')}</span>
                     {isApproved ? (
-                      <button
-                        onClick={() => handlePayTripClaim(trip)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/10 cursor-pointer border-0"
-                      >
-                        Bayar Klaim Dinas
-                      </button>
+                      isSuperAdmin ? (
+                        <button
+                          onClick={() => handlePayTripClaim(trip)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/10 cursor-pointer border-0"
+                        >
+                          Bayar Klaim Dinas
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-indigo-400 font-bold bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
+                          Siap Dibayar
+                        </span>
+                      )
                     ) : isRejected ? (
                       <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
                         Ditolak Super Admin
@@ -772,153 +877,171 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
           <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2 border-b border-slate-850 pb-3 mb-4">
             Pengaturan Anggaran & Honorarium
           </h3>
-                   <form onSubmit={handleSaveFinancialSettings} className="space-y-6 flex-1">
+          <form onSubmit={handleSaveFinancialSettings} className="space-y-6 flex-1">
             
             {/* GROUP 1: ALOKASI DANA KONTRAK & HONORARIUM */}
             <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 space-y-4">
-              <h4 className="text-xs font-bold text-indigo-405 uppercase tracking-wider border-b border-slate-900 pb-2">
+              <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-wider border-b border-slate-900 pb-2">
                 Alokasi Dana Proyek & Honorarium Pokok
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Nilai Kontrak Proyek (Rp)</label>
-                  <input
-                    type="number"
-                    value={financialSettings.totalProjectContract}
-                    onChange={(e) => setFinancialSettings({ ...financialSettings, totalProjectContract: Number(e.target.value) })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                    required
-                  />
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wider mb-1.5">Total Nilai Kontrak Proyek (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-500 select-none">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(financialSettings.totalProjectContract)}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, totalProjectContract: parseNumberFromDots(e.target.value) })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-indigo-500/50 transition-colors shadow-inner"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wider mb-1.5">Biaya Operasional Proyek (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-500 select-none">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(financialSettings.biayaOperasional)}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, biayaOperasional: parseNumberFromDots(e.target.value) })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-indigo-500/50 transition-colors shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!isAdministrasi}
+                      required
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Ketua Tim / Bulan (Rp)</label>
-                  <input
-                    type="number"
-                    value={financialSettings.honorKetuaTim}
-                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorKetuaTim: Number(e.target.value) })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                    required
-                  />
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wider mb-1.5">Honor Ketua Tim / Bulan (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-500 select-none">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(financialSettings.honorKetuaTim)}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, honorKetuaTim: parseNumberFromDots(e.target.value) })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-indigo-500/50 transition-colors shadow-inner"
+                      required
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Koordinator / Bulan (Rp)</label>
-                  <input
-                    type="number"
-                    value={financialSettings.honorKoordinator}
-                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorKoordinator: Number(e.target.value) })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                    required
-                  />
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wider mb-1.5">Honor Koordinator / Bulan (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-500 select-none">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(financialSettings.honorKoordinator)}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, honorKoordinator: parseNumberFromDots(e.target.value) })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-indigo-500/50 transition-colors shadow-inner"
+                      required
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Fasilitator / Bulan (Rp)</label>
-                  <input
-                    type="number"
-                    value={financialSettings.honorFasilitator}
-                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorFasilitator: Number(e.target.value) })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                    required
-                  />
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wider mb-1.5">Honor Fasilitator / Bulan (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-500 select-none">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(financialSettings.honorFasilitator)}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, honorFasilitator: parseNumberFromDots(e.target.value) })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-indigo-500/50 transition-colors shadow-inner"
+                      required
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Honor Tenaga Administrasi / Bulan (Rp)</label>
-                  <input
-                    type="number"
-                    value={financialSettings.honorAdministrasi}
-                    onChange={(e) => setFinancialSettings({ ...financialSettings, honorAdministrasi: Number(e.target.value) })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                    required
-                  />
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wider mb-1.5">Honor Tenaga Administrasi / Bulan (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-500 select-none">Rp</span>
+                    <input
+                      type="text"
+                      value={formatNumberWithDots(financialSettings.honorAdministrasi)}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, honorAdministrasi: parseNumberFromDots(e.target.value) })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-indigo-500/50 transition-colors shadow-inner"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* GROUP 2: VARIABEL POTONGAN (DEDUCTIONS) */}
             <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 space-y-5">
-              <h4 className="text-xs font-bold text-rose-450 uppercase tracking-wider border-b border-slate-900 pb-2 flex justify-between items-center">
-                <span>Variabel Potongan (Pajak, Lembaga & Administrasi)</span>
+              <h4 className="text-xs font-bold text-rose-500 uppercase tracking-wider border-b border-slate-900 pb-2 flex justify-between items-center">
+                <span>Variabel Potongan (Pajak & Lembaga)</span>
                 <span className="text-[9px] text-slate-500 font-medium normal-case">Dipotong otomatis dari nilai kotor saat pembayaran</span>
               </h4>
               
-              {/* Flat Admin Deductions */}
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">Potongan Administrasi Flat (Rp)</span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Ketua Tim / Bulan (Rp)</label>
-                    <input
-                      type="number"
-                      value={financialSettings.deductionAdminKetuaTim}
-                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminKetuaTim: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Koordinator / Bulan (Rp)</label>
-                    <input
-                      type="number"
-                      value={financialSettings.deductionAdminKoordinator}
-                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminKoordinator: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Fasilitator / Bulan (Rp)</label>
-                    <input
-                      type="number"
-                      value={financialSettings.deductionAdminFasilitator}
-                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminFasilitator: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Potongan Admin Tenaga Administrasi / Bulan (Rp)</label>
-                    <input
-                      type="number"
-                      value={financialSettings.deductionAdminAdministrasi}
-                      onChange={(e) => setFinancialSettings({ ...financialSettings, deductionAdminAdministrasi: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Percentage Deductions */}
-              <div className="pt-3 border-t border-slate-900/60">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">Potongan Persentase (%)</span>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pajak (%)</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Pajak (%)</label>
+                  <div className="relative">
                     <input
                       type="number"
                       value={financialSettings.deductionTaxPct}
                       onChange={(e) => setFinancialSettings({ ...financialSettings, deductionTaxPct: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-rose-500/30 transition-colors shadow-inner"
                       required
                     />
+                    <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-sm font-semibold text-slate-500 select-none">%</span>
                   </div>
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Lembaga (%)</label>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Lembaga (%)</label>
+                  <div className="relative">
                     <input
                       type="number"
                       value={financialSettings.deductionLembagaPct}
                       onChange={(e) => setFinancialSettings({ ...financialSettings, deductionLembagaPct: Number(e.target.value) })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-105 focus:outline-none focus:border-rose-500/30 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-100 focus:outline-none focus:border-rose-500/30 transition-colors shadow-inner"
                       required
                     />
+                    <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-sm font-semibold text-slate-500 select-none">%</span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* GROUP 3: POTONGAN PAJAK KUSTOM PER ANGGOTA TIM */}
+            <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 space-y-4">
+              <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider border-b border-slate-900 pb-2 flex justify-between items-center">
+                <span>Pajak Kustom Per Anggota Tim</span>
+                <span className="text-[9px] text-slate-500 font-medium normal-case">Kosongkan untuk menggunakan tarif pajak default global</span>
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(localUsers || []).filter(u => u && u.jabatanTim && u.jabatanTim !== 'Super Admin').map((member) => (
+                  <div key={member.id} className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-850 rounded-2xl hover:border-slate-800 transition-colors">
+                    <div>
+                      <span className="text-xs font-bold text-slate-200 block">{member.nama}</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">{member.jabatanTim}</span>
+                    </div>
+                    <div className="relative w-28 shrink-0">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={member.taxPct !== undefined && member.taxPct !== null ? member.taxPct : ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? null : Number(e.target.value);
+                          setLocalUsers(localUsers.map(u => u && u.id === member.id ? { ...u, taxPct: val } : u));
+                        }}
+                        className="w-full bg-slate-900/60 border border-slate-800 rounded-xl pl-3 pr-8 py-2 text-xs font-bold text-slate-100 focus:outline-none focus:border-indigo-500/30 transition-colors font-mono"
+                        placeholder="Default"
+                      />
+                      <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-semibold text-slate-500 select-none">%</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="pt-3">
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md border-0 cursor-pointer"
+                className="w-full py-3.5 rounded-xl text-sm font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10 border-0 cursor-pointer"
               >
                 Simpan Pengaturan Keuangan
               </button>
