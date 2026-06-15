@@ -18,7 +18,12 @@ import {
   X,
   CircleDollarSign,
   Pencil,
-  Check
+  Check,
+  Paperclip,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 
 export default function Dashboard({ 
@@ -33,10 +38,16 @@ export default function Dashboard({
   trips = [],
   onApproveTrip,
   onRejectTrip,
+  onApproveTripsBatch,
+  onRejectTripsBatch,
   onSelectSchool,
   onViewChange,
+  onUpdateSchool,
   expenses = [],
-  payments = []
+  payments = [],
+  meetings = [],
+  onDeleteLog,
+  onEditLog
 }) {
   const [dates, setDates] = useState({
     projectStartDate: settings.projectStartDate || '2026-06-12',
@@ -51,10 +62,59 @@ export default function Dashboard({
   const [payrollDetailModal, setPayrollDetailModal] = useState(null);
   const [isEditingOperasional, setIsEditingOperasional] = useState(false);
   const [editOperasionalVal, setEditOperasionalVal] = useState('');
+  const [editingSchoolNpsn, setEditingSchoolNpsn] = useState(null);
+  const [editingValue, setEditingValue] = useState(0);
+
+  const [timelineDensity, setTimelineDensity] = useState('relaxed');
+  const [viewMode, setViewMode] = useState('daily'); // 'monthly' | 'weekly' | 'daily'
+  const [showDone, setShowDone] = useState(true);
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [filterType, setFilterType] = useState('all');
+  const [visibleRangeText, setVisibleRangeText] = useState('');
+  const [logPage, setLogPage] = useState(1);
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [editingLogText, setEditingLogText] = useState('');
+  const scrollContainerRef = React.useRef(null);
 
   const formatNumberWithDots = (val) => {
     if (val === undefined || val === null || isNaN(val)) return '';
     return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const getDirectImageUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    
+    if (url.includes('drive.google.com')) {
+      let fileId = null;
+      const idMatch = url.match(/id=([^&]+)/);
+      if (idMatch && idMatch[1]) {
+        fileId = idMatch[1];
+      } else {
+        const dMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (dMatch && dMatch[1]) {
+          fileId = dMatch[1];
+        }
+      }
+      if (fileId) {
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+      }
+    }
+    return url;
+  };
+
+  const formatLogDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    } catch {
+      return dateStr;
+    }
   };
 
   const parseNumberFromDots = (str) => {
@@ -321,7 +381,7 @@ export default function Dashboard({
     : reports;
 
   const displayLogs = isFacilitator
-    ? logs.filter(l => displaySchoolNpsns.includes(l.schoolId))
+    ? logs.filter(l => l.userId === activeUser.id)
     : logs;
 
   const totalSchoolsCount = displaySchools.length;
@@ -336,17 +396,6 @@ export default function Dashboard({
     totalSubtitle = "Sekolah dasar dampingan Anda";
   }
 
-  let claimedLabel = "Sekolah Terdampingi";
-  let claimedCount = schools.filter(s => s.fasilitatorId).length;
-  let claimedPercentage = schools.length ? Math.round((claimedCount / schools.length) * 100) : 0;
-  let claimedSubtitle = "Sudah diklaim Fasilitator";
-  
-  if (isFacilitator) {
-    claimedLabel = "Sekolah Selesai (100%)";
-    claimedCount = displaySchools.filter(s => s.progres_fisik === 100).length;
-    claimedPercentage = totalSchoolsCount ? Math.round((claimedCount / totalSchoolsCount) * 100) : 0;
-    claimedSubtitle = "Progres fisik mencapai 100%";
-  }
   
   const totalProgress = displaySchools.reduce((acc, s) => acc + (s.progres_fisik || 0), 0);
   const avgProgress = displaySchools.length ? (totalProgress / displaySchools.length).toFixed(1) : '0.0';
@@ -358,13 +407,7 @@ export default function Dashboard({
     avgSubtitle = "Rerata sekolah dampingan Anda";
   }
 
-  const totalReportsUploaded = displayReports.length;
-  let reportsLabel = "Laporan PDF Masuk";
-  let reportsSubtitle = "Berkas laporan bulanan";
-  if (isFacilitator) {
-    reportsLabel = "Laporan Bulanan Anda";
-    reportsSubtitle = "Berkas laporan bulanan Anda";
-  }
+  // (Removed old reportsLabel variables)
 
   // 2. Timeline Elapsed Calculations
   const getTodayDateStr = () => {
@@ -374,7 +417,7 @@ export default function Dashboard({
     const date = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${date}`;
   };
-  const todayStr = getTodayDateStr();
+  const todayStr = settings.simulatedToday || getTodayDateStr();
 
   const startMs = new Date(dates.projectStartDate).getTime();
   const endMs = new Date(dates.projectEndDate).getTime();
@@ -394,6 +437,463 @@ export default function Dashboard({
     return (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
   };
   const monthsElapsed = getMonthsDifference(dates.projectStartDate, todayStr);
+  const currentMonthIdx = Math.min(6, Math.max(1, monthsElapsed + 1));
+
+  // Calculate monthly report percentage of facilitators
+  const facilitators = users.filter(u => u.jabatanTim === 'Fasilitator');
+  const totalFacs = facilitators.length;
+
+  const getMonthReportPct = (m) => {
+    if (totalFacs === 0) return 0;
+    const uploadedCount = reports.filter(r => 
+      Number(r.bulanKe) === m && 
+      facilitators.some(f => f.id === r.userId)
+    ).length;
+    return Math.round((uploadedCount / totalFacs) * 100);
+  };
+
+  const monthlyReportPcts = [1, 2, 3, 4, 5, 6].map(m => {
+    if (isFacilitator) {
+      const r = reports.find(rep => rep.userId === activeUser.id && Number(rep.bulanKe) === m);
+      return r ? 100 : 0;
+    }
+    return getMonthReportPct(m);
+  });
+  const currentMonthPct = monthlyReportPcts[currentMonthIdx - 1];
+
+  // Gantt year boundaries
+  const projectYear = (() => {
+    try {
+      return new Date(dates.projectStartDate || '2026-06-12').getFullYear();
+    } catch {
+      return 2026;
+    }
+  })();
+  const timelineStartStr = `${projectYear}-01-01`;
+  const timelineEndStr = `${projectYear}-12-31`;
+
+  const timelineStartMs = new Date(timelineStartStr).getTime();
+  const timelineEndMs = new Date(timelineEndStr).getTime();
+  const timelineDuration = timelineEndMs - timelineStartMs;
+
+  const monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+
+  const weeksList = React.useMemo(() => {
+    const list = [];
+    const start = new Date(projectYear, 0, 1);
+    for (let w = 0; w < 52; w++) {
+      const wStart = new Date(start);
+      wStart.setDate(start.getDate() + w * 7);
+      const wEnd = new Date(wStart);
+      wEnd.setDate(wStart.getDate() + 6);
+      
+      const formatDay = (d) => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+        return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]}`;
+      };
+      
+      list.push({
+        index: w + 1,
+        label: `W${w + 1}`,
+        subLabel: `${formatDay(wStart)} - ${formatDay(wEnd)}`,
+        startMs: wStart.getTime(),
+        endMs: wEnd.getTime(),
+        startDateStr: wStart.toISOString().split('T')[0],
+        endDateStr: wEnd.toISOString().split('T')[0]
+      });
+    }
+    return list;
+  }, [projectYear]);
+
+  const daysList = React.useMemo(() => {
+    const list = [];
+    const start = new Date(projectYear, 0, 1);
+    const end = new Date(projectYear, 12, 0); // Dec 31
+    const daysInYear = Math.round((end - start) / (24 * 60 * 60 * 1000)) + 1;
+    
+    for (let d = 0; d < daysInYear; d++) {
+      const current = new Date(start);
+      current.setDate(start.getDate() + d);
+      
+      const dateStr = current.toISOString().split('T')[0];
+      const dayNum = current.getDate();
+      
+      const indDays = ['M', 'S', 'S', 'R', 'K', 'J', 'S']; // index 0 is Minggu
+      const dayLabel = indDays[current.getDay()];
+      const isWeekend = current.getDay() === 0 || current.getDay() === 6;
+      
+      list.push({
+        index: d,
+        label: dayLabel,
+        dayNum: dayNum,
+        dateStr: dateStr,
+        isWeekend,
+        monthIdx: current.getMonth()
+      });
+    }
+    return list;
+  }, [projectYear]);
+
+  const dayMonthsHeader = React.useMemo(() => {
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const lengths = [31, (projectYear % 4 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return lengths.map((len, idx) => ({
+      label: `${months[idx]} ${projectYear}`,
+      width: len * 80
+    }));
+  }, [projectYear]);
+
+  const weekMonthsHeader = React.useMemo(() => {
+    const groups = [];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    
+    weeksList.forEach(w => {
+      const monthIdx = new Date(w.startMs).getMonth();
+      const monthLabel = `${months[monthIdx]} ${projectYear}`;
+      
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.label === monthLabel) {
+        lastGroup.count += 1;
+      } else {
+        groups.push({
+          label: monthLabel,
+          count: 1
+        });
+      }
+    });
+    
+    return groups.map(g => ({
+      label: g.label,
+      width: g.count * 150
+    }));
+  }, [weeksList, projectYear]);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const scrollLeft = container.scrollLeft;
+    const width = container.clientWidth;
+    
+    if (viewMode === 'daily') {
+      const startDayIdx = Math.max(0, Math.floor(scrollLeft / 80));
+      const endDayIdx = Math.min(daysList.length - 1, Math.floor((scrollLeft + width) / 80));
+      
+      const startDay = daysList[startDayIdx];
+      const endDay = daysList[endDayIdx];
+      
+      if (startDay && endDay) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+        const parseD = (str) => {
+          const parts = str.split('-');
+          const m = months[parseInt(parts[1], 10) - 1];
+          return `${parts[2]} ${m}`;
+        };
+        const year = startDay.dateStr.split('-')[0];
+        setVisibleRangeText(`${parseD(startDay.dateStr)} – ${parseD(endDay.dateStr)} ${year}`);
+      }
+    } else if (viewMode === 'weekly') {
+      const startWeekIdx = Math.max(0, Math.floor(scrollLeft / 150));
+      const endWeekIdx = Math.min(weeksList.length - 1, Math.floor((scrollLeft + width) / 150));
+      
+      const startWeek = weeksList[startWeekIdx];
+      const endWeek = weeksList[endWeekIdx];
+      
+      if (startWeek && endWeek) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+        const parseD = (str) => {
+          const parts = str.split('-');
+          const m = months[parseInt(parts[1], 10) - 1];
+          return `${parts[2]} ${m}`;
+        };
+        const year = startWeek.startDateStr.split('-')[0];
+        setVisibleRangeText(`${parseD(startWeek.startDateStr)} – ${parseD(endWeek.endDateStr)} ${year}`);
+      }
+    }
+  };
+
+  const handleScrollLeft = () => {
+    if (scrollContainerRef.current) {
+      const step = viewMode === 'daily' ? 80 * 7 : 150 * 4;
+      scrollContainerRef.current.scrollBy({ left: -step, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (scrollContainerRef.current) {
+      const step = viewMode === 'daily' ? 80 * 7 : 150 * 4;
+      scrollContainerRef.current.scrollBy({ left: step, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      handleScroll();
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [viewMode, daysList, weeksList]);
+
+  useEffect(() => {
+    if (viewMode === 'monthly' || !scrollContainerRef.current) return;
+    
+    const timer = setTimeout(() => {
+      if (viewMode === 'daily') {
+        const jan1 = new Date(projectYear, 0, 1);
+        const todayD = new Date(todayStr);
+        const daysDiff = Math.max(0, Math.round((todayD - jan1) / (24 * 60 * 60 * 1000)));
+        const targetDays = Math.max(0, daysDiff - 3);
+        scrollContainerRef.current.scrollLeft = targetDays * 80;
+      } else if (viewMode === 'weekly') {
+        const jan1 = new Date(projectYear, 0, 1);
+        const todayD = new Date(todayStr);
+        const daysDiff = Math.max(0, Math.round((todayD - jan1) / (24 * 60 * 60 * 1000)));
+        const weeksDiff = Math.max(0, Math.floor(daysDiff / 7));
+        const targetWeeks = Math.max(0, weeksDiff - 1);
+        scrollContainerRef.current.scrollLeft = targetWeeks * 150;
+      }
+      handleScroll();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [viewMode, todayStr, projectYear]);
+
+  // Compile timeline events
+  const milestoneDateStr = (() => {
+    try {
+      const start = new Date(dates.projectStartDate || '2026-06-12');
+      start.setMonth(start.getMonth() + 3);
+      return start.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  })();
+
+  const isTripVisible = (trip) => {
+    if (!activeUser) return true; // Guest mode sees all
+    const role = activeUser.jabatanTim;
+    if (role === 'Super Admin') return true;
+    if (trip.userId === activeUser.id) return true;
+    
+    if (role === 'Fasilitator' || role === 'Tenaga Administrasi') {
+      return false; // Hanya bisa lihat dinas miliknya sendiri
+    }
+    
+    const tripUserObj = users.find(u => u.id === trip.userId);
+    const tripUserRole = tripUserObj ? tripUserObj.jabatanTim : '';
+    
+    if (role === 'Ketua Tim') {
+      return tripUserRole !== 'Super Admin';
+    }
+    if (role === 'Koordinator') {
+      return tripUserRole !== 'Super Admin' && tripUserRole !== 'Ketua Tim';
+    }
+    return false;
+  };
+
+  const isMeetingVisible = (meet) => {
+    if (!activeUser) return true; // Guest mode sees all
+    const role = activeUser.jabatanTim;
+    if (role === 'Super Admin') return true;
+    
+    const participants = meet.pesertaIds || [];
+    if (participants.includes(activeUser.id)) return true;
+    
+    if (role === 'Fasilitator' || role === 'Tenaga Administrasi') {
+      return false; // Hanya bisa lihat rapat yang diundang
+    }
+    
+    if (participants.length === 0) return true;
+    
+    return participants.some(pid => {
+      const pUser = users.find(u => u.id === pid);
+      const pRole = pUser ? pUser.jabatanTim : '';
+      
+      if (role === 'Ketua Tim') {
+        return pRole !== 'Super Admin';
+      }
+      if (role === 'Koordinator') {
+        return pRole !== 'Super Admin' && pRole !== 'Ketua Tim';
+      }
+      return false;
+    });
+  };
+
+  const timelineEvents = [];
+
+  // Add meetings
+  if (Array.isArray(meetings)) {
+    meetings.filter(isMeetingVisible).forEach(meet => {
+      const start = meet.tanggal ? meet.tanggal.substring(0, 10) : '';
+      const end = (meet.isMultiDay && meet.tanggalSelesai) ? meet.tanggalSelesai.substring(0, 10) : start;
+      timelineEvents.push({
+        id: meet.id,
+        startDateStr: start,
+        endDateStr: end,
+        title: meet.judul,
+        type: 'rapat',
+        details: `Tempat: ${meet.lokasi}${meet.jam ? ` • Pukul ${meet.jam}` : ''}`,
+        raw: meet
+      });
+    });
+  }
+
+  // Add trips
+  if (Array.isArray(trips)) {
+    const visibleTrips = trips.filter(t => t.statusPersetujuan !== 'rejected' && isTripVisible(t));
+    const groupedTrips = {};
+    
+    visibleTrips.forEach(trip => {
+      const key = `${trip.userId}-${trip.tanggalMulai}-${trip.tanggalSelesai}-${trip.kunjunganKe}`;
+      if (!groupedTrips[key]) {
+        groupedTrips[key] = [];
+      }
+      groupedTrips[key].push(trip);
+    });
+
+    Object.values(groupedTrips).forEach(batch => {
+      const firstTrip = batch[0];
+      const user = users.find(u => u.id === firstTrip.userId);
+      const userName = user ? user.nama : 'Fasilitator';
+      const userRole = firstTrip.userRoleTim || 'Fasilitator';
+      const start = firstTrip.tanggalMulai ? firstTrip.tanggalMulai.substring(0, 10) : '';
+      const end = firstTrip.tanggalSelesai ? firstTrip.tanggalSelesai.substring(0, 10) : start;
+      
+      const kabupatens = new Set();
+      batch.forEach(t => {
+        const school = schools.find(s => s.npsn === t.sekolahId);
+        if (school && school.kabupaten) {
+          kabupatens.add(school.kabupaten);
+        }
+      });
+      const kabList = Array.from(kabupatens).join(', ') || 'Berbagai Lokasi';
+      
+      timelineEvents.push({
+        id: `batch-${firstTrip.id}`,
+        startDateStr: start,
+        endDateStr: end,
+        title: `Perjalanan Dinas ${userName} (${batch.length} Sekolah)`,
+        type: 'dinas',
+        details: `${userRole} • Kab: ${kabList} • Kunjungan ke-${firstTrip.kunjunganKe || '?'}`,
+        raw: firstTrip
+      });
+    });
+  }
+
+  if (milestoneDateStr) {
+    timelineEvents.push({
+      id: 'milestone-3rd',
+      startDateStr: milestoneDateStr,
+      endDateStr: milestoneDateStr,
+      title: 'Milestone Bulan Ke-3: Target Progres Fisik 50%',
+      type: 'milestone',
+      details: 'Supervising Koordinator ke-1 & Minimal Progres Fisik 50% wajib tercapai.',
+      isMilestone: true
+    });
+  }
+
+  const sortedEvents = timelineEvents
+    .filter(e => e.startDateStr)
+    .sort((a, b) => {
+      if (sortOrder === 'asc') {
+        return a.startDateStr.localeCompare(b.startDateStr);
+      } else {
+        return b.startDateStr.localeCompare(a.startDateStr);
+      }
+    });
+
+  const displayEvents = sortedEvents.filter(e => {
+    if (filterType === 'rapat' && e.type !== 'rapat') return false;
+    if (filterType === 'dinas' && e.type !== 'dinas') return false;
+    
+    if (!showDone) {
+      const isDone = e.endDateStr < todayStr;
+      if (isDone) return false;
+    }
+    
+    return true;
+  });
+
+  const tracksList = [];
+  displayEvents.forEach(event => {
+    if (event.isMilestone) return;
+    
+    let placed = false;
+    for (let i = 0; i < tracksList.length; i++) {
+      const track = tracksList[i];
+      const lastEvent = track[track.length - 1];
+      if (event.startDateStr > lastEvent.endDateStr) {
+        track.push(event);
+        placed = true;
+        break;
+      }
+    }
+    
+    if (!placed) {
+      tracksList.push([event]);
+    }
+  });
+
+  const getTimelinePosition = (sDateStr, eDateStr) => {
+    if (timelineDuration <= 0) return { left: '0%', width: '0%' };
+    
+    const evStartMs = new Date(sDateStr).getTime();
+    const evEndMs = new Date(eDateStr).getTime();
+    const leftMs = evStartMs - timelineStartMs;
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const durationMs = Math.max(oneDayMs, (evEndMs - evStartMs) + oneDayMs);
+    
+    let leftPct = (leftMs / timelineDuration) * 100;
+    let widthPct = (durationMs / timelineDuration) * 100;
+    
+    if (leftPct < 0) {
+      widthPct += leftPct;
+      leftPct = 0;
+    }
+    if (leftPct + widthPct > 100) {
+      widthPct = 100 - leftPct;
+    }
+    return {
+      left: `${leftPct.toFixed(4)}%`,
+      width: `${Math.max(0.1, widthPct).toFixed(4)}%`
+    };
+  };
+
+  const getTrackStyles = () => {
+    if (viewMode === 'monthly') {
+      return timelineDensity === 'relaxed' 
+        ? { trackHeight: 'h-8', cardHeight: 'h-8', fontSize: 'text-[10px]' }
+        : { trackHeight: 'h-6', cardHeight: 'h-6', fontSize: 'text-[8.5px]' };
+    } else {
+      return timelineDensity === 'relaxed'
+        ? { trackHeight: 'h-14', cardHeight: 'h-14', fontSize: 'text-[10.5px]' }
+        : { trackHeight: 'h-9', cardHeight: 'h-9', fontSize: 'text-[9.5px]' };
+    }
+  };
+  const ts = getTrackStyles();
+
+  const getMonthlyCapsuleColor = (event, trackIdx) => {
+    if (event.type === 'rapat') {
+      if (event.raw.isMultiDay) return 'bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100';
+      return 'bg-emerald-50 text-emerald-800 border border-emerald-250 hover:bg-emerald-100';
+    } else {
+      if (trackIdx % 2 === 0) return 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100';
+      return 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100';
+    }
+  };
+
+  const todayPct = timelineDuration > 0 
+    ? Math.min(100, Math.max(0, ((todayMs - timelineStartMs) / timelineDuration) * 100))
+    : -1;
+
+  const milestoneMs = milestoneDateStr ? new Date(milestoneDateStr).getTime() : 0;
+  const milestonePct = timelineDuration > 0 && milestoneMs
+    ? Math.min(100, Math.max(0, ((milestoneMs - timelineStartMs) / timelineDuration) * 100))
+    : -1;
 
   // 3. Kabupaten breakdown calculations
   const kabGroups = {};
@@ -446,6 +946,161 @@ export default function Dashboard({
   const sortedSchoolsByProgress = [...schools].sort(
     (a, b) => (b.progres_fisik || 0) - (a.progres_fisik || 0)
   );
+
+  const getProjectMonthName = (monthIdx) => {
+    try {
+      const start = new Date(dates.projectStartDate || '2026-06-12');
+      start.setMonth(start.getMonth() + (monthIdx - 1));
+      const options = { month: 'long' };
+      return start.toLocaleDateString('id-ID', options);
+    } catch {
+      const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      return months[(5 + monthIdx) % 12];
+    }
+  };
+
+  const getPendingTasks = () => {
+    if (!isFacilitator || !activeUser) return [];
+
+    const tasksList = [];
+
+    // 1. Personal Monthly Reports (Month 1 up to current Month)
+    for (let m = 1; m <= currentMonthIdx; m++) {
+      const hasReport = reports.some(r => r.userId === activeUser.id && Number(r.bulanKe) === m);
+      if (!hasReport) {
+        const monthName = getProjectMonthName(m);
+        tasksList.push({
+          id: `rep-${m}`,
+          category: 'report',
+          title: `Laporan Bulanan Ke-${m} (${monthName})`,
+          description: `Anda belum mengunggah Laporan Bulanan PDF Ke-${m} (${monthName}).`,
+          actionLabel: 'Unggah Sekarang',
+          action: () => onViewChange && onViewChange('laporan-bulanan')
+        });
+      }
+    }
+
+    // 2. Missing School Metadata & Document Uploads
+    displaySchools.forEach(school => {
+      // Check metadata fields
+      if (!school.kepala_sekolah || school.kepala_sekolah.trim() === '') {
+        tasksList.push({
+          id: `kepsek-${school.npsn}`,
+          category: 'school_info',
+          title: `Nama Kepsek: ${school.nama_sekolah}`,
+          description: `Nama Kepala Sekolah dasar dampingan Anda belum diisi.`,
+          actionLabel: 'Lengkapi Profil',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (!school.hp_kepala_sekolah || school.hp_kepala_sekolah.trim() === '') {
+        tasksList.push({
+          id: `hp-${school.npsn}`,
+          category: 'school_info',
+          title: `No. Telp Kepsek: ${school.nama_sekolah}`,
+          description: `Nomor telepon Kepala Sekolah dasar dampingan Anda belum diisi.`,
+          actionLabel: 'Lengkapi Profil',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (!school.kecamatan || school.kecamatan.trim() === '') {
+        tasksList.push({
+          id: `kecamatan-${school.npsn}`,
+          category: 'school_info',
+          title: `Kecamatan: ${school.nama_sekolah}`,
+          description: `Data wilayah Kecamatan belum dilengkapi.`,
+          actionLabel: 'Lengkapi Profil',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (!school.desa || school.desa.trim() === '') {
+        tasksList.push({
+          id: `desa-${school.npsn}`,
+          category: 'school_info',
+          title: `Desa/Kelurahan: ${school.nama_sekolah}`,
+          description: `Data wilayah Desa / Kelurahan belum dilengkapi.`,
+          actionLabel: 'Lengkapi Profil',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (!school.koordinat || school.koordinat.trim() === '') {
+        tasksList.push({
+          id: `koordinat-${school.npsn}`,
+          category: 'school_info',
+          title: `Peta Lokasi: ${school.nama_sekolah}`,
+          description: `Koordinat atau link Google Maps lokasi belum diisi.`,
+          actionLabel: 'Lengkapi Profil',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (!school.perencanaId || school.perencanaId.trim() === '') {
+        tasksList.push({
+          id: `perencana-${school.npsn}`,
+          category: 'school_info',
+          title: `Mitra Perencana: ${school.nama_sekolah}`,
+          description: `Mitra Lapangan Perencana belum dihubungkan.`,
+          actionLabel: 'Tautkan Mitra',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (!school.pengawasId || school.pengawasId.trim() === '') {
+        tasksList.push({
+          id: `pengawas-${school.npsn}`,
+          category: 'school_info',
+          title: `Mitra Pengawas: ${school.nama_sekolah}`,
+          description: `Mitra Lapangan Pengawas belum dihubungkan.`,
+          actionLabel: 'Tautkan Mitra',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+
+      // Check required documents
+      if (school.dokumen_mingguan === 'belum') {
+        tasksList.push({
+          id: `doc-mingguan-${school.npsn}`,
+          category: 'school_doc',
+          title: `Laporan Mingguan: ${school.nama_sekolah}`,
+          description: `Dokumen berkas Laporan Mingguan belum diunggah.`,
+          actionLabel: 'Unggah Dokumen',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if (school.dokumen_bulanan === 'belum') {
+        tasksList.push({
+          id: `doc-bulanan-${school.npsn}`,
+          category: 'school_doc',
+          title: `Laporan Bulanan: ${school.nama_sekolah}`,
+          description: `Dokumen berkas Laporan Bulanan belum diunggah.`,
+          actionLabel: 'Unggah Dokumen',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if ((school.progres_fisik || 0) >= 50 && school.dokumen_progres_50 === 'belum') {
+        tasksList.push({
+          id: `doc-50-${school.npsn}`,
+          category: 'school_doc',
+          title: `Laporan Progres 50%: ${school.nama_sekolah}`,
+          description: `Progres fisik mencapai >= 50%. Wajib mengunggah Laporan Progres 50%.`,
+          actionLabel: 'Unggah Dokumen',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+      if ((school.progres_fisik || 0) === 100 && school.dokumen_progres_100 === 'belum') {
+        tasksList.push({
+          id: `doc-100-${school.npsn}`,
+          category: 'school_doc',
+          title: `Laporan Progres 100%: ${school.nama_sekolah}`,
+          description: `Pekerjaan 100% selesai. Wajib mengunggah Laporan Progres 100%.`,
+          actionLabel: 'Unggah Dokumen',
+          action: () => onSelectSchool && onSelectSchool(school.npsn)
+        });
+      }
+    });
+
+    return tasksList;
+  };
+
+  const facilitatorPendingTasks = getPendingTasks();
 
   return (
     <div className="space-y-6 animate-fade-in p-6">
@@ -901,7 +1556,7 @@ export default function Dashboard({
           <p className="text-slate-300 text-sm md:text-base leading-relaxed mt-2 font-medium">
             {activeUser 
               ? getRoleDescription(activeUser.jabatanTim)
-              : 'Sistem Informasi Swakelola Pemantauan Progres Fisik dan Keuangan Program Revitalisasi Sekolah Dasar. Silakan klik tombol "Masuk ke Sistem" di sudut kanan atas untuk melakukan pengelolaan data menggunakan akun simulasi.'}
+              : 'Sistem Informasi Swakelola Pemantauan Progres Fisik dan Keuangan Program Revitalisasi Sekolah Dasar. Silakan klik tombol "Masuk ke Sistem" di sudut kanan atas untuk melakukan pengelolaan data Sekolah Dasar yang didampingi.'}
           </p>
         </div>
       </div>
@@ -928,67 +1583,122 @@ export default function Dashboard({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
-              {pendingTrips.map(trip => {
-                const targetSchool = schools.find(s => s.npsn === trip.sekolahId);
-                const applicant = users.find(u => u.id === trip.userId);
-                
-                return (
-                  <div key={trip.id} className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between gap-3 hover:border-slate-700 transition-colors">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-500">Kunjungan ke-{trip.kunjunganKe}</span>
-                        <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/5 px-2 py-0.5 rounded border border-indigo-500/10">
-                          {trip.userRoleTim}
-                        </span>
-                      </div>
-                      <h4 
-                        onClick={() => targetSchool && onSelectSchool && onSelectSchool(targetSchool.npsn)}
-                        className="font-bold text-slate-200 text-xs truncate hover:text-indigo-400 cursor-pointer transition-colors"
-                        title="Klik untuk melihat detail sekolah"
-                      >
-                        {targetSchool ? targetSchool.nama_sekolah : `NPSN ${trip.sekolahId}`}
-                      </h4>
-                      <p className="text-[11px] text-slate-400">
-                        Diajukan oleh: <strong className="text-slate-300">{applicant ? applicant.nama : 'Anggota Tim'}</strong>
-                      </p>
-                      <div className="text-[10px] text-slate-500 font-mono mt-1">
-                        Tanggal: {trip.tanggalMulai} s/d {trip.tanggalSelesai} ({trip.durasiHari} Hari)
-                      </div>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-1">
+              {(() => {
+                const groupedTrips = {};
+                pendingTrips.forEach(t => {
+                  const key = `${t.userId}-${t.tanggalMulai}-${t.tanggalSelesai}-${t.kunjunganKe}`;
+                  if (!groupedTrips[key]) groupedTrips[key] = [];
+                  groupedTrips[key].push(t);
+                });
+                const pendingBatches = Object.values(groupedTrips).sort((a, b) => new Date(a[0].tanggalMulai) - new Date(b[0].tanggalMulai));
 
-                    <div className="flex gap-2 pt-2 border-t border-slate-900/60 select-none">
-                      <button
-                        onClick={() => {
-                          onApproveTrip(trip.id, activeUser.nama);
-                          window.showAlert('Perjalanan dinas disetujui!');
-                        }}
-                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border-0"
-                      >
-                        Setujui
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (await window.showConfirm('Tolak permohonan kunjungan dinas ini?')) {
-                            onRejectTrip(trip.id);
-                            window.showAlert('Perjalanan dinas ditolak.');
-                          }
-                        }}
-                        className="px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer border border-rose-500/20"
-                      >
-                        Tolak
-                      </button>
+                const formatDateShort = (dateStr) => {
+                  if (!dateStr) return '-';
+                  try {
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return dateStr;
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    return `${dd}-${mm}-${yyyy}`;
+                  } catch (e) {
+                    return dateStr;
+                  }
+                };
+
+                return pendingBatches.map((batchTrips, batchIdx) => {
+                  const firstTrip = batchTrips[0];
+                  const applicant = users.find(u => u.id === firstTrip.userId);
+                  
+                  const schoolsArr = batchTrips.map(t => {
+                    const s = schools.find(school => String(school.npsn) === String(t.sekolahId));
+                    return s ? s.nama_sekolah : `NPSN ${t.sekolahId}`;
+                  });
+
+                  const romanVisit = firstTrip.kunjunganKe === 1 ? 'I' : firstTrip.kunjunganKe === 2 ? 'II' : firstTrip.kunjunganKe;
+                  const title = `Perjalanan Dinas ${romanVisit}`;
+
+                  const badgeColors = [
+                    'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+                    'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+                    'bg-amber-500/10 text-amber-400 border-amber-500/30',
+                    'bg-rose-500/10 text-rose-400 border-rose-500/30',
+                    'bg-blue-500/10 text-blue-400 border-blue-500/30',
+                    'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                  ];
+                  
+                  return (
+                    <div key={`pending-batch-${batchIdx}`} className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between space-y-4 shadow-lg shadow-black/20 relative overflow-hidden group hover:border-slate-700 transition-all duration-300">
+                      {/* Decorative glow */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all duration-500 group-hover:bg-indigo-500/10"></div>
+                      
+                      <div className="relative z-10 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-lg border border-indigo-500/10">
+                            {firstTrip.userRoleTim}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+                            <MapPin className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-100 via-white to-purple-100 text-base tracking-tight drop-shadow-sm">
+                              {title}
+                            </h4>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              Oleh: <strong className="text-slate-300">{applicant ? applicant.nama : 'Anggota Tim'}</strong>
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium bg-slate-900/50 p-2 rounded-xl border border-slate-800/50">
+                          <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-indigo-400" /> {formatDateShort(firstTrip.tanggalMulai)} s/d {formatDateShort(firstTrip.tanggalSelesai)}</span>
+                          <span className="text-slate-600">•</span>
+                          <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-emerald-400" /> {firstTrip.durasiHari} Hari</span>
+                        </div>
+                        
+                        <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800/50">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            Lokasi Kunjungan ({batchTrips.length} Sekolah)
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {schoolsArr.map((schoolName, i) => {
+                              const colorClass = badgeColors[i % badgeColors.length];
+                              return (
+                                <span key={i} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${colorClass} shadow-sm backdrop-blur-sm transition-transform hover:scale-105 cursor-default`}>
+                                  {schoolName}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2 border-t border-slate-800/60 select-none relative z-10">
+                        <button
+                          onClick={() => {
+                            if (onViewChange) onViewChange('dinas');
+                          }}
+                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0 shadow-lg shadow-indigo-600/20"
+                        >
+                          <Plane className="w-4 h-4" /> Kelola Perjalanan Dinas
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         );
       })()}
 
-      {/* 4 KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3 KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         {/* Total Schools */}
         <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-md hover:border-slate-700/80 transition-all duration-300">
@@ -999,18 +1709,6 @@ export default function Dashboard({
           </div>
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
             <School className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Claimed Schools */}
-        <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-md hover:border-slate-700/80 transition-all duration-300">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{claimedLabel}</span>
-            <span className="text-3xl font-extrabold text-slate-100 block">{claimedCount} <span className="text-xs text-slate-400 font-normal">({claimedPercentage}%)</span></span>
-            <span className="text-xs text-slate-400 font-medium">{claimedSubtitle}</span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <UserCheck className="w-6 h-6" />
           </div>
         </div>
 
@@ -1026,162 +1724,564 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Monthly Reports */}
-        <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-md hover:border-slate-700/80 transition-all duration-300">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{reportsLabel}</span>
-            <span className="text-3xl font-extrabold text-slate-100 block">{totalReportsUploaded}</span>
-            <span className="text-xs text-slate-400 font-medium">{reportsSubtitle}</span>
+        {/* Monthly Reports Pct Card */}
+        <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-md hover:border-slate-700/80 transition-all duration-300 min-h-[145px]">
+          <div className="flex items-center justify-between w-full">
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                {isFacilitator ? 'Laporan Bulanan Anda' : 'Kepatuhan Laporan Bulanan'}
+              </span>
+              <span className={`text-3xl font-extrabold block ${isFacilitator ? (currentMonthPct === 100 ? 'text-emerald-400' : 'text-slate-400') : 'text-slate-100'}`}>
+                {currentMonthPct}%
+              </span>
+              <span className="text-xs text-slate-400 font-medium">
+                {isFacilitator 
+                  ? `Bulan Berjalan (Bulan ${currentMonthIdx}) • ${reports.filter(r => r.userId === activeUser?.id).length}/6 Terkirim`
+                  : `Bulan Berjalan (Bulan ${currentMonthIdx})`}
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+              <FileText className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-            <FileText className="w-6 h-6" />
+          <div className="mt-4 pt-3 border-t border-slate-800/60 grid grid-cols-6 gap-1 text-center text-[9px] font-semibold text-slate-400">
+            {monthlyReportPcts.map((pct, idx) => {
+              const m = idx + 1;
+              if (isFacilitator) {
+                const r = reports.find(rep => rep.userId === activeUser?.id && Number(rep.bulanKe) === m);
+                let text = 'Belum';
+                let colorClass = 'text-slate-500 bg-slate-900 border border-slate-800/60';
+                if (r) {
+                  if (r.status === 'approved') {
+                    text = 'Setuju';
+                    colorClass = 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/25';
+                  } else if (r.status === 'rejected') {
+                    text = 'Ditolak';
+                    colorClass = 'text-rose-450 bg-rose-500/10 border border-rose-500/25';
+                  } else {
+                    text = 'Review';
+                    colorClass = 'text-amber-400 bg-amber-500/10 border border-amber-500/25';
+                  }
+                }
+                return (
+                  <div key={idx} className="space-y-1">
+                    <span className="block text-[8px] text-slate-500 font-bold uppercase">B{m}</span>
+                    <span 
+                      className={`block font-extrabold text-[7.5px] tracking-tight leading-normal py-0.5 rounded truncate ${colorClass}`}
+                      title={r ? `File: ${r.fileName}${r.status ? ` (Status: ${r.status})` : ''}` : 'Belum diunggah'}
+                    >
+                      {text}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div key={idx} className="space-y-1">
+                  <span className="block text-[8px] text-slate-500 font-bold uppercase">B{idx + 1}</span>
+                  <span className={`block font-extrabold ${pct === 100 ? 'text-emerald-400' : pct > 0 ? 'text-indigo-400' : 'text-slate-400'}`}>
+                    {pct}%
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
       </div>
 
       {/* Main Grid: Left (Stats + Regional), Right (Timeline settings / active user info) */}
-      <div className={showRightColumn ? "grid grid-cols-1 lg:grid-cols-3 gap-6" : "space-y-6"}>
+      <div className={
+        isFacilitator 
+          ? "grid grid-cols-1 lg:grid-cols-4 gap-6" 
+          : showRightColumn 
+          ? "grid grid-cols-1 lg:grid-cols-3 gap-6" 
+          : "space-y-6"
+      }>
         
-        {/* Left Column (2/3 width or full width) */}
-        <div className={showRightColumn ? "lg:col-span-2 space-y-6" : "space-y-6"}>
+        {/* Left Column (3/4 width, 2/3 width, or full width) */}
+        <div className={
+          isFacilitator
+            ? "lg:col-span-3 space-y-6"
+            : showRightColumn
+            ? "lg:col-span-2 space-y-6"
+            : "space-y-6"
+        }>
           
-          {/* Project Timeline & Milestones Progress */}
-          <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2">
-                <Clock className="w-4 h-4 text-indigo-400" /> Linimasa Progres Waktu Proyek
-              </h3>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-lg">
-                Bulan ke-{monthsElapsed} dari 6 Bulan
-              </span>
+          {/* Timeline Kegiatan & Aktivitas (Gantt Chart style) */}
+          <div className="bg-white border border-slate-800 rounded-3xl p-6 shadow-md space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Day / Week / Month Switcher */}
+                <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 select-none">
+                  {[
+                    { key: 'daily', label: 'Day' },
+                    { key: 'weekly', label: 'Week' },
+                    { key: 'monthly', label: 'Month' }
+                  ].map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setViewMode(tab.key)}
+                      className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        viewMode === tab.key
+                          ? 'bg-white text-slate-100 shadow-sm border border-slate-800 font-bold'
+                          : 'text-slate-400 hover:text-slate-100'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* View Range Navigator */}
+                {viewMode !== 'monthly' && (
+                  <div className="flex items-center gap-1.5 select-none">
+                    <button 
+                      onClick={handleScrollLeft}
+                      className="w-7 h-7 rounded-lg bg-white border border-slate-800 hover:bg-slate-950 text-slate-400 hover:text-slate-100 flex items-center justify-center text-xs font-semibold cursor-pointer transition-all shadow-sm"
+                    >
+                      ⟨
+                    </button>
+                    <span className="text-xs font-bold text-slate-100 px-3 min-w-[150px] text-center">
+                      {visibleRangeText}
+                    </span>
+                    <button 
+                      onClick={handleScrollRight}
+                      className="w-7 h-7 rounded-lg bg-white border border-slate-800 hover:bg-slate-950 text-slate-400 hover:text-slate-100 flex items-center justify-center text-xs font-semibold cursor-pointer transition-all shadow-sm"
+                    >
+                      ⟩
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Controls Toolbar */}
+              <div className="flex items-center gap-4 flex-wrap justify-end">
+                {/* Show Done Toggle Switch */}
+                <div className="flex items-center gap-2 select-none">
+                  <span className="text-xs font-semibold text-slate-400">Show done</span>
+                  <button
+                    onClick={() => setShowDone(!showDone)}
+                    className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer border border-slate-800/80 ${
+                      showDone ? 'bg-indigo-400' : 'bg-slate-950'
+                    }`}
+                  >
+                    <div 
+                      className={`w-3.5 h-3.5 rounded-full bg-white absolute top-[2px] transition-all ${
+                        showDone ? 'left-[17px]' : 'left-[2px]'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Sort Button */}
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-800 text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-950/40 cursor-pointer select-none transition-all"
+                >
+                  <span className="capitalize">⟨⟩ Sort</span>
+                  <span className="text-[10px] bg-slate-950 border border-slate-800 px-1.5 py-0.5 rounded font-bold text-slate-100 uppercase">
+                    {sortOrder}
+                  </span>
+                </button>
+
+                {/* Filter Dropdown */}
+                <div className="relative select-none">
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="appearance-none bg-white border border-slate-800 rounded-lg pl-8 pr-8 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-950/40 cursor-pointer focus:outline-none focus:border-indigo-400 transition-all"
+                  >
+                    <option value="all">Filter: All</option>
+                    <option value="rapat">Filter: Rapat</option>
+                    <option value="dinas">Filter: Dinas</option>
+                  </select>
+                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-[11px]">
+                    ▽
+                  </div>
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-[11px]">
+                    ▼
+                  </div>
+                </div>
+
+                {/* Density Switcher */}
+                <button
+                  onClick={() => setTimelineDensity(timelineDensity === 'relaxed' ? 'compact' : 'relaxed')}
+                  className="w-7 h-7 rounded-lg border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-950/40 cursor-pointer transition-all shadow-sm"
+                  title="Ubah Kerapatan Linimasa"
+                >
+                  {timelineDensity === 'relaxed' ? '↕' : '↕↕'}
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {/* Progress Bar */}
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-850">
-                <div className="flex justify-between items-center text-xs font-semibold text-slate-400 mb-2">
-                  <span>Waktu Berjalan</span>
-                  <span className="text-indigo-400 font-bold">{timeProgress}% dari Total Waktu</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${timeProgress}%` }}
-                  />
-                </div>
-                
-                {/* Timeline Dates Info */}
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800/40 text-center">
-                  <div className="text-left">
-                    <span className="block text-[8px] uppercase font-bold text-slate-500">Mulai</span>
-                    <span className="text-[11px] font-semibold text-slate-300">{formatLocalDate(dates.projectStartDate)}</span>
-                  </div>
-                  <div className="text-center bg-indigo-500/5 border border-indigo-500/10 rounded-xl px-2 py-1">
-                    <span className="block text-[8px] uppercase font-bold text-indigo-400">Hari Ini</span>
-                    <span className="text-[11px] font-bold text-indigo-300">{formatLocalDate(todayStr)}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="block text-[8px] uppercase font-bold text-slate-500">Target</span>
-                    <span className="text-[11px] font-semibold text-slate-300">{formatLocalDate(dates.projectEndDate)}</span>
+            {/* Scrollable Timeline Grid Container */}
+            <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-white">
+              <div 
+                ref={scrollContainerRef}
+                className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
+                {/* Board Content */}
+                <div 
+                  className="relative select-none"
+                  style={{ 
+                    width: viewMode === 'daily' ? `${daysList.length * 80}px` : viewMode === 'weekly' ? '7800px' : '100%',
+                    minWidth: viewMode === 'monthly' ? '100%' : 'none'
+                  }}
+                >
+                  {/* Grid Headers */}
+                  {viewMode === 'daily' && (
+                    <div className="sticky top-0 bg-white z-30">
+                      {/* Months Row */}
+                      <div className="flex select-none border-b border-slate-800">
+                        {dayMonthsHeader.map((m, idx) => (
+                          <div 
+                            key={idx} 
+                            className="border-r border-slate-800/60 text-[10px] font-extrabold text-slate-100 py-1.5 px-3 sticky left-0 shrink-0 bg-white"
+                            style={{ width: `${m.width}px` }}
+                          >
+                            {m.label}
+                          </div>
+                        ))}
+                      </div>
+                      {/* Letters Row */}
+                      <div className="flex text-center text-[10px] font-bold text-slate-400 py-1 border-b border-slate-800">
+                        {daysList.map((d, idx) => {
+                          const isToday = d.dateStr === todayStr;
+                          return (
+                            <div 
+                              key={idx} 
+                              className={`w-[80px] shrink-0 border-r border-slate-800/30 flex flex-col justify-center items-center py-1 ${
+                                isToday ? 'bg-indigo-50/60 text-indigo-500 font-extrabold' : d.isWeekend ? 'bg-slate-950/40 text-rose-450' : ''
+                              }`}
+                            >
+                              <span className="text-[8.5px] uppercase">{d.label}</span>
+                              <span className={`text-xs mt-0.5 ${isToday ? 'text-indigo-500 font-bold' : 'text-slate-100 font-extrabold'}`}>{d.dayNum}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {viewMode === 'weekly' && (
+                    <div className="sticky top-0 bg-white z-30">
+                      {/* Months Row */}
+                      <div className="flex select-none border-b border-slate-800">
+                        {weekMonthsHeader.map((m, idx) => (
+                          <div 
+                            key={idx} 
+                            className="border-r border-slate-800/60 text-[10px] font-extrabold text-slate-100 py-1.5 px-3 sticky left-0 shrink-0 bg-white"
+                            style={{ width: `${m.width}px` }}
+                          >
+                            {m.label}
+                          </div>
+                        ))}
+                      </div>
+                      {/* Weeks Row */}
+                      <div className="flex text-center text-[10px] font-bold text-slate-400 py-1 border-b border-slate-800">
+                        {weeksList.map((w, idx) => {
+                          const isThisWeek = todayMs >= w.startMs && todayMs <= w.endMs;
+                          return (
+                            <div 
+                              key={idx} 
+                              className={`w-[150px] shrink-0 border-r border-slate-800/30 flex flex-col justify-center items-center py-1 ${
+                                isThisWeek ? 'bg-indigo-50/60 text-indigo-500 font-extrabold' : ''
+                              }`}
+                            >
+                              <span className="text-[8.5px] uppercase">{w.label}</span>
+                              <span className={`text-[9.5px] mt-0.5 ${isThisWeek ? 'text-indigo-500 font-bold' : 'text-slate-100 font-extrabold'}`}>{w.subLabel}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {viewMode === 'monthly' && (
+                    <div className="grid grid-cols-12 border-b border-slate-800 text-center text-[10px] font-bold text-slate-400 py-2 select-none bg-slate-950/40">
+                      {monthsList.map((m, idx) => (
+                        <div key={idx} className="border-r border-slate-800/60 last:border-r-0 text-slate-100 font-extrabold">
+                          {m}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Timeline Board Body */}
+                  <div 
+                    className="relative pb-6"
+                    style={{ 
+                      minHeight: tracksList.length === 0 ? '120px' : `${Math.max(160, tracksList.length * (viewMode === 'monthly' ? 38 : 65) + 30)}px`
+                    }}
+                  >
+                    {/* Background Grid columns overlay */}
+                    <div className="absolute inset-0 flex pointer-events-none z-0">
+                      {viewMode === 'daily' && daysList.map((d, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`w-[80px] shrink-0 border-r border-slate-800/10 h-full ${
+                            d.isWeekend ? 'weekend-stripes bg-slate-950/10' : ''
+                          }`}
+                        />
+                      ))}
+                      {viewMode === 'weekly' && weeksList.map((w, idx) => (
+                        <div 
+                          key={idx} 
+                          className="w-[150px] shrink-0 border-r border-slate-800/10 h-full"
+                        />
+                      ))}
+                      {viewMode === 'monthly' && Array.from({ length: 12 }).map((_, idx) => (
+                        <div 
+                          key={idx} 
+                          className="flex-1 border-r border-slate-800/10 h-full"
+                        />
+                      ))}
+                    </div>
+
+                    {/* Today Line Indicator */}
+                    {todayPct >= 0 && todayPct <= 100 && (
+                      <div 
+                        className="absolute top-0 bottom-0 w-[2.5px] bg-[#6366f1] z-20 pointer-events-none"
+                        style={{ left: `${todayPct}%` }}
+                      >
+                        <div className="absolute -top-1 -left-[5px] w-3.5 h-3.5 rounded-full bg-[#6366f1] border-2 border-white shadow-md"></div>
+                      </div>
+                    )}
+
+                    {/* Milestone 3rd Month Indicator Line */}
+                    {milestonePct >= 0 && milestonePct <= 100 && (
+                      <div 
+                        className="absolute top-0 bottom-0 w-[1.5px] border-l border-dashed border-amber-500/80 z-20 pointer-events-none"
+                        style={{ left: `${milestonePct}%` }}
+                      >
+                        <div className="absolute -top-1 -left-[5px] w-3 h-3 rounded-full bg-amber-500 border border-white shadow-sm flex items-center justify-center text-[7px] text-white font-extrabold font-sans">
+                          M
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tracks List */}
+                    {tracksList.length === 0 ? (
+                      <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <span className="text-xs text-slate-500 italic">Tidak ada agenda swakelola atau dinas aktif dalam filter ini</span>
+                      </div>
+                    ) : (
+                      <div className="relative z-10 space-y-4 pt-4">
+                        {tracksList.map((track, trackIdx) => (
+                          <div key={trackIdx} className={`relative ${ts.trackHeight} w-full`}>
+                            {track.map(event => {
+                              const { left, width } = getTimelinePosition(event.startDateStr, event.endDateStr);
+                              const isGradientEvent = event.type === 'rapat' && event.raw.isMultiDay;
+                              
+                              let colorClass = '';
+                              let accentColor = '';
+                              let emoji = '📅';
+
+                              if (viewMode === 'monthly') {
+                                colorClass = `${getMonthlyCapsuleColor(event, trackIdx)} border shadow-sm rounded-lg`;
+                                emoji = event.type === 'rapat' ? '💬' : '🚗';
+                              } else {
+                                emoji = event.type === 'rapat' ? '💬' : '🚗';
+                                if (isGradientEvent) {
+                                  colorClass = 'bg-gradient-to-r from-violet-500 via-pink-500 to-orange-400 text-white border-0 hover:brightness-105 shadow-sm';
+                                } else if (event.type === 'rapat') {
+                                  colorClass = 'bg-white border-slate-800 text-slate-100 hover:border-slate-700 shadow-sm';
+                                  accentColor = 'bg-emerald-500';
+                                } else {
+                                  colorClass = 'bg-white border-slate-800 text-slate-100 hover:border-slate-700 shadow-sm';
+                                  accentColor = 'bg-indigo-400';
+                                }
+                              }
+
+                              return (
+                                <div
+                                  key={event.id}
+                                  title={`${event.title}\n(${event.startDateStr} s/d ${event.endDateStr})\n${event.details}`}
+                                  className={`absolute ${ts.cardHeight} rounded-xl border px-3 flex items-center justify-between ${ts.fontSize} font-bold cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md group ${colorClass}`}
+                                  style={{ left, width }}
+                                  onClick={() => {
+                                    if (event.type === 'dinas') {
+                                      onViewChange && onViewChange('trips');
+                                    } else if (event.type === 'rapat') {
+                                      onViewChange && onViewChange('meetings');
+                                    }
+                                  }}
+                                >
+                                  {/* Drag pill handle on hover */}
+                                  {viewMode !== 'monthly' && (
+                                    <div className="absolute left-[3px] top-1/2 -translate-y-1/2 w-[6px] h-3 flex flex-col gap-[2px] justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className={`w-[2px] h-[3px] rounded-full ${isGradientEvent ? 'bg-white/60' : 'bg-slate-400'}`}></div>
+                                      <div className={`w-[2px] h-[3px] rounded-full ${isGradientEvent ? 'bg-white/60' : 'bg-slate-400'}`}></div>
+                                    </div>
+                                  )}
+
+                                  {/* Left accent bar (for standard cards) */}
+                                  {viewMode !== 'monthly' && accentColor && (
+                                    <span className={`w-[3px] h-6 rounded-full shrink-0 mr-2 ${accentColor}`} />
+                                  )}
+
+                                  {/* Sticky Content Wrapper */}
+                                  <div className="sticky left-4 z-10 min-w-0 max-w-full flex items-center gap-1.5">
+                                    <span className="shrink-0">{emoji}</span>
+                                    <div className="flex flex-col min-w-0 justify-center">
+                                      <span className={`font-bold tracking-tight line-clamp-1 group-hover:text-indigo-600 transition-colors ${isGradientEvent ? 'text-white group-hover:text-white' : 'text-slate-100'}`}>
+                                        {event.title}
+                                      </span>
+                                      {timelineDensity === 'relaxed' && (
+                                        <span className={`text-[9.5px] font-semibold truncate mt-0.5 ${isGradientEvent ? 'text-indigo-100' : 'text-slate-400'}`}>
+                                          {event.details}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Stacked avatars */}
+                                  {viewMode !== 'monthly' && (
+                                    <div className="flex -space-x-1.5 overflow-hidden select-none shrink-0 ml-auto pl-2">
+                                      {event.type === 'rapat' ? (
+                                        event.raw.pesertaIds?.slice(0, 3).map(uid => {
+                                          const u = users.find(usr => usr.id === uid);
+                                          const initials = u ? u.nama.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?';
+                                          return (
+                                            <div 
+                                              key={uid} 
+                                              title={u?.nama || 'Peserta'}
+                                              className="w-5 h-5 rounded-full bg-slate-800 border border-white flex items-center justify-center text-[8px] font-extrabold text-slate-100 shadow-sm"
+                                            >
+                                              {initials}
+                                            </div>
+                                          );
+                                        })
+                                      ) : (
+                                        (() => {
+                                          const u = users.find(usr => usr.id === event.raw.userId);
+                                          const initials = u ? u.nama.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?';
+                                          return (
+                                            <div 
+                                              title={u?.nama || 'Petugas'}
+                                              className="w-5 h-5 rounded-full bg-slate-800 border border-white flex items-center justify-center text-[8px] font-extrabold text-slate-100 shadow-sm"
+                                            >
+                                              {initials}
+                                            </div>
+                                          );
+                                        })()
+                                      )}
+                                      {event.type === 'rapat' && event.raw.pesertaIds?.length > 3 && (
+                                        <div className="w-5 h-5 rounded-full bg-slate-100 text-white border border-white flex items-center justify-center text-[7.5px] font-extrabold shadow-sm">
+                                          +{event.raw.pesertaIds.length - 3}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Informational Alerts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="bg-slate-950/30 border border-slate-850/60 rounded-2xl p-3 flex gap-2">
-                  <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-slate-300 block">Checkpoint Bulan Ke-3</span>
-                    <p className="text-slate-400 text-[11px] mt-0.5">Supervising Koordinator ke-1 & minimal progres fisik 50% wajib tercapai.</p>
-                  </div>
-                </div>
-                <div className="bg-slate-950/30 border border-slate-850/60 rounded-2xl p-3 flex gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-slate-300 block">Checkpoint Bulan Ke-6</span>
-                    <p className="text-slate-400 text-[11px] mt-0.5">Penutupan pengerjaan fisik 100% dan laporan administrasi bulanan final.</p>
-                  </div>
-                </div>
+            {/* Legend */}
+            <div className="flex gap-6 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex-wrap select-none font-semibold">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded bg-white border border-slate-800 shadow-sm"></span>
+                <span>Agenda Swakelola</span>
               </div>
-
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-3 rounded bg-gradient-to-r from-violet-500 via-pink-500 to-orange-400 opacity-90 shadow-sm"></span>
+                <span>Rapat Koordinasi / Rapat Multi-hari</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-3 rounded weekend-stripes border border-slate-800"></div>
+                <span>Akhir Pekan (Sabtu & Minggu)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-3 bg-[#6366f1] rounded-full"></span>
+                <span>Hari Ini</span>
+              </div>
             </div>
           </div>
 
           {/* Average Progress per Fasilitator */}
-          <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-            <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2">
-              <Users className="w-4 h-4 text-emerald-400" /> Rata-Rata Progres Fisik per Fasilitator
-            </h3>
+          {!isFacilitator && (
+            <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
+              <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-400" /> Rata-Rata Progres Fisik per Fasilitator
+              </h3>
 
-            {facilitatorStats.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-6">Belum ada data fasilitator.</p>
-            ) : (
-              <div className="space-y-3">
-                {facilitatorStats.map(fac => {
-                  const isSelected = selectedFacilitator === fac.id;
-                  return (
-                    <div
-                      key={fac.id}
-                      className={`rounded-2xl overflow-hidden transition-all duration-300 ${
-                        isSelected
-                          ? 'bg-indigo-950/40 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10'
-                          : 'bg-slate-950/20 hover:bg-slate-950/40'
-                      }`}
-                    >
-                      <button
-                        onClick={() => setSelectedFacilitator(isSelected ? null : fac.id)}
-                        className="w-full text-left p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-transparent border-0 transition-colors"
+              {facilitatorStats.length === 0 ? (
+                <p className="text-xs text-slate-500 italic text-center py-6">Belum ada data fasilitator.</p>
+              ) : (
+                <div className="space-y-3">
+                  {facilitatorStats.map(fac => {
+                    const isSelected = selectedFacilitator === fac.id;
+                    return (
+                      <div
+                        key={fac.id}
+                        className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+                          isSelected
+                            ? 'bg-indigo-950/40 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                            : 'bg-slate-950/20 hover:bg-slate-950/40'
+                        }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                            isSelected
-                              ? 'bg-indigo-500/20 border border-indigo-400/40 text-indigo-300'
-                              : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
-                          }`}>
-                            <UserCheck className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className={`text-sm font-bold block truncate transition-colors ${isSelected ? 'text-indigo-200' : 'text-slate-200'}`}>{fac.name}</span>
-                            <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Dampingan</span>
-                          </div>
-                        </div>
-                        <span className={`font-bold text-sm shrink-0 ${isSelected ? 'text-indigo-300' : 'text-emerald-400'}`}>{fac.avgProgress}%</span>
-                      </button>
-                      <div className="px-3.5 pb-2">
-                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
+                        <button
+                          onClick={() => setSelectedFacilitator(isSelected ? null : fac.id)}
+                          className="w-full text-left p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-transparent border-0 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                               isSelected
-                                ? 'bg-gradient-to-r from-indigo-400 to-purple-400'
-                                : 'bg-gradient-to-r from-indigo-500 to-emerald-400'
-                            }`}
-                            style={{ width: `${fac.avgProgress}%` }}
-                          />
+                                ? 'bg-indigo-500/20 border border-indigo-400/40 text-indigo-300'
+                                : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
+                            }`}>
+                              <UserCheck className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className={`text-sm font-bold block truncate transition-colors ${isSelected ? 'text-indigo-200' : 'text-slate-200'}`}>{fac.name}</span>
+                              <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Dampingan</span>
+                            </div>
+                          </div>
+                          <span className={`font-bold text-sm shrink-0 ${isSelected ? 'text-indigo-300' : 'text-emerald-400'}`}>{fac.avgProgress}%</span>
+                        </button>
+                        <div className="px-3.5 pb-2">
+                          <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-indigo-400 to-purple-400'
+                                  : 'bg-gradient-to-r from-indigo-500 to-emerald-400'
+                              }`}
+                              style={{ width: `${fac.avgProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                        {/* Detail Button */}
+                        <div className="px-3.5 pb-3 flex gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('reports'); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-purple-500/20 bg-purple-500/5 text-purple-400 hover:bg-purple-500/15 hover:text-purple-300 transition-all"
+                          >
+                            <FileText className="w-3 h-3" /> Dokumen Laporan
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('trips'); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500/15 hover:text-sky-300 transition-all"
+                          >
+                            <Plane className="w-3 h-3" /> Perjalanan Dinas
+                          </button>
                         </div>
                       </div>
-                      {/* Detail Button */}
-                      <div className="px-3.5 pb-3 flex gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('reports'); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-purple-500/20 bg-purple-500/5 text-purple-400 hover:bg-purple-500/15 hover:text-purple-300 transition-all"
-                        >
-                          <FileText className="w-3 h-3" /> Dokumen Laporan
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('trips'); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500/15 hover:text-sky-300 transition-all"
-                        >
-                          <Plane className="w-3 h-3" /> Perjalanan Dinas
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Conditional Facilitator Section */}
           {isFacilitator && (
@@ -1194,14 +2294,14 @@ export default function Dashboard({
                 <div className="text-center py-8">
                   <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah dampingan.</p>
                   <p className="text-xs text-slate-400 mb-4">
-                    Silakan buka menu <strong>"Daftar Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
+                    Silakan buka menu <strong>"Kelola Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
                   </p>
                   {onViewChange && (
                     <button
                       onClick={() => onViewChange('sekolah')}
                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-600/10 cursor-pointer border-0"
                     >
-                      Buka Daftar Sekolah
+                      Buka Kelola Sekolah
                     </button>
                   )}
                 </div>
@@ -1215,7 +2315,7 @@ export default function Dashboard({
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-200 text-sm">{school.nama_sekolah}</span>
+                          <span className="font-bold text-slate-200 text-sm">{school.nama_sekolah || `Sekolah NPSN ${school.npsn}`}</span>
                           <span className="text-[9px] font-mono px-2 py-0.5 rounded-full border border-slate-800 bg-slate-900/60 text-slate-400">
                             NPSN {school.npsn}
                           </span>
@@ -1233,10 +2333,58 @@ export default function Dashboard({
                       </div>
 
                       {/* Progress info & bar */}
-                      <div className="w-full md:w-48 shrink-0 space-y-1">
+                      <div className="w-full md:w-48 shrink-0 space-y-1" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center text-xs font-semibold">
                           <span className="text-slate-400">Progres Fisik</span>
-                          <span className="text-emerald-400">{school.progres_fisik || 0}%</span>
+                          {editingSchoolNpsn === school.npsn ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={editingValue}
+                                onChange={(e) => {
+                                  let val = parseInt(e.target.value, 10);
+                                  if (isNaN(val)) val = 0;
+                                  val = Math.max(0, Math.min(100, val));
+                                  setEditingValue(val);
+                                }}
+                                className="w-12 bg-slate-950 border border-slate-800 text-slate-100 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:border-indigo-500 font-bold"
+                              />
+                              <button
+                                onClick={() => {
+                                  onUpdateSchool && onUpdateSchool({ ...school, progres_fisik: Number(editingValue) });
+                                  setEditingSchoolNpsn(null);
+                                  window.showAlert('Progres fisik sekolah berhasil diperbarui!');
+                                }}
+                                className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded cursor-pointer transition-all"
+                                title="Simpan"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setEditingSchoolNpsn(null)}
+                                className="p-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 rounded cursor-pointer transition-all"
+                                title="Batal"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-emerald-400 font-bold">{school.progres_fisik || 0}%</span>
+                              <button
+                                onClick={() => {
+                                  setEditingSchoolNpsn(school.npsn);
+                                  setEditingValue(school.progres_fisik || 0);
+                                }}
+                                className="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-indigo-400 rounded-lg cursor-pointer transition-all"
+                                title="Edit Progres Fisik"
+                              >
+                                <Pencil className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
                           <div
@@ -1252,107 +2400,83 @@ export default function Dashboard({
             </div>
           )}
 
+
+
         </div>
 
         {/* Right Column (1/3 width) */}
         {showRightColumn && (
           <div className="space-y-6">
           
-          {/* Dynamic Configuration (Super Admin) or Kepegawaian (Others) */}
-          {activeUser ? (
-            activeUser.role === 'admin' ? (
-              <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
-                <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2 mb-4">
-                  <Clock className="w-4 h-4 text-indigo-400" /> Konfigurasi Linimasa Global
-                </h3>
-                <form onSubmit={handleSaveSettings} className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                      Tanggal Mulai Proyek
-                    </label>
-                    <input
-                      type="date"
-                      value={dates.projectStartDate}
-                      onChange={(e) => setDates({ ...dates, projectStartDate: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                      Tanggal Target Selesai
-                    </label>
-                    <input
-                      type="date"
-                      value={dates.projectEndDate}
-                      onChange={(e) => setDates({ ...dates, projectEndDate: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                      required
-                    />
-                  </div>
-                  <div className="border-t border-slate-850 my-2 pt-2">
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Penyimpanan Sheets & Drive</span>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          URL Google Apps Script Web App
-                        </label>
-                        <input
-                          type="url"
-                          value={dates.googleAppsScriptUrl}
-                          onChange={(e) => setDates({ ...dates, googleAppsScriptUrl: e.target.value })}
-                          placeholder="https://script.google.com/macros/s/.../exec"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          Token Keamanan API
-                        </label>
-                        <input
-                          type="password"
-                          value={dates.googleAppsScriptToken}
-                          onChange={(e) => setDates({ ...dates, googleAppsScriptToken: e.target.value })}
-                          placeholder="REVITSD2026_SECURE_TOKEN"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
-                    >
-                      Simpan Konfigurasi
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : null
-          ) : (
+                    {activeUser && activeUser.role === 'admin' && (
             <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
               <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2 mb-4">
-                <Info className="w-4 h-4 text-indigo-400" /> Panduan Masuk Sistem
+                <Clock className="w-4 h-4 text-indigo-400" /> Konfigurasi Linimasa Global
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                Sistem ini memfasilitasi monitoring swakelola dengan simulasi multi-peran (Super Admin, Ketua Tim, Koordinator, Fasilitator, dan Tenaga Administrasi).
-              </p>
-              <div className="space-y-2.5 text-xs text-slate-300">
-                <div className="flex items-start gap-2 bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
-                  <span className="font-bold text-indigo-400 shrink-0">1.</span>
-                  <span>Klik tombol <strong>"Masuk ke Sistem"</strong> di kanan atas halaman.</span>
+              <form onSubmit={handleSaveSettings} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Tanggal Mulai Proyek
+                  </label>
+                  <input
+                    type="date"
+                    value={dates.projectStartDate}
+                    onChange={(e) => setDates({ ...dates, projectStartDate: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                    required
+                  />
                 </div>
-                <div className="flex items-start gap-2 bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
-                  <span className="font-bold text-indigo-400 shrink-0">2.</span>
-                  <span>Pilih profil salah satu anggota tim pelaksana swakelola.</span>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Tanggal Target Selesai
+                  </label>
+                  <input
+                    type="date"
+                    value={dates.projectEndDate}
+                    onChange={(e) => setDates({ ...dates, projectEndDate: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                    required
+                  />
                 </div>
-                <div className="flex items-start gap-2 bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
-                  <span className="font-bold text-indigo-400 shrink-0">3.</span>
-                  <span>Gunakan menu samping untuk menguji fitur-fitur spesifik sesuai peran tersebut.</span>
+                <div className="border-t border-slate-850 my-2 pt-2">
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Penyimpanan Sheets & Drive</span>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        URL Google Apps Script Web App
+                      </label>
+                      <input
+                        type="url"
+                        value={dates.googleAppsScriptUrl}
+                        onChange={(e) => setDates({ ...dates, googleAppsScriptUrl: e.target.value })}
+                        placeholder="https://script.google.com/macros/s/.../exec"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Token Keamanan API
+                      </label>
+                      <input
+                        type="password"
+                        value={dates.googleAppsScriptToken}
+                        onChange={(e) => setDates({ ...dates, googleAppsScriptToken: e.target.value })}
+                        placeholder="REVITSD2026_SECURE_TOKEN"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Simpan Konfigurasi
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
@@ -1408,8 +2532,8 @@ export default function Dashboard({
                       >
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0">
-                            <span className="font-bold text-slate-200 text-xs block truncate" title={school.nama_sekolah}>
-                              {school.nama_sekolah}
+                            <span className="font-bold text-slate-200 text-xs block truncate" title={school.nama_sekolah || `NPSN ${school.npsn}`}>
+                              {school.nama_sekolah || `Sekolah NPSN ${school.npsn}`}
                             </span>
                             <span className="text-[10px] text-slate-500 font-semibold block">
                               Kab. {school.kabupaten}
@@ -1438,6 +2562,72 @@ export default function Dashboard({
             );
           })()}
 
+          </div>
+        )}
+
+        {isFacilitator && (
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-850 pb-3 mb-4">
+                <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400" /> Pekerjaan Menunggu
+                </h3>
+                {facilitatorPendingTasks.length > 0 && (
+                  <span className="text-[10px] font-extrabold bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2.5 py-0.5 rounded-full animate-pulse shrink-0">
+                    {facilitatorPendingTasks.length}
+                  </span>
+                )}
+              </div>
+
+              {facilitatorPendingTasks.length === 0 ? (
+                <div className="text-center py-8 space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mx-auto">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-200 text-xs">Semua Tugas Selesai!</h4>
+                    <p className="text-[10px] text-slate-500 leading-normal mt-1">
+                      Bagus! Anda telah menyelesaikan seluruh kewajiban pelaporan dan melengkapi data sekolah dampingan Anda.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950">
+                  {facilitatorPendingTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={task.action}
+                      className="bg-slate-950/40 border border-slate-850/60 hover:border-indigo-500/40 hover:bg-indigo-950/5 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md group flex flex-col justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[8.5px] font-bold uppercase px-2 py-0.5 rounded border ${
+                            task.category === 'report'
+                              ? 'bg-purple-500/10 border-purple-500/20 text-purple-400'
+                              : task.category === 'school_doc'
+                              ? 'bg-sky-500/10 border-sky-500/20 text-sky-400'
+                              : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                          }`}>
+                            {task.category === 'report' ? 'Laporan Diri' : task.category === 'school_doc' ? 'Dokumen Sekolah' : 'Profil Sekolah'}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-200 text-xs leading-snug group-hover:text-indigo-400 transition-colors">
+                          {task.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-400 leading-normal font-normal">
+                          {task.description}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[9.5px] font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors mt-1 select-none">
+                        <span>{task.actionLabel}</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

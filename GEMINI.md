@@ -162,3 +162,15 @@ Bagian ini mencatat daftar kendala sinkronisasi yang pernah dialami beserta solu
 * **Penyebab**: Aplikasi menyimpan pengaturan URL/Token di `localStorage` (`revit_settings`), dan React memprioritaskan data dari `localStorage` dibandingkan variabel lingkungan `.env`.
 * **Solusi**: Ditambahkan logika pendeteksi perubahan `.env` di `App.jsx`. Jika variabel lingkungan `.env` berubah, aplikasi akan otomatis menimpa cache `localStorage` dengan nilai `.env` terbaru saat server dijalankan ulang.
 
+### E. Data Hilang Karena Caching Browser (GET Request Ter-Cache)
+* **Gejala**: Penambahan data baru berhasil (status "Tersambung" hijau), namun setelah sinkronisasi otomatis selesai, data yang baru saja ditambahkan mendadak hilang dari layar.
+* **Penyebab**: Browser (terutama Chrome/Edge) secara agresif melakukan *caching* pada HTTP GET request. Ketika React melakukan *pull* dari URL Apps Script yang statis, browser mengembalikan data lama dari memori *cache* lokal alih-alih menghubungi server Google secara langsung. Aplikasi mengira server telah menghapus data tersebut.
+* **Solusi**: 
+  * Tambahkan parameter *Cache-Busting* dinamis pada URL *fetch* di `api.js` (misalnya `&_t=${Date.now()}`).
+  * Sisipkan parameter opsi `cache: 'no-store'` pada pengaturan `fetch()`.
+
+### F. Data Hilang Akibat Race Condition Flag Dirty Saat Background Sync
+* **Gejala**: Pengguna menekan tombol "Simpan" (atau menghapus) tepat pada momen ketika proses sinkronisasi otomatis latar belakang sedang berlangsung. Data baru tidak tersimpan di server dan seketika terhapus dari layar pengguna.
+* **Penyebab**: Proses `pushData` ke Google Sheets memakan waktu sekitar ~2.5 detik. Pada kode lama, *flag* penanda data kotor (`revit_is_dirty`) dikembalikan menjadi `false` *SETELAH* proses `pushData` selesai. Akibatnya, jika pengguna melakukan input data baru dalam jeda 2.5 detik tersebut (yang akan mengubah *flag* menjadi `true`), *flag* tersebut akan tanpa sengaja ditimpa menjadi `false` lagi saat sinkronisasi sebelumnya selesai. Saat penarikan data (*pull*) terjadi, sistem gagal mendeteksi ada perubahan lokal yang masih tertunda dan dengan membabi-buta menimpakan data server lama ke layar pengguna.
+* **Solusi**: Pengosongan *flag* `revit_is_dirty` menjadi `false` dipindahkan posisinya menjadi *SEBELUM* fungsi `await pushData` dipanggil. Sehingga, perubahan baru oleh pengguna akan kembali menyalakan *flag* ke `true` dan mencegah penarikan data lama menghapus data lokal yang belum dikirim. Data yang tertunda lalu akan dikirim pada siklus *sync* secara rekursif.
+

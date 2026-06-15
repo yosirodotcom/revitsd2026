@@ -43,7 +43,7 @@ const getSchoolCoordinates = (school) => {
   return [base[0] + latOffset, base[1] + lngOffset];
 };
 
-export default function SchoolList({ schools, users, activeUser, onClaimSchool, onAddSchool, onSelectSchool, onUpdateSchool, tasks = [] }) {
+export default function SchoolList({ schools, users, activeUser, onClaimSchool, onAddSchool, onSelectSchool, onUpdateSchool, tasks = [], schoolDocs = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKabupaten, setSelectedKabupaten] = useState('Semua');
   const [selectedFacilitatorFilter, setSelectedFacilitatorFilter] = useState(
@@ -296,72 +296,74 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Cari Nama Sekolah / NPSN..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-          />
-        </div>
+      {!isFacilitator && (
+        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Cari Nama Sekolah / NPSN..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
 
-        {/* Kabupaten Filter */}
-        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
-          <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
-          <div className="flex-1">
-            <span className="block text-[8px] uppercase font-semibold text-slate-500">Kabupaten</span>
-            <select
-              value={selectedKabupaten}
-              onChange={(e) => setSelectedKabupaten(e.target.value)}
-              className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
-            >
-              {kabupatens.map((kab) => (
-                <option key={kab} value={kab} className="bg-slate-950">{kab}</option>
-              ))}
-            </select>
+          {/* Kabupaten Filter */}
+          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
+            <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
+            <div className="flex-1">
+              <span className="block text-[8px] uppercase font-semibold text-slate-500">Kabupaten</span>
+              <select
+                value={selectedKabupaten}
+                onChange={(e) => setSelectedKabupaten(e.target.value)}
+                className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
+              >
+                {kabupatens.map((kab) => (
+                  <option key={kab} value={kab} className="bg-slate-950">{kab}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Facilitator Assignment Filter */}
+          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
+            <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
+            <div className="flex-1">
+              <span className="block text-[8px] uppercase font-semibold text-slate-500">Fasilitator</span>
+              <select
+                value={selectedFacilitatorFilter}
+                onChange={(e) => setSelectedFacilitatorFilter(e.target.value)}
+                className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
+              >
+                {isFacilitator ? (
+                  <>
+                    <option value="Saya" className="bg-slate-950">Sekolah Saya</option>
+                    <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
+                    <option value="Semua" className="bg-slate-950">Semua Sekolah</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Semua" className="bg-slate-950">Semua</option>
+                    <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
+                    {users
+                      .filter((u) => u && (u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Ketua Tim'))
+                      .map((f) => (
+                        <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
+                      ))}
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Stats Helper */}
+          <div className="flex items-center justify-center sm:justify-end text-xs text-slate-400 font-semibold px-2">
+            Terfilter: {filteredSchools.length} dari {displaySchools.length} Sekolah
           </div>
         </div>
-
-        {/* Facilitator Assignment Filter */}
-        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
-          <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
-          <div className="flex-1">
-            <span className="block text-[8px] uppercase font-semibold text-slate-500">Fasilitator</span>
-            <select
-              value={selectedFacilitatorFilter}
-              onChange={(e) => setSelectedFacilitatorFilter(e.target.value)}
-              className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
-            >
-              {isFacilitator ? (
-                <>
-                  <option value="Saya" className="bg-slate-950">Sekolah Saya</option>
-                  <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
-                  <option value="Semua" className="bg-slate-950">Semua Sekolah</option>
-                </>
-              ) : (
-                <>
-                  <option value="Semua" className="bg-slate-950">Semua</option>
-                  <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
-                  {users
-                    .filter((u) => u && (u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Ketua Tim'))
-                    .map((f) => (
-                      <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
-                    ))}
-                </>
-              )}
-            </select>
-          </div>
-        </div>
-
-        {/* Stats Helper */}
-        <div className="flex items-center justify-center sm:justify-end text-xs text-slate-400 font-semibold px-2">
-          Terfilter: {filteredSchools.length} dari {displaySchools.length} Sekolah
-        </div>
-      </div>
+      )}
 
       {/* Grid List / Map View */}
       {viewMode === 'map' ? (
@@ -398,8 +400,9 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                 <tr>
                   <th className="px-6 py-4">Nama Sekolah Dasar / NPSN</th>
                   <th className="px-6 py-4">Kabupaten</th>
-                  <th className="px-6 py-4">Fasilitator Pendamping</th>
+                  {!isFacilitator && <th className="px-6 py-4">Fasilitator Pendamping</th>}
                   <th className="px-6 py-4">Progres Fisik</th>
+                  <th className="px-6 py-4">Kelengkapan Data</th>
                   <th className="px-6 py-4 text-right">Aksi</th>
                 </tr>
               </thead>
@@ -435,15 +438,17 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                       </td>
 
                       {/* Facilitator */}
-                      <td className="px-6 py-4 font-medium">
-                        {school.fasilitatorId ? (
-                          <span className="text-slate-250 font-semibold">
-                            {users.find((u) => u.id === school.fasilitatorId)?.nama || 'Belum ditugaskan'}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 italic">Belum ditugaskan</span>
-                        )}
-                      </td>
+                      {!isFacilitator && (
+                        <td className="px-6 py-4 font-medium">
+                          {school.fasilitatorId ? (
+                            <span className="text-slate-250 font-semibold">
+                              {users.find((u) => u.id === school.fasilitatorId)?.nama || 'Belum ditugaskan'}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 italic">Belum ditugaskan</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Progress */}
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
@@ -481,6 +486,73 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                           </div>
                           <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">{school.progres_fisik}%</span>
                         </div>
+                      </td>
+
+                      {/* Kelengkapan */}
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                           // 1. Profil
+                           const profileFields = [
+                             school.kecamatan,
+                             school.desa,
+                             school.koordinat,
+                             school.kepala_sekolah,
+                             school.hp_kepala_sekolah,
+                             school.perencanaId,
+                             school.pengawasId,
+                             school.tanggal_mulai_sekolah
+                           ];
+                           const pFilled = profileFields.filter(f => f && String(f).trim() !== '').length;
+                           const pTotal = profileFields.length;
+                           
+                           // 2. Dokumen Teknis
+                           const docCategories = ['administrasi', 'teknis', 'rab_fisik', 'rab_meubeler', 'rab_manajemen', 'kurva_s', 'berita_acara', 'pks'];
+                           
+                           // 3. Laporan
+                           const reportCategories = ['lap_pendahuluan', 'lap_harian', 'lap_mingguan', 'lap_bulanan', 'lap_progres_50', 'lap_progres_100', 'lap_akhir', 'lap_lainnya'];
+
+                           const myDocs = schoolDocs ? schoolDocs.filter(d => d.sekolahId === school.npsn) : [];
+                           const tFilled = new Set(myDocs.filter(d => docCategories.includes(d.category)).map(d => d.category)).size;
+                           const tTotal = docCategories.length;
+
+                           const rFilled = new Set(myDocs.filter(d => reportCategories.includes(d.category)).map(d => d.category)).size;
+                           const rTotal = reportCategories.length;
+                           
+                           const getStatusColor = (filled, total) => {
+                             const pct = Math.round((filled / total) * 100);
+                             if (pct === 100) return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+                             if (pct > 0) return 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20';
+                             return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+                           };
+
+                           return (
+                             <div className="flex flex-col gap-1.5">
+                               {/* Profil */}
+                               <div className="flex items-center gap-2" title={`${pFilled} dari ${pTotal} data profil terisi`}>
+                                 <div className={`px-1.5 py-0.5 rounded border ${getStatusColor(pFilled, pTotal)} text-[9px] font-bold min-w-[36px] text-center`}>
+                                   {pFilled}/{pTotal}
+                                 </div>
+                                 <span className="text-[10px] text-slate-400 font-medium">Profil</span>
+                               </div>
+                               
+                               {/* Dokumen Teknis */}
+                               <div className="flex items-center gap-2" title={`${tFilled} dari ${tTotal} dokumen teknis terisi`}>
+                                 <div className={`px-1.5 py-0.5 rounded border ${getStatusColor(tFilled, tTotal)} text-[9px] font-bold min-w-[36px] text-center`}>
+                                   {tFilled}/{tTotal}
+                                 </div>
+                                 <span className="text-[10px] text-slate-400 font-medium">Dokumen</span>
+                               </div>
+
+                               {/* Laporan */}
+                               <div className="flex items-center gap-2" title={`${rFilled} dari ${rTotal} laporan terisi`}>
+                                 <div className={`px-1.5 py-0.5 rounded border ${getStatusColor(rFilled, rTotal)} text-[9px] font-bold min-w-[36px] text-center`}>
+                                   {rFilled}/{rTotal}
+                                 </div>
+                                 <span className="text-[10px] text-slate-400 font-medium">Laporan</span>
+                               </div>
+                             </div>
+                           );
+                        })()}
                       </td>
 
                       {/* Actions */}

@@ -31,8 +31,6 @@ export default function FinancialDashboard({
   }); // 'recap' | 'payroll' | 'trips' | 'settings'
   const [isAddingAtk, setIsAddingAtk] = useState(false);
   const [localUsers, setLocalUsers] = useState([]);
-  const [isEditingOperasional, setIsEditingOperasional] = useState(false);
-  const [editOperasionalVal, setEditOperasionalVal] = useState('');
 
   useEffect(() => {
     if (users) {
@@ -137,6 +135,9 @@ export default function FinancialDashboard({
   // Percentage Calculations for Chart
   const pctOperasional = grandTotal > 0 ? Math.round((biayaOperasional / grandTotal) * 100) : 0;
   const pctNonOperasional = grandTotal > 0 ? Math.round((biayaNonOperasional / grandTotal) * 100) : 0;
+  const pctAtk = grandTotal > 0 ? Math.round((totalAtk / grandTotal) * 100) : 0;
+  const pctHonor = grandTotal > 0 ? Math.round((totalHonor / grandTotal) * 100) : 0;
+  const pctDinas = grandTotal > 0 ? Math.round((totalDinas / grandTotal) * 100) : 0;
 
   // 2. PAYROLL ELIGIBILITY CALCULATION FOR A USER
   const getUserPayrollStatus = (user, month) => {
@@ -441,73 +442,28 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
               <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-indigo-500/5 rounded-full blur-xl"></div>
             </div>
             
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Biaya Operasional</span>
-                {isEditingOperasional ? (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-xs font-bold text-slate-400">Rp</span>
-                    <input
-                      type="text"
-                      value={formatNumberWithDots(editOperasionalVal)}
-                      onChange={(e) => setEditOperasionalVal(parseNumberFromDots(e.target.value))}
-                      className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-100 font-bold focus:outline-none focus:border-indigo-500 w-32"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        onUpdateSettings({
-                          ...settings,
-                          biayaOperasional: Number(editOperasionalVal)
-                        });
-                        setIsEditingOperasional(false);
-                      }}
-                      className="p-1 rounded bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
-                      title="Simpan"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setIsEditingOperasional(false)}
-                      className="p-1 rounded bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
-                      title="Batal"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <h3 className="text-xl md:text-2xl font-extrabold text-teal-400">Rp {biayaOperasional.toLocaleString('id-ID')}</h3>
-                    {isAdministrasi && (
-                      <button
-                        onClick={() => {
-                          setIsEditingOperasional(true);
-                          setEditOperasionalVal(biayaOperasional);
-                        }}
-                        className="text-slate-500 hover:text-teal-400 transition-colors p-1 cursor-pointer"
-                        title="Ubah Biaya Operasional"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Pengeluaran ATK</span>
+                <h3 className="text-xl md:text-2xl font-extrabold text-teal-400 mt-1">Rp {totalAtk.toLocaleString('id-ID')}</h3>
               </div>
-              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctOperasional}% dari total biaya</span>
+              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctAtk}% dari total biaya</span>
             </div>
 
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Biaya Non-Operasional (Honor)</span>
-                <h3 className="text-xl md:text-2xl font-extrabold text-indigo-400 mt-1">Rp {biayaNonOperasional.toLocaleString('id-ID')}</h3>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Pengeluaran Honor</span>
+                <h3 className="text-xl md:text-2xl font-extrabold text-indigo-400 mt-1">Rp {totalHonor.toLocaleString('id-ID')}</h3>
               </div>
-              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctNonOperasional}% dari total biaya</span>
+              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctHonor}% dari total biaya</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Sisa Anggaran Proyek</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-amber-400 mt-1">Rp {(financialSettings.totalProjectContract - grandTotal).toLocaleString('id-ID')}</h3>
-              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{Math.round(((financialSettings.totalProjectContract - grandTotal) / financialSettings.totalProjectContract) * 100)}% Sisa Anggaran</span>
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Biaya Perjalanan Dinas</span>
+                <h3 className="text-xl md:text-2xl font-extrabold text-amber-400 mt-1">Rp {totalDinas.toLocaleString('id-ID')}</h3>
+              </div>
+              <span className="text-[9px] text-slate-500 font-semibold block mt-1">{pctDinas}% dari total biaya</span>
             </div>
           </div>
 
@@ -526,23 +482,30 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
                 <div className="space-y-4">
                   {/* Progress Flex-Bar */}
                   <div className="w-full bg-slate-850 h-6 rounded-xl overflow-hidden flex">
-                    {biayaOperasional > 0 && <div className="bg-teal-500 h-full" style={{ width: `${pctOperasional}%` }} title="Biaya Operasional" />}
-                    {biayaNonOperasional > 0 && <div className="bg-indigo-500 h-full" style={{ width: `${pctNonOperasional}%` }} title="Biaya Non-Operasional" />}
+                    {totalAtk > 0 && <div className="bg-teal-500 h-full" style={{ width: `${pctAtk}%` }} title="ATK" />}
+                    {totalHonor > 0 && <div className="bg-indigo-500 h-full" style={{ width: `${pctHonor}%` }} title="Honor" />}
+                    {totalDinas > 0 && <div className="bg-amber-500 h-full" style={{ width: `${pctDinas}%` }} title="Perjalanan Dinas" />}
                   </div>
 
                   {/* Legend list */}
                   <div className="space-y-2.5 text-xs text-slate-400">
                     <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
                       <span className="flex items-center gap-1.5 font-medium">
-                        <span className="w-2.5 h-2.5 bg-teal-500 rounded-full"></span> Biaya Operasional (Manual/Default)
+                        <span className="w-2.5 h-2.5 bg-teal-500 rounded-full"></span> ATK (Kertas, Tinta, dll.)
                       </span>
-                      <span className="font-bold text-slate-200">{pctOperasional}%</span>
+                      <span className="font-bold text-slate-200">{pctAtk}%</span>
                     </div>
                     <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
                       <span className="flex items-center gap-1.5 font-medium">
-                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span> Biaya Non-Operasional (Honor)
+                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></span> Honor Pelaksana
                       </span>
-                      <span className="font-bold text-slate-200">{pctNonOperasional}%</span>
+                      <span className="font-bold text-slate-200">{pctHonor}%</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-xl border border-slate-850">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span> Perjalanan Dinas
+                      </span>
+                      <span className="font-bold text-slate-200">{pctDinas}%</span>
                     </div>
                   </div>
                 </div>

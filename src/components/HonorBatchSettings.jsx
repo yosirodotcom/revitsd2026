@@ -364,7 +364,7 @@ Status pembayaran akan kembali menjadi "Layak" atau "Belum" sesuai dengan progre
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[10px] text-rose-405 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full font-bold">
-                          ✗ Belum Layak
+                          <img src="/cross_icon.png" alt="✗" className="w-3 h-3 object-contain shrink-0" /> Belum Layak
                         </span>
                       )}
                     </td>

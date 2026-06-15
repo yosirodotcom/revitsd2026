@@ -17,11 +17,37 @@ import {
   Image,
   Youtube,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Paperclip,
+  File
 } from 'lucide-react';
+
+const getDirectImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url;
+  
+  if (url.includes('drive.google.com')) {
+    let fileId = null;
+    const idMatch = url.match(/id=([^&]+)/);
+    if (idMatch && idMatch[1]) {
+      fileId = idMatch[1];
+    } else {
+      const dMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (dMatch && dMatch[1]) {
+        fileId = dMatch[1];
+      }
+    }
+    if (fileId) {
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+    }
+  }
+  return url;
+};
 
 export default function MeetingManagement({ 
   meetings, 
+  meetingDocs = [],
   users, 
   activeUser, 
   onAddMeeting, 
@@ -34,12 +60,15 @@ export default function MeetingManagement({
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [notulenMeeting, setNotulenMeeting] = useState(null); // Rapat yang sedang diisi notulennya saja
   const [selectedMeetingDetail, setSelectedMeetingDetail] = useState(null); // Rapat yang sedang dilihat detailnya
+  const [formDocs, setFormDocs] = useState([]);
 
   const isSuperAdmin = activeUser.jabatanTim === 'Super Admin';
 
   const [formData, setFormData] = useState({
     judul: '',
     tanggal: '',
+    isMultiDay: false,
+    tanggalSelesai: '',
     jam: '',
     lokasi: '',
     pesertaIds: [],
@@ -56,6 +85,8 @@ export default function MeetingManagement({
     setFormData({
       judul: '',
       tanggal: '',
+      isMultiDay: false,
+      tanggalSelesai: '',
       jam: '',
       lokasi: '',
       pesertaIds: [],
@@ -64,6 +95,7 @@ export default function MeetingManagement({
       linkYoutube: ''
     });
     setPreviewImage(null);
+    setFormDocs([]);
     setIsAdding(false);
     setEditingMeeting(null);
   };
@@ -74,6 +106,8 @@ export default function MeetingManagement({
     setFormData({
       judul: meeting.judul || '',
       tanggal: meeting.tanggal || '',
+      isMultiDay: !!meeting.isMultiDay,
+      tanggalSelesai: meeting.tanggalSelesai || '',
       jam: meeting.jam || '',
       lokasi: meeting.lokasi || '',
       pesertaIds: meeting.pesertaIds || [],
@@ -81,6 +115,8 @@ export default function MeetingManagement({
       fotoKegiatan: meeting.fotoKegiatan || '',
       linkYoutube: meeting.linkYoutube || ''
     });
+    const existingDocs = meetingDocs ? meetingDocs.filter(d => d.meetingId === meeting.id) : [];
+    setFormDocs(existingDocs);
     setPreviewImage(meeting.fotoKegiatan || null);
     setIsAdding(false);
   };
@@ -134,28 +170,110 @@ export default function MeetingManagement({
     };
   };
 
+  // Handle Document Upload
+  const handleDocUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+      // 1.5MB size limit to prevent localStorage storage issues
+      if (file.size > 1.5 * 1024 * 1024) {
+        return window.showAlert(`Ukuran file "${file.name}" terlalu besar! Maksimal 1.5MB.`);
+      }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const newDoc = {
+          id: `doc-meet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          meetingId: editingMeeting ? editingMeeting.id : '',
+          name: file.name,
+          fileData: event.target.result, // Base64 Data URL
+          size: file.size,
+          uploadedBy: activeUser.nama,
+          uploadedAt: new Date().toISOString()
+        };
+        setFormDocs(prev => [...prev, newDoc]);
+      };
+    });
+    // Clear value
+    e.target.value = '';
+  };
+
+  // Remove doc from form selection list
+  const handleDeleteFormDoc = (docId) => {
+    setFormDocs(prev => prev.filter(d => d.id !== docId));
+  };
+
+  // Download or view document (handles local base64 and remote Google Drive URLs)
+  const downloadDocument = (doc) => {
+    try {
+      if (!doc.fileData) return window.showAlert('File tidak memiliki data');
+      
+      if (doc.fileData.startsWith('http')) {
+        window.open(doc.fileData, '_blank');
+        return;
+      }
+      
+      const arr = doc.fileData.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const file = new Blob([u8arr], { type: mime });
+      const fileUrl = URL.createObjectURL(file);
+      
+      const a = document.createElement('a');
+      a.href = fileUrl;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(fileUrl);
+    } catch (err) {
+      console.error(err);
+      window.showAlert('Gagal mengunduh dokumen');
+    }
+  };
+
   // Submit Form Rapat (Tambah/Edit)
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.judul.trim()) return window.showAlert('Judul rapat wajib diisi');
     if (!formData.tanggal) return window.showAlert('Tanggal rapat wajib diisi');
-    if (!formData.jam) return window.showAlert('Jam rapat wajib diisi');
+    if (formData.isMultiDay) {
+      if (!formData.tanggalSelesai) return window.showAlert('Tanggal selesai rapat wajib diisi');
+      if (formData.tanggalSelesai < formData.tanggal) {
+        return window.showAlert('Tanggal selesai tidak boleh sebelum tanggal mulai');
+      }
+    } else {
+      if (!formData.jam) return window.showAlert('Jam rapat wajib diisi');
+    }
     if (!formData.lokasi.trim()) return window.showAlert('Lokasi rapat wajib diisi');
     if (formData.pesertaIds.length === 0) return window.showAlert('Pilih minimal satu peserta rapat');
+
+    const cleanData = {
+      ...formData,
+      jam: formData.isMultiDay ? '' : formData.jam,
+      tanggalSelesai: formData.isMultiDay ? formData.tanggalSelesai : ''
+    };
 
     if (editingMeeting) {
       onUpdateMeeting({
         ...editingMeeting,
-        ...formData
-      });
+        ...cleanData
+      }, formDocs);
       window.showAlert('Data rapat berhasil diperbarui');
     } else {
       const newMeeting = {
         id: 'meet-' + Date.now(),
-        ...formData,
+        ...cleanData,
         createdAt: new Date().toISOString()
       };
-      onAddMeeting(newMeeting);
+      onAddMeeting(newMeeting, formDocs);
       window.showAlert('Rapat baru berhasil dijadwalkan');
     }
     resetForm();
@@ -194,6 +312,18 @@ export default function MeetingManagement({
       .toUpperCase();
   };
 
+  // Helper to determine meeting status
+  const getMeetingStatus = (meet, todayStr) => {
+    const startDate = meet.tanggal ? meet.tanggal.substring(0, 10) : '';
+    const endDate = meet.isMultiDay 
+      ? (meet.tanggalSelesai ? meet.tanggalSelesai.substring(0, 10) : startDate)
+      : startDate;
+    
+    if (endDate < todayStr) return 'selesai';
+    if (startDate <= todayStr && todayStr <= endDate) return 'ongoing';
+    return 'upcoming';
+  };
+
   // Toggle Selection Peserta
   const togglePeserta = (userId) => {
     setFormData(prev => {
@@ -226,6 +356,37 @@ export default function MeetingManagement({
 
   // Filter & Search Logic
   const filteredMeetings = meetings.filter(meeting => {
+    // Enforce hierarchy filter
+    const isMeetingVisible = (meet) => {
+      if (!activeUser) return true;
+      const role = activeUser.jabatanTim;
+      if (role === 'Super Admin') return true;
+      
+      const participants = meet.pesertaIds || [];
+      if (participants.includes(activeUser.id)) return true;
+      
+      if (role === 'Fasilitator' || role === 'Tenaga Administrasi') {
+        return false;
+      }
+      
+      if (participants.length === 0) return true;
+      
+      return participants.some(pid => {
+        const pUser = users.find(u => u.id === pid);
+        const pRole = pUser ? pUser.jabatanTim : '';
+        
+        if (role === 'Ketua Tim') {
+          return pRole !== 'Super Admin';
+        }
+        if (role === 'Koordinator') {
+          return pRole !== 'Super Admin' && pRole !== 'Ketua Tim';
+        }
+        return false;
+      });
+    };
+
+    if (!isMeetingVisible(meeting)) return false;
+
     const matchesSearch = 
       meeting.judul.toLowerCase().includes(searchTerm.toLowerCase()) || 
       meeting.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -233,15 +394,15 @@ export default function MeetingManagement({
 
     const localSettings = JSON.parse(localStorage.getItem('revit_settings') || '{}');
     const todayStr = localSettings.simulatedToday || new Date().toISOString().split('T')[0];
-    const isPast = meeting.tanggal < todayStr;
+    const status = getMeetingStatus(meeting, todayStr);
     
     if (statusFilter === 'akan-datang') {
-      return matchesSearch && !isPast;
+      return matchesSearch && status !== 'selesai';
     } else if (statusFilter === 'selesai') {
-      return matchesSearch && isPast;
+      return matchesSearch && status === 'selesai';
     }
     return matchesSearch;
-  }).sort((a, b) => b.tanggal.localeCompare(a.tanggal) || b.jam.localeCompare(a.jam));
+  }).sort((a, b) => b.tanggal.localeCompare(a.tanggal) || (b.jam || '').localeCompare(a.jam || ''));
 
   return (
     <div className="space-y-6 animate-fade-in p-2 md:p-6">
@@ -338,7 +499,8 @@ export default function MeetingManagement({
               {filteredMeetings.map((meet) => {
                 const localSettings = JSON.parse(localStorage.getItem('revit_settings') || '{}');
                 const todayStr = localSettings.simulatedToday || new Date().toISOString().split('T')[0];
-                const isPast = meet.tanggal < todayStr;
+                const status = getMeetingStatus(meet, todayStr);
+                const isPast = status === 'selesai';
 
                 return (
                   <div 
@@ -346,35 +508,47 @@ export default function MeetingManagement({
                     className="bg-slate-900/30 backdrop-blur-md border border-slate-850 hover:border-slate-800 rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-lg shadow-indigo-600/[0.02] relative group overflow-hidden"
                   >
                     
-                    {/* Status Badge */}
-                    <div className="absolute top-5 right-5">
-                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border tracking-wide uppercase ${
-                        isPast
-                          ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                          : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                      }`}>
-                        {isPast ? 'Selesai' : 'Akan Datang'}
-                      </span>
-                    </div>
-
                     <div className="space-y-4">
-                      {/* Info Utama */}
-                      <div className="space-y-1.5 pr-20">
-                        <h3 
-                          onClick={() => setSelectedMeetingDetail(meet)}
-                          className="text-sm md:text-base font-extrabold text-slate-100 hover:text-indigo-400 cursor-pointer group-hover:underline transition-all leading-tight"
-                        >
-                          {meet.judul}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-450 text-[11px] font-medium pt-1">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                            {meet.tanggal} • Pukul {meet.jam}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            {meet.lokasi}
-                          </span>
+                      {/* Info Utama & Status Badge */}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <h3 
+                            onClick={() => setSelectedMeetingDetail(meet)}
+                            className="text-sm md:text-base font-extrabold text-slate-100 hover:text-indigo-400 cursor-pointer group-hover:underline transition-all leading-tight break-words"
+                          >
+                            {meet.judul}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-450 text-[11px] font-medium pt-1">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                              {meet.isMultiDay ? (
+                                `${meet.tanggal} s.d. ${meet.tanggalSelesai} • Multi-Hari`
+                              ) : (
+                                `${meet.tanggal} • Pukul ${meet.jam}`
+                              )}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              {meet.lokasi}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="shrink-0 pt-0.5">
+                          {status === 'selesai' ? (
+                            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border tracking-wide uppercase bg-slate-500/10 text-slate-400 border-slate-500/20 whitespace-nowrap">
+                              Selesai
+                            </span>
+                          ) : status === 'ongoing' ? (
+                            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border-emerald-500/20 whitespace-nowrap">
+                              Sedang Berlangsung
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20 whitespace-nowrap">
+                              Akan Datang
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -538,10 +712,30 @@ export default function MeetingManagement({
                 <input
                   type="date"
                   value={formData.tanggal}
-                  onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    tanggal: e.target.value,
+                    tanggalSelesai: formData.isMultiDay && (!formData.tanggalSelesai || formData.tanggalSelesai < e.target.value) ? e.target.value : formData.tanggalSelesai
+                  })}
                   className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono cursor-pointer"
                   required
                 />
+                <div className="flex items-center gap-2 pt-1 select-none">
+                  <input
+                    type="checkbox"
+                    id="isMultiDay"
+                    checked={formData.isMultiDay}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      isMultiDay: e.target.checked,
+                      tanggalSelesai: e.target.checked ? (formData.tanggalSelesai || formData.tanggal) : ''
+                    })}
+                    className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-650 focus:ring-indigo-600 focus:ring-opacity-25 cursor-pointer"
+                  />
+                  <label htmlFor="isMultiDay" className="text-[11px] font-semibold text-slate-300 cursor-pointer">
+                    Rapat diselenggarakan sampai tanggal tertentu
+                  </label>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -550,12 +744,33 @@ export default function MeetingManagement({
                 </label>
                 <input
                   type="time"
-                  value={formData.jam}
+                  value={formData.isMultiDay ? '' : formData.jam}
                   onChange={(e) => setFormData({ ...formData, jam: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono cursor-pointer"
-                  required
+                  disabled={formData.isMultiDay}
+                  className={`w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs focus:outline-none transition-colors font-mono ${
+                    formData.isMultiDay 
+                      ? 'text-slate-600 border-slate-900 bg-slate-950/40 cursor-not-allowed opacity-50' 
+                      : 'text-slate-100 focus:border-indigo-500 cursor-pointer'
+                  }`}
+                  required={!formData.isMultiDay}
                 />
               </div>
+
+              {formData.isMultiDay && (
+                <div className="space-y-2 md:col-span-2 animate-fade-in">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
+                    Sampai Tanggal (Tanggal Selesai Rapat)
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.tanggalSelesai}
+                    min={formData.tanggal}
+                    onChange={(e) => setFormData({ ...formData, tanggalSelesai: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-550 transition-colors font-mono cursor-pointer"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
@@ -665,6 +880,60 @@ export default function MeetingManagement({
               )}
             </div>
 
+            {/* Lampiran Dokumen Area */}
+            <div className="space-y-3 pt-2">
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
+                Dokumen Lampiran / Bahan Rapat (Maks 1.5MB per file)
+              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 bg-slate-900 border border-slate-850 hover:bg-slate-850 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-200 hover:text-white cursor-pointer transition-colors shadow-sm select-none">
+                  <Paperclip className="w-4 h-4 text-indigo-400" /> Unggah Dokumen
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/*"
+                    onChange={handleDocUpload}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-[10px] text-slate-500 leading-tight">
+                  Mendukung berkas PDF, Word, Excel, PPT, Teks, atau Gambar.
+                </span>
+              </div>
+
+              {/* List of uploaded documents */}
+              {formDocs.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                  {formDocs.map((doc) => (
+                    <div 
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-950/40 border border-slate-850 text-slate-200 select-none"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <File className="w-4 h-4 text-indigo-400 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate text-slate-200" title={doc.name}>
+                            {doc.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Dokumen'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFormDoc(doc.id)}
+                        className="p-1 rounded-lg hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-colors border-0 bg-transparent cursor-pointer"
+                        title="Hapus dokumen"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Notulen / Keterangan Awal */}
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
@@ -724,7 +993,13 @@ export default function MeetingManagement({
             <form onSubmit={handleSaveNotulen} className="space-y-4">
               <div className="text-[11px] text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-850 leading-relaxed font-medium">
                 <div className="font-bold text-slate-300">Detail Pertemuan:</div>
-                <div className="mt-1">Tanggal & Waktu: {notulenMeeting.tanggal} pukul {notulenMeeting.jam}</div>
+                <div className="mt-1">
+                  Waktu Pelaksanaan: {notulenMeeting.isMultiDay ? (
+                    `${notulenMeeting.tanggal} s.d. ${notulenMeeting.tanggalSelesai} (Multi-Hari)`
+                  ) : (
+                    `${notulenMeeting.tanggal} pukul ${notulenMeeting.jam}`
+                  )}
+                </div>
                 <div>Tempat / Lokasi: {notulenMeeting.lokasi}</div>
               </div>
 
@@ -781,7 +1056,11 @@ export default function MeetingManagement({
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-450 text-[11px] font-medium pt-0.5">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                    {selectedMeetingDetail.tanggal} • Pukul {selectedMeetingDetail.jam}
+                    {selectedMeetingDetail.isMultiDay ? (
+                      `${selectedMeetingDetail.tanggal} s.d. ${selectedMeetingDetail.tanggalSelesai} • Multi-Hari`
+                    ) : (
+                      `${selectedMeetingDetail.tanggal} • Pukul ${selectedMeetingDetail.jam}`
+                    )}
                   </span>
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -848,6 +1127,54 @@ export default function MeetingManagement({
                   </div>
                 </div>
 
+                {/* Dokumen Lampiran Rapat */}
+                <div className="space-y-2 pt-2">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">
+                    <Paperclip className="w-4 h-4 text-indigo-400" /> Dokumen Pendukung / Lampiran ({
+                      (meetingDocs || []).filter(d => d.meetingId === selectedMeetingDetail.id).length
+                    })
+                  </h4>
+                  {(() => {
+                    const currentDocs = (meetingDocs || []).filter(d => d.meetingId === selectedMeetingDetail.id);
+                    if (currentDocs.length === 0) {
+                      return (
+                        <p className="text-xs text-slate-500 italic select-none pl-1">
+                          Tidak ada berkas lampiran pendukung rapat yang diunggah.
+                        </p>
+                      );
+                    }
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {currentDocs.map((doc) => (
+                          <div 
+                            key={doc.id}
+                            className="flex items-center justify-between p-3 rounded-xl bg-slate-950/40 border border-slate-850/60 select-none hover:border-indigo-500/25 transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <File className="w-4 h-4 text-indigo-400 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-slate-200 truncate pr-1" title={doc.name}>
+                                  {doc.name}
+                                </p>
+                                <p className="text-[9px] text-slate-500">
+                                  {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Dokumen'}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => downloadDocument(doc)}
+                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-400 hover:text-indigo-300 transition-all cursor-pointer"
+                              title="Buka / Unduh Dokumen"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
               </div>
 
               {/* Right Column: Foto Dokumentasi & Embed YouTube (5/12) */}
@@ -866,7 +1193,7 @@ export default function MeetingManagement({
                         title="Klik untuk membuka dalam ukuran penuh"
                       >
                         <img 
-                          src={selectedMeetingDetail.fotoKegiatan} 
+                          src={getDirectImageUrl(selectedMeetingDetail.fotoKegiatan)} 
                           alt="Dokumentasi Rapat" 
                           className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300" 
                         />

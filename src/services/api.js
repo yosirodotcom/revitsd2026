@@ -26,8 +26,8 @@ export const syncService = {
     const { url, token } = this.getApiConfig();
     if (!url) throw new Error('API URL belum dikonfigurasi di Pengaturan.');
 
-    const fetchUrl = `${url}?token=${encodeURIComponent(token)}`;
-    const response = await fetch(fetchUrl);
+    const fetchUrl = `${url}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
+    const response = await fetch(fetchUrl, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
     
     const data = await response.json();
@@ -57,20 +57,25 @@ export const syncService = {
           honorKoordinator: state.settings.honorKoordinator || 6000000,
           honorFasilitator: state.settings.honorFasilitator || 5000000,
           honorAdministrasi: state.settings.honorAdministrasi || 5000000,
-          deductionAdminFlat: state.settings.deductionAdminFlat || 100000,
-          deductionAdminKetuaTim: state.settings.deductionAdminKetuaTim || 100000,
-          deductionAdminKoordinator: state.settings.deductionAdminKoordinator || 100000,
-          deductionAdminFasilitator: state.settings.deductionAdminFasilitator || 100000,
-          deductionAdminAdministrasi: state.settings.deductionAdminAdministrasi || 100000,
           deductionTaxPct: state.settings.deductionTaxPct || 15,
           deductionLembagaPct: state.settings.deductionLembagaPct || 10,
           biayaOperasional: state.settings.biayaOperasional || 0
         },
         users: state.users,
-        schools: state.schools,
+        schools: (state.schools || []).map(s => ({
+          ...s,
+          nama: s.nama_sekolah || s.nama || '',
+          kepalaSekolah: s.kepala_sekolah || s.kepalaSekolah || ''
+        })),
         contacts: state.contacts,
         tasks: state.tasks,
-        trips: state.trips,
+        trips: (state.trips || []).map(t => ({
+          ...t,
+          schoolId: t.sekolahId || t.schoolId || '',
+          date: t.tanggalMulai || t.date || '',
+          duration: t.durasiHari || t.duration || 1,
+          status: t.statusPersetujuan === 'approved' ? 'completed' : 'planned'
+        })),
         logs: (state.logs || []).map(l => ({
           ...l,
           // Strip Base64 foto jika sudah berupa URL Drive (mengurangi ukuran payload)
@@ -89,6 +94,14 @@ export const syncService = {
           fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
         })),
         personnel_docs: (state.personnelDocs || []).map(d => ({
+          ...d,
+          fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
+        })),
+        meeting_docs: (state.meetingDocs || []).map(d => ({
+          ...d,
+          fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
+        })),
+        trip_docs: (state.tripDocs || []).map(d => ({
           ...d,
           fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
         })),

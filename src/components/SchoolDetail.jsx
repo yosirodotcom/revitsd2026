@@ -3,7 +3,7 @@ import {
   ArrowLeft, Edit2, Check, X, ShieldAlert, Award, FileCheck, 
   CheckCircle2, AlertTriangle, ListTodo, Plus, Trash2, Calendar, 
   ChevronRight, Play, CheckCircle, AlertCircle, Phone, User, Pencil,
-  Download, FileText
+  Download, FileText, Sparkles
 } from 'lucide-react';
 
 export default function SchoolDetail({ 
@@ -223,7 +223,7 @@ export default function SchoolDetail({
       priority: taskForm.priority,
       status: 'todo',
       dueDate: taskForm.dueDate || new Date().toISOString().split('T')[0],
-      assignedTo: school.fasilitatorId || activeUser.id,
+      assignedTo: school.fasilitatorId || (activeUser ? activeUser.id : ''),
     };
 
     onAddTask(newTask);
@@ -262,10 +262,11 @@ export default function SchoolDetail({
     return user ? user.nama : 'Belum Ditugaskan';
   };
 
-  const isMySchool = school.fasilitatorId === activeUser.id;
-  const isAuthorizedToEdit = isMySchool || activeUser.role === 'admin';
-  const isReviuAuthorized = activeUser.jabatanTim === 'Koordinator' || activeUser.role === 'admin';
+  const isMySchool = activeUser ? school.fasilitatorId === activeUser.id : false;
+  const isAuthorizedToEdit = activeUser ? (isMySchool || activeUser.role === 'admin') : false;
+  const isReviuAuthorized = activeUser ? (activeUser.jabatanTim === 'Koordinator' || activeUser.role === 'admin') : false;
   const canDeleteDoc = (file) => {
+    if (!activeUser) return false;
     return (
       isAuthorizedToEdit ||
       file.uploadedBy === activeUser.nama ||
@@ -328,7 +329,7 @@ export default function SchoolDetail({
         fileName: file.name,
         fileSize: (file.size / 1024).toFixed(1) + ' KB',
         fileData: event.target.result, // Base64 data URL
-        uploadedBy: activeUser.nama,
+        uploadedBy: activeUser ? activeUser.nama : 'Guest',
         uploadedAt: new Date().toISOString()
       };
 
@@ -1106,9 +1107,21 @@ export default function SchoolDetail({
               <div className="space-y-6">
                 
                 {/* Manual Progress Slider */}
-                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
-                  <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-4 border-b border-slate-800 pb-2 select-none">
-                    Update Progres Konstruksi
+                <div className={isAuthorizedToEdit ? 'card-update-progress-glow rounded-2xl p-6 transition-all duration-300' : 'bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 transition-all duration-300'}>
+                  <h3 className="font-semibold text-slate-200 text-sm flex items-center justify-between gap-2 mb-4 border-b border-slate-800 pb-2 select-none">
+                    <span className="flex items-center gap-2">
+                      {isAuthorizedToEdit && <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />}
+                      Update Progres Konstruksi
+                    </span>
+                    {isAuthorizedToEdit && (
+                      <span className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20 shadow-sm">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-400"></span>
+                        </span>
+                        Fokus Utama
+                      </span>
+                    )}
                   </h3>
                   {isAuthorizedToEdit ? (
                     <div className="space-y-4">
@@ -1121,7 +1134,7 @@ export default function SchoolDetail({
                           onChange={(e) => setProgresInput(e.target.value)}
                           className="flex-1 accent-indigo-500 h-2 rounded-lg appearance-none cursor-pointer focus:outline-none"
                           style={{
-                            background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${progresInput || 0}%, #0f172a ${progresInput || 0}%, #0f172a 100%)`
+                            background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${progresInput || 0}%, #e2e8f0 ${progresInput || 0}%, #e2e8f0 100%)`
                           }}
                         />
                         <div className="w-16">

@@ -358,3 +358,154 @@ input[type="date"] {
   box-shadow: 0 2px 10px rgba(221, 44, 0, 0.45) !important;
 }
 
+/* Premium diagonal stripes pattern for weekend columns in Gantt Timeline */
+.weekend-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(226, 232, 240, 0.45) 0px,
+    rgba(226, 232, 240, 0.45) 8px,
+    rgba(241, 245, 249, 0.45) 8px,
+    rgba(241, 245, 249, 0.45) 16px
+  ) !important;
+}
+
+@property --rotate {
+  syntax: "<angle>";
+  initial-value: 132deg;
+  inherits: false;
+}
+
+@keyframes glow-spin {
+  0% {
+    --rotate: 0deg;
+  }
+  100% {
+    --rotate: 360deg;
+  }
+}
+
+@keyframes cardScalePulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.018);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.card-update-progress-glow {
+  background-color: transparent !important;
+  background: transparent !important;
+  position: relative !important;
+  border-color: transparent !important;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  z-index: 1 !important;
+  animation: cardScalePulse 4s ease-in-out infinite !important;
+}
+
+/* Ensure all elements inside the card render above the solid white background */
+.card-update-progress-glow > * {
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+/* ::before creates the rotating border gradient */
+.card-update-progress-glow::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 20px;
+  background-image: linear-gradient(
+    var(--rotate),
+    #5ddcff,
+    #3c67e3 43%,
+    #4e00c2
+  );
+  animation: glow-spin 2.5s linear infinite;
+  transition: opacity 0.5s ease;
+}
+
+/* ::after acts as the solid white card background, covering the center of ::before */
+.card-update-progress-glow::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px;
+  background-color: #ffffff !important;
+  box-shadow: 0 15px 45px rgba(60, 103, 227, 0.25), 0 5px 20px rgba(93, 220, 255, 0.15) !important;
+  transition: opacity 0.5s ease, box-shadow 0.5s ease;
+}
+
+.card-update-progress-glow:hover {
+  transform: translateY(-4px) scale(1.025) !important;
+  animation: none !important;
+}
+
+.card-update-progress-glow:hover::before {
+  animation: none !important;
+  opacity: 0 !important;
+}
+
+.card-update-progress-glow:hover::after {
+  box-shadow: none !important;
+}
+
+/* Premium Glowing Orange Button */
+@keyframes orangeGlowPulse {
+  0% {
+    box-shadow: 0 0 5px rgba(249, 115, 22, 0.4), 0 0 15px rgba(249, 115, 22, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.8), 0 0 30px rgba(251, 146, 60, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(249, 115, 22, 0.4), 0 0 15px rgba(249, 115, 22, 0.2);
+  }
+}
+
+.btn-orange-glow {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.5) !important;
+  animation: orangeGlowPulse 2.5s infinite ease-in-out;
+  border: none !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-orange-glow * {
+  color: #ffffff !important;
+}
+
+.btn-orange-glow:hover {
+  background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(249, 115, 22, 0.8), 0 4px 12px rgba(249, 115, 22, 0.3) !important;
+  animation-play-state: paused;
+}
+
+.btn-orange-glow:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.6) !important;
+}
+
+/* Springy Scale In Modal Animation */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
