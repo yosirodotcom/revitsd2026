@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Clock, Trash2, Camera, Image, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Clock, Trash2, Camera, Image, CheckCircle2, Paperclip } from 'lucide-react';
 
 export default function MemberLogsModal({ 
   user, 
@@ -233,8 +233,16 @@ export default function MemberLogsModal({
                         {log.aktivitas}
                       </p>
                       {log.foto && (
-                        <div className="border border-slate-850 rounded-xl overflow-hidden w-36 aspect-video bg-slate-950 flex items-center justify-center cursor-zoom-in" onClick={() => window.open(log.foto)}>
-                          <img src={log.foto} alt="Bukti foto" className="w-full h-full object-cover" />
+                        <div className="pt-1 select-none">
+                          <button
+                            type="button"
+                            onClick={() => window.open(log.foto)}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-850 text-indigo-455 hover:text-indigo-400 rounded-xl transition-all cursor-pointer"
+                            title="Buka lampiran di tab baru"
+                          >
+                            <Paperclip className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Buka Lampiran</span>
+                          </button>
                         </div>
                       )}
                     </div>

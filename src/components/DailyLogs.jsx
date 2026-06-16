@@ -10,6 +10,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
   const [logPage, setLogPage] = useState(1);
   const [editingLogId, setEditingLogId] = useState(null);
   const [editingLogText, setEditingLogText] = useState('');
+  const [editingLogFoto, setEditingLogFoto] = useState('');
   
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -76,9 +77,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
   };
 
   // Client-side image resize & compression using Canvas
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const compressImage = (file, callback) => {
     if (!file.type.startsWith('image/')) return window.showAlert('Hanya berkas gambar yang didukung!');
 
     const reader = new FileReader();
@@ -112,10 +111,26 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
 
         // Compress to JPEG with 0.6 quality
         const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-        setPreviewImage(dataUrl);
-        setFormData((prev) => ({ ...prev, foto: dataUrl }));
+        callback(dataUrl);
       };
     };
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    compressImage(file, (dataUrl) => {
+      setPreviewImage(dataUrl);
+      setFormData((prev) => ({ ...prev, foto: dataUrl }));
+    });
+  };
+
+  const handleEditImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    compressImage(file, (dataUrl) => {
+      setEditingLogFoto(dataUrl);
+    });
   };
 
   const resetForm = () => {
@@ -364,6 +379,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                                 onClick={() => {
                                   setEditingLogId(log.id);
                                   setEditingLogText(log.aktivitas);
+                                  setEditingLogFoto(log.foto || '');
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
                                 title="Edit"
@@ -388,28 +404,64 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                         </div>
 
                         {editingLogId === log.id ? (
-                          <div className="mt-2 space-y-2">
-                            <textarea
-                              value={editingLogText}
-                              onChange={(e) => setEditingLogText(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
-                              rows="3"
-                            />
-                            <div className="flex gap-2 justify-end">
+                          <div className="mt-2 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                              <div className="md:col-span-3">
+                                <textarea
+                                  value={editingLogText}
+                                  onChange={(e) => setEditingLogText(e.target.value)}
+                                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                                  rows="4"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                  Edit Foto Bukti
+                                </span>
+                                {editingLogFoto ? (
+                                  <div className="relative border border-slate-800 rounded-xl overflow-hidden aspect-video bg-slate-950 flex items-center justify-center">
+                                    <img src={getDirectImageUrl(editingLogFoto)} alt="Preview edit" className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLogFoto('')}
+                                      className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-950 transition-colors cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="border border-dashed border-slate-800 rounded-xl p-3 text-center text-slate-655 text-xs flex flex-col items-center justify-center bg-slate-950/20 aspect-video select-none">
+                                    <Image className="w-5 h-5 text-slate-700 mb-1" />
+                                    <span className="text-[10px]">Belum ada foto</span>
+                                  </div>
+                                )}
+                                <label className="flex items-center justify-center gap-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-xl px-3 py-1.5 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer transition-colors w-full text-center">
+                                  <Camera className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Ganti Foto</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleEditImageChange}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 justify-end pt-2 border-t border-slate-900/50">
                               <button
                                 onClick={() => setEditingLogId(null)}
-                                className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+                                className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                               >
                                 Batal
                               </button>
                               <button
                                 onClick={() => {
                                   if (onEditLog && editingLogText.trim()) {
-                                    onEditLog(log.id, editingLogText);
+                                    onEditLog(log.id, editingLogText, editingLogFoto);
                                     setEditingLogId(null);
                                   }
                                 }}
-                                className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5"
+                                className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
                                 <Check className="w-3.5 h-3.5" /> Simpan
                               </button>
@@ -424,7 +476,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                     </div>
 
                     {/* Attachment Link */}
-                    {log.foto && (
+                    {log.foto && editingLogId !== log.id && (
                       <div className="w-full sm:w-auto shrink-0 select-none mt-4 sm:mt-0">
                         <button
                           onClick={() => window.open(log.foto)}

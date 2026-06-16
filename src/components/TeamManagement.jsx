@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserPlus, Edit2, Trash2, Shield, User, Award, Check, X, Eye, EyeOff, Lock, FileText, Calendar } from 'lucide-react';
 
 export default function TeamManagement({ users, activeUser, onAddUser, onUpdateUser, onDeleteUser, onManageDocuments, onManageReports, onManageLogs }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPasswords, setShowPasswords] = useState({});
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    if (editingUser || isAdding) {
+      const timer = setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [editingUser, isAdding]);
   
   const [formData, setFormData] = useState({
     nama: '',
@@ -100,7 +110,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
 
       {/* Form Area (Add or Edit) */}
       {(isAdding || editingUser) && (
-        <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
+        <div ref={formRef} className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-6">
           <h3 className="font-semibold text-slate-200 text-base mb-4 flex items-center gap-2">
             {editingUser ? <Edit2 className="w-4 h-4 text-indigo-400" /> : <UserPlus className="w-4 h-4 text-indigo-400" />}
             {editingUser ? `Edit Data Anggota: ${editingUser.nama}` : 'Tambah Anggota Tim Baru'}

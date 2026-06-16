@@ -1724,20 +1724,34 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Monthly Reports Pct Card */}
+        {/* Monthly Reports Card */}
         <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-md hover:border-slate-700/80 transition-all duration-300 min-h-[145px]">
           <div className="flex items-center justify-between w-full">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                {isFacilitator ? 'Laporan Bulanan Anda' : 'Kepatuhan Laporan Bulanan'}
+                {isFacilitator ? 'Laporan Bulanan Anda' : 'Laporan Bulanan Ketua Tim'}
               </span>
-              <span className={`text-3xl font-extrabold block ${isFacilitator ? (currentMonthPct === 100 ? 'text-emerald-400' : 'text-slate-400') : 'text-slate-100'}`}>
-                {currentMonthPct}%
-              </span>
+              {isFacilitator ? (
+                <span className={`text-3xl font-extrabold block ${currentMonthPct === 100 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                  {currentMonthPct}%
+                </span>
+              ) : (() => {
+                const ktId = ketuaTim?.id || 'etty-rabihati';
+                const hasCurrentKtReport = reports.some(r => r.userId === ktId && Number(r.bulanKe) === currentMonthIdx);
+                return (
+                  <span className={`text-3xl font-extrabold block ${hasCurrentKtReport ? 'text-emerald-400' : 'text-slate-450'}`}>
+                    {hasCurrentKtReport ? 'Sudah' : 'Belum'}
+                  </span>
+                );
+              })()}
               <span className="text-xs text-slate-400 font-medium">
                 {isFacilitator 
                   ? `Bulan Berjalan (Bulan ${currentMonthIdx}) • ${reports.filter(r => r.userId === activeUser?.id).length}/6 Terkirim`
-                  : `Bulan Berjalan (Bulan ${currentMonthIdx})`}
+                  : (() => {
+                      const ktId = ketuaTim?.id || 'etty-rabihati';
+                      const ktReportsCount = reports.filter(r => r.userId === ktId).length;
+                      return `Bulan Berjalan (Bulan ${currentMonthIdx}) • ${ktReportsCount}/6 Terkirim`;
+                    })()}
               </span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
@@ -1745,12 +1759,16 @@ export default function Dashboard({
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-800/60 grid grid-cols-6 gap-1 text-center text-[9px] font-semibold text-slate-400">
-            {monthlyReportPcts.map((pct, idx) => {
+            {Array.from({ length: 6 }).map((_, idx) => {
               const m = idx + 1;
+              const isElapsed = m < currentMonthIdx;
+              
               if (isFacilitator) {
                 const r = reports.find(rep => rep.userId === activeUser?.id && Number(rep.bulanKe) === m);
                 let text = 'Belum';
-                let colorClass = 'text-slate-500 bg-slate-900 border border-slate-800/60';
+                let colorClass = isElapsed 
+                  ? 'text-rose-400 bg-rose-500/10 border border-rose-500/25 animate-pulse' 
+                  : 'text-slate-500 bg-slate-900 border border-slate-800/60';
                 if (r) {
                   if (r.status === 'approved') {
                     text = 'Setuju';
@@ -1765,24 +1783,40 @@ export default function Dashboard({
                 }
                 return (
                   <div key={idx} className="space-y-1">
-                    <span className="block text-[8px] text-slate-500 font-bold uppercase">B{m}</span>
+                    <span className={`block text-[8px] font-bold uppercase ${isElapsed && (!r || r.status !== 'approved') ? 'text-rose-400 font-extrabold' : 'text-slate-500'}`}>B{m}</span>
                     <span 
                       className={`block font-extrabold text-[7.5px] tracking-tight leading-normal py-0.5 rounded truncate ${colorClass}`}
-                      title={r ? `File: ${r.fileName}${r.status ? ` (Status: ${r.status})` : ''}` : 'Belum diunggah'}
+                      title={r ? `File: ${r.fileName}${r.status ? ` (Status: ${r.status})` : ''}` : (isElapsed ? 'Terlewat / Belum diunggah!' : 'Belum diunggah')}
+                    >
+                      {text}
+                    </span>
+                  </div>
+                );
+              } else {
+                const ktId = ketuaTim?.id || 'etty-rabihati';
+                const r = reports.find(rep => rep.userId === ktId && Number(rep.bulanKe) === m);
+                
+                let text = 'Belum';
+                let colorClass = isElapsed 
+                  ? 'text-rose-400 bg-rose-500/10 border border-rose-500/25 animate-pulse' 
+                  : 'text-slate-500 bg-slate-900 border border-slate-800/60';
+                if (r) {
+                  text = 'Sudah';
+                  colorClass = 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/25';
+                }
+                
+                return (
+                  <div key={idx} className="space-y-1">
+                    <span className={`block text-[8px] font-bold uppercase ${isElapsed && !r ? 'text-rose-400 font-extrabold' : 'text-slate-500'}`}>B{m}</span>
+                    <span 
+                      className={`block font-extrabold text-[7.5px] tracking-tight leading-normal py-0.5 rounded truncate ${colorClass}`}
+                      title={r ? `File: ${r.fileName}` : (isElapsed ? 'Terlewat / Belum diunggah!' : 'Belum diunggah')}
                     >
                       {text}
                     </span>
                   </div>
                 );
               }
-              return (
-                <div key={idx} className="space-y-1">
-                  <span className="block text-[8px] text-slate-500 font-bold uppercase">B{idx + 1}</span>
-                  <span className={`block font-extrabold ${pct === 100 ? 'text-emerald-400' : pct > 0 ? 'text-indigo-400' : 'text-slate-400'}`}>
-                    {pct}%
-                  </span>
-                </div>
-              );
             })}
           </div>
         </div>
@@ -2260,21 +2294,68 @@ export default function Dashboard({
                             />
                           </div>
                         </div>
+                        {/* School Names Grouped by Kabupaten */}
+                        {fac.schools && fac.schools.length > 0 && (
+                          <div className="px-3.5 pb-3 space-y-2.5">
+                            {Object.entries(
+                              fac.schools.reduce((acc, sch) => {
+                                const kab = sch.kabupaten || 'Lainnya';
+                                if (!acc[kab]) acc[kab] = [];
+                                acc[kab].push(sch);
+                                return acc;
+                              }, {})
+                            ).map(([kabName, kabSchools], kIdx) => (
+                              <div key={kabName} className="space-y-1">
+                                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                                  📍 Kabupaten {kabName}
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {kabSchools.map((sch, sIdx) => {
+                                    const colors = [
+                                      'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+                                      'bg-sky-500/10 border-sky-500/20 text-sky-400',
+                                      'bg-indigo-500/10 border-indigo-500/20 text-indigo-400',
+                                      'bg-amber-500/10 border-amber-500/20 text-amber-400',
+                                      'bg-purple-500/10 border-purple-500/20 text-purple-400',
+                                      'bg-rose-500/10 border-rose-500/20 text-rose-450',
+                                      'bg-teal-500/10 border-teal-500/20 text-teal-400',
+                                      'bg-violet-500/10 border-violet-500/20 text-violet-400'
+                                    ];
+                                    const colorClass = colors[(kIdx + sIdx) % colors.length];
+                                    return (
+                                      <button
+                                        key={sch.npsn}
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); onSelectSchool && onSelectSchool(sch.npsn); }}
+                                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all text-left ${colorClass}`}
+                                        title={`NPSN: ${sch.npsn} • Progres: ${sch.progres}% • Klik untuk detail`}
+                                      >
+                                        {sch.nama} ({sch.progres}%)
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {/* Detail Button */}
-                        <div className="px-3.5 pb-3 flex gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('reports'); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-purple-500/20 bg-purple-500/5 text-purple-400 hover:bg-purple-500/15 hover:text-purple-300 transition-all"
-                          >
-                            <FileText className="w-3 h-3" /> Dokumen Laporan
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('trips'); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500/15 hover:text-sky-300 transition-all"
-                          >
-                            <Plane className="w-3 h-3" /> Perjalanan Dinas
-                          </button>
-                        </div>
+                        {isAdministrasi && (
+                          <div className="px-3.5 pb-3 flex gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('reports'); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-purple-500/20 bg-purple-500/5 text-purple-400 hover:bg-purple-500/15 hover:text-purple-300 transition-all"
+                            >
+                              <FileText className="w-3 h-3" /> Dokumen Laporan
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setFacModalId(fac.id); setFacModalTab('trips'); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer border border-sky-500/20 bg-sky-500/5 text-sky-400 hover:bg-sky-500/15 hover:text-sky-300 transition-all"
+                            >
+                              <Plane className="w-3 h-3" /> Perjalanan Dinas
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

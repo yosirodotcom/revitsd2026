@@ -111,30 +111,19 @@ export default function ProfileModal({ user, onClose, onSave }) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              Jabatan dalam Tim Pelaksana
-            </label>
-            {user.role === 'admin' ? (
+          {user.role === 'admin' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Jabatan dalam Tim Pelaksana
+              </label>
               <input
                 type="text"
                 value={formData.jabatanTim}
                 disabled
                 className="w-full bg-slate-950/40 border border-slate-850 text-slate-500 rounded-xl px-4 py-2 text-sm cursor-not-allowed focus:outline-none"
               />
-            ) : (
-              <select
-                value={formData.jabatanTim}
-                onChange={(e) => setFormData({ ...formData, jabatanTim: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-              >
-                <option value="Ketua Tim">Ketua Tim</option>
-                <option value="Koordinator">Koordinator</option>
-                <option value="Fasilitator">Fasilitator</option>
-                <option value="Tenaga Administrasi">Tenaga Administrasi</option>
-              </select>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Password Security Section */}
           <div className="border-t border-slate-800/80 pt-4 mt-4 space-y-3">

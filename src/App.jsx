@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Info, RefreshCw, LogIn, Activity } from 'lucide-react';
+import { AlertTriangle, Info, RefreshCw, LogIn, Activity, X } from 'lucide-react';
 import { initialUsers } from './data/initialData';
 import { initialSchools } from './data/initialSchools';
 import UserSelect from './components/UserSelect';
@@ -1540,12 +1540,23 @@ export default function App() {
     syncWithNewState({ logs: updatedLogs, activityLogs: updatedActivityLogs });
   };
 
-  const handleEditLog = (logId, newText) => {
-    const updatedLogs = logs.map(l => l.id === logId ? { ...l, aktivitas: newText } : l);
+  const handleEditLog = (logId, newText, newFoto) => {
+    const originalLog = logs.find(l => l.id === logId);
+    const finalFoto = newFoto !== undefined ? newFoto : (originalLog ? originalLog.foto : '');
+    const updatedLogs = logs.map(l => l.id === logId ? { ...l, aktivitas: newText, foto: finalFoto } : l);
     setLogs(updatedLogs);
     localStorage.setItem('revit_logs', JSON.stringify(updatedLogs));
 
-    const actEntry = _createActivityEntry('edit_daily_log', `Mengedit log harian`);
+    const actEntry = _createActivityEntry(
+      'edit_daily_log', 
+      `Mengedit log harian`, 
+      finalFoto ? {
+        id: logId,
+        type: 'daily_log_photo',
+        fileName: `Foto_Log_${originalLog?.tanggal || 'edited'}.jpg`,
+        fileData: finalFoto
+      } : null
+    );
     const updatedActivityLogs = actEntry ? [actEntry, ...activityLogs].slice(0, 50) : activityLogs;
     setActivityLogs(updatedActivityLogs);
     localStorage.setItem('revit_activity_logs', JSON.stringify(updatedActivityLogs));
@@ -2023,7 +2034,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Dynamic Component Rendering */}
           {activeView === 'dashboard' && (
             <Dashboard
               activeUser={activeUser}
@@ -2042,8 +2052,6 @@ export default function App() {
               onRejectTripsBatch={handleRejectTripsBatch}
               onSelectSchool={(npsn) => {
                 setSelectedSchoolNpsn(npsn);
-                setSchoolDetailReferrer('dashboard');
-                setActiveView('sekolah');
               }}
               onViewChange={handleViewChange}
               onUpdateSchool={handleUpdateSchool}
@@ -2055,44 +2063,19 @@ export default function App() {
           )}
 
           {activeView === 'sekolah' && (
-            selectedSchoolNpsn ? (
-              <SchoolDetail
-                school={schools.find((s) => s.npsn === selectedSchoolNpsn)}
-                users={users}
-                contacts={contacts}
-                tasks={tasks}
-                activeUser={activeUser}
-                onBack={() => {
-                  setSelectedSchoolNpsn(null);
-                  if (schoolDetailReferrer === 'dashboard') {
-                    setActiveView('dashboard');
-                  }
-                }}
-                onUpdateSchool={handleUpdateSchool}
-                onAddTask={handleAddTask}
-                onUpdateTaskStatus={handleUpdateTaskStatus}
-                onDeleteTask={handleDeleteTask}
-                onAddContact={handleAddContact}
-                schoolDocs={schoolDocs}
-                onAddSchoolDoc={handleAddSchoolDoc}
-                onDeleteSchoolDoc={handleDeleteSchoolDoc}
-              />
-            ) : (
-              <SchoolList
-                schools={schools}
-                users={users}
-                activeUser={activeUser}
-                onClaimSchool={handleClaimSchool}
-                onAddSchool={handleAddSchool}
-                onSelectSchool={(npsn) => {
-                  setSelectedSchoolNpsn(npsn);
-                  setSchoolDetailReferrer('sekolah');
-                }}
-                onUpdateSchool={handleUpdateSchool}
-                tasks={tasks}
-                schoolDocs={schoolDocs}
-              />
-            )
+            <SchoolList
+              schools={schools}
+              users={users}
+              activeUser={activeUser}
+              onClaimSchool={handleClaimSchool}
+              onAddSchool={handleAddSchool}
+              onSelectSchool={(npsn) => {
+                setSelectedSchoolNpsn(npsn);
+              }}
+              onUpdateSchool={handleUpdateSchool}
+              tasks={tasks}
+              schoolDocs={schoolDocs}
+            />
           )}
 
           {activeUser && (
@@ -2334,6 +2317,37 @@ export default function App() {
                 {dialog.type === 'confirm' ? 'Ya, Lanjutkan' : 'Mengerti'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* School Detail Modal (Pop-up Window) */}
+      {selectedSchoolNpsn && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl relative scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950">
+            <button
+              onClick={() => setSelectedSchoolNpsn(null)}
+              className="absolute top-6 right-6 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-950/40 hover:bg-slate-800 border border-slate-800 transition-all z-50 cursor-pointer"
+              title="Tutup Detail"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <SchoolDetail
+              school={schools.find((s) => s.npsn === selectedSchoolNpsn)}
+              users={users}
+              contacts={contacts}
+              tasks={tasks}
+              activeUser={activeUser}
+              onBack={() => setSelectedSchoolNpsn(null)}
+              onUpdateSchool={handleUpdateSchool}
+              onAddTask={handleAddTask}
+              onUpdateTaskStatus={handleUpdateTaskStatus}
+              onDeleteTask={handleDeleteTask}
+              onAddContact={handleAddContact}
+              schoolDocs={schoolDocs}
+              onAddSchoolDoc={handleAddSchoolDoc}
+              onDeleteSchoolDoc={handleDeleteSchoolDoc}
+            />
           </div>
         </div>
       )}
