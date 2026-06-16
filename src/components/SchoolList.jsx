@@ -346,9 +346,8 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                 ) : (
                   <>
                     <option value="Semua" className="bg-slate-950">Semua</option>
-                    <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
                     {users
-                      .filter((u) => u && (u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Ketua Tim'))
+                      .filter((u) => u && u.jabatanTim === 'Fasilitator')
                       .map((f) => (
                         <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
                       ))}
@@ -400,7 +399,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                 <tr>
                   <th className="px-6 py-4">Nama Sekolah Dasar / NPSN</th>
                   <th className="px-6 py-4">Kabupaten</th>
-                  {!isFacilitator && <th className="px-6 py-4">Fasilitator Pendamping</th>}
+                  {!isFacilitator && <th className="px-6 py-4">Fasilitator</th>}
                   <th className="px-6 py-4">Progres Fisik</th>
                   <th className="px-6 py-4">Kelengkapan Data</th>
                   <th className="px-6 py-4 text-right">Aksi</th>
@@ -475,7 +474,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                             ) : (
                               <div 
                                 className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden"
-                                title={hasTasks ? "Progres dihitung otomatis dari Papan Tugas (Kanban)" : "Hanya Fasilitator Pendamping atau Super Admin yang dapat mengubah progres."}
+                                title={hasTasks ? "Progres dihitung otomatis dari Papan Tugas (Kanban)" : "Hanya Fasilitator atau Super Admin yang dapat mengubah progres."}
                               >
                                 <div
                                   className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"

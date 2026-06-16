@@ -28,7 +28,7 @@ export default function MonthlyPdfReports({
       return users.filter(u => u.id !== activeUser.id && u.role !== 'admin');
     }
     if (activeUser.jabatanTim === 'Koordinator') {
-      return users.filter(u => u.jabatanTim === 'Fasilitator');
+      return users.filter(u => u.jabatanTim === 'Fasilitator' && u.coordinatorId === activeUser.id);
     }
     return [];
   };

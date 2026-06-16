@@ -495,7 +495,7 @@ export default function SchoolDetail({
               Desa: {school.desa || <span className="text-slate-600 italic">Belum diisi</span>}
             </span>
             <span className="text-xs font-medium bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-xl text-indigo-400">
-              Pendamping: {getFacilitatorName(school.fasilitatorId)}
+              Fasilitator: {getFacilitatorName(school.fasilitatorId)}
             </span>
           </div>
         </div>
@@ -1159,7 +1159,7 @@ export default function SchoolDetail({
                     <div className="text-center py-4 bg-slate-950/40 rounded-xl border border-slate-850 p-4">
                       <AlertTriangle className="w-5 h-5 text-slate-605 mx-auto mb-2" />
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Hanya Fasilitator Pendamping atau Super Admin yang dapat mengubah progres.
+                        Hanya Fasilitator atau Super Admin yang dapat mengubah progres.
                       </p>
                     </div>
                   )}

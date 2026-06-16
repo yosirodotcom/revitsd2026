@@ -176,17 +176,23 @@ export default function TravelSchedule({
   const tripEligibleUsers = users.filter(u => u.jabatanTim === 'Fasilitator' || u.jabatanTim === 'Koordinator');
 
   // Get active schools for calculation
-  const mySchools = isFasilitator 
+  const getCoordinatorSchoolFilter = (school) => {
+    if (!school.fasilitatorId) return false;
+    const fasilitator = users.find(u => u.id === school.fasilitatorId);
+    return fasilitator && fasilitator.coordinatorId === activeUser.id;
+  };
+
+  const mySchools = isFasilitator
     ? schools.filter((s) => s.fasilitatorId === activeUser.id)
     : isKoordinator
-    ? schools.filter((s) => s.fasilitatorId) // Koordinator sees all assigned schools
+    ? schools.filter(getCoordinatorSchoolFilter)
     : schools;
 
   const handleSaveCollectiveTrip = () => {
     const selectedSchools = mySchools.filter(school => selectedSchoolNpsns.includes(school.npsn));
 
     if (selectedSchools.length === 0) {
-      window.showAlert(`Silakan pilih minimal satu sekolah dampingan untuk dijadwalkan.`);
+      window.showAlert(`Silakan pilih minimal satu sekolah binaan untuk dijadwalkan.`);
       return;
     }
 
@@ -576,7 +582,7 @@ export default function TravelSchedule({
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>
                         <h4 className="font-semibold text-slate-200 text-sm">Jadwal Kunjungan Kolektif</h4>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Tentukan tanggal perjalanan dinas sekaligus untuk sebagian atau seluruh sekolah dampingan Anda.</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Tentukan tanggal perjalanan dinas sekaligus untuk sebagian atau seluruh sekolah binaan Anda.</p>
                         {/* Progress summary */}
                         <div className="flex gap-3 mt-2">
                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
@@ -625,7 +631,7 @@ export default function TravelSchedule({
                         Atur Jadwal Kunjungan Kolektif (Fasilitator)
                       </h3>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        Tentukan tanggal perjalanan dinas satu kali langsung untuk seluruh sekolah dampingan Anda.
+                        Tentukan tanggal perjalanan dinas satu kali langsung untuk seluruh sekolah binaan Anda.
                       </p>
                     </div>
 
@@ -775,7 +781,7 @@ export default function TravelSchedule({
                           );
                         })}
                         {mySchools.length === 0 && (
-                          <p className="text-xs text-slate-500 italic text-center py-4">Belum ada sekolah dampingan terdaftar.</p>
+                          <p className="text-xs text-slate-500 italic text-center py-4">Belum ada sekolah binaan terdaftar.</p>
                         )}
                       </div>
                     </div>
@@ -819,7 +825,7 @@ export default function TravelSchedule({
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
                 <div className="p-6 border-b border-slate-800 select-none">
                   <h3 className="font-semibold text-slate-200 text-sm">
-                    Daftar Sekolah Dampingan & Status Dampingan
+                    Daftar Sekolah Binaan & Status Binaan
                   </h3>
                   <p className="text-[10px] text-slate-500 mt-1">
                     Informasi kelayakan kunjungan dinas ke sekolah berdasarkan progres fisik dan linimasa proyek.
@@ -828,7 +834,7 @@ export default function TravelSchedule({
 
                 {mySchools.length === 0 ? (
                   <p className="text-xs text-slate-500 italic text-center py-10 select-none">
-                    Anda belum mengklaim sekolah pendampingan.
+                    Anda belum mengklaim sekolah binaan.
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -918,7 +924,7 @@ export default function TravelSchedule({
 
               {coordinatorPriorities.length === 0 ? (
                 <p className="text-xs text-slate-500 italic text-center py-6">
-                  Tidak ada jadwal kunjungan aktif. Sekolah dampingan belum mencapai target progres.
+                  Tidak ada jadwal kunjungan aktif. Sekolah binaan belum mencapai target progres.
                 </p>
               ) : (
                 <div className="space-y-4">

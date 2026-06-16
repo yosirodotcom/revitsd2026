@@ -76,7 +76,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
     const currentFacId = school?.fasilitatorId;
     const fac = users.find((u) => u.id === currentFacId);
 
-    if (await window.showConfirm(`Apakah Anda yakin ingin melepas penugasan sekolah ${school?.nama_sekolah} dari fasilitator ${fac?.nama || 'pendamping'}?`)) {
+    if (await window.showConfirm(`Apakah Anda yakin ingin melepas penugasan sekolah ${school?.nama_sekolah} dari fasilitator ${fac?.nama || 'fasilitator'}?`)) {
       onClaimSchool(npsn, null);
       showNotification('success', `Berhasil melepas penugasan ${school?.nama_sekolah} dari ${fac?.nama || 'fasilitator'}.`);
     }
@@ -140,11 +140,11 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
         <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:border-slate-700/60 transition-colors">
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Terdampingi</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Terfasilitasi</span>
               <span className="text-3xl font-extrabold text-emerald-400 block mt-1">
                 {schools.length - unassignedSchools.length} <span className="text-xs text-slate-400 font-normal">/ {schools.length}</span>
               </span>
-              <span className="text-xs text-slate-400 mt-1 block">Sudah memiliki pendamping</span>
+              <span className="text-xs text-slate-400 mt-1 block">Sudah memiliki fasilitator</span>
             </div>
             <div className="p-3 bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 rounded-xl">
               <School className="w-5 h-5" />
@@ -153,14 +153,14 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
         </div>
 
         {/* Unassigned Schools */}
-        <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:border-slate-700/60 transition-colors">
+        <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-md hover:border-slate-700/60 transition-colors">
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Belum Didampingi</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sekolah Belum Terfasilitasi</span>
               <span className={`text-3xl font-extrabold block mt-1 ${unassignedSchools.length > 0 ? 'text-amber-500' : 'text-slate-400'}`}>
                 {unassignedSchools.length} <span className="text-xs text-slate-400 font-normal">sekolah</span>
               </span>
-              <span className="text-xs text-slate-400 mt-1 block">Menunggu penugasan pendamping</span>
+              <span className="text-xs text-slate-400 mt-1 block">Menunggu penugasan fasilitator</span>
             </div>
             <div className={`p-3 rounded-xl border ${
               unassignedSchools.length > 0
@@ -257,7 +257,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                 {/* List of currently assigned schools */}
                 <div className="space-y-2 flex-1">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2 select-none">
-                    Daftar Sekolah Dampingan ({assigned.length})
+                    Daftar Sekolah Binaan ({assigned.length})
                   </span>
                   
                   {assigned.length === 0 ? (
@@ -351,9 +351,9 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
               <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1">
                 <CheckCircle className="w-7 h-7" />
               </div>
-              <h3 className="font-bold text-slate-100 text-base">Semua Sekolah Sudah Terdampingi</h3>
+              <h3 className="font-bold text-slate-100 text-base">Semua Sekolah Sudah Terfasilitasi</h3>
               <p className="text-xs text-slate-400 max-w-sm">
-                Seluruh <strong>{schools.length} sekolah dasar</strong> dalam sistem telah berhasil ditugaskan ke fasilitator pendamping masing-masing.
+                Seluruh <strong>{schools.length} sekolah dasar</strong> dalam sistem telah berhasil ditugaskan ke fasilitator masing-masing.
               </p>
             </div>
           ) : (

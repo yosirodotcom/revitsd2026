@@ -20,6 +20,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
     nama: '',
     jabatanKepegawaian: '',
     jabatanTim: 'Fasilitator',
+    coordinatorId: '',
     pendidikan: 'Strata 2',
     statusPegawai: 'PNS',
     role: 'user',
@@ -31,6 +32,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
       nama: '',
       jabatanKepegawaian: '',
       jabatanTim: 'Fasilitator',
+      coordinatorId: '',
       pendidikan: 'Strata 2',
       statusPegawai: 'PNS',
       role: 'user',
@@ -46,6 +48,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
       nama: user.nama || '',
       jabatanKepegawaian: user.jabatanKepegawaian || '',
       jabatanTim: user.jabatanTim || '',
+      coordinatorId: user.coordinatorId || '',
       pendidikan: user.pendidikan || '',
       statusPegawai: user.statusPegawai || '',
       role: user.role || 'user',
@@ -149,7 +152,14 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
               </label>
               <select
                 value={formData.jabatanTim}
-                onChange={(e) => setFormData({ ...formData, jabatanTim: e.target.value })}
+                onChange={(e) => {
+                  const newJabatan = e.target.value;
+                  setFormData({ 
+                    ...formData, 
+                    jabatanTim: newJabatan,
+                    coordinatorId: newJabatan === 'Fasilitator' ? formData.coordinatorId : '' 
+                  });
+                }}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
               >
                 <option value="Ketua Tim">Ketua Tim</option>
@@ -159,6 +169,25 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                 <option value="Super Admin">Super Admin</option>
               </select>
             </div>
+
+            {formData.jabatanTim === 'Fasilitator' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  Pilih Koordinator
+                </label>
+                <select
+                  value={formData.coordinatorId}
+                  onChange={(e) => setFormData({ ...formData, coordinatorId: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                  required
+                >
+                  <option value="">-- Pilih Koordinator --</option>
+                  {users.filter(u => u.jabatanTim === 'Koordinator').map(coord => (
+                    <option key={coord.id} value={coord.id}>{coord.nama}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
@@ -250,7 +279,6 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                 <th className="px-6 py-4">Jabatan Tim</th>
                 <th className="px-6 py-4 text-center">Pendidikan</th>
                 <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-center">Akses</th>
                 <th className="px-6 py-4 text-center">Password</th>
                 <th className="px-6 py-4 text-right">Aksi</th>
               </tr>
@@ -281,6 +309,11 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                     <span className="text-xs font-medium text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-lg border border-indigo-500/10">
                       {user.jabatanTim}
                     </span>
+                    {user.jabatanTim === 'Fasilitator' && user.coordinatorId && (
+                      <div className="text-[10px] text-slate-500 mt-1">
+                        Koord: {users.find(u => u.id === user.coordinatorId)?.nama || '-'}
+                      </div>
+                    )}
                   </td>
                   {/* Pendidikan */}
                   <td className="px-6 py-4 text-center text-slate-400">{user.pendidikan}</td>
@@ -297,18 +330,6 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                     >
                       {user.statusPegawai}
                     </span>
-                  </td>
-                  {/* Akses */}
-                  <td className="px-6 py-4 text-center">
-                    {user.role === 'admin' ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-rose-400 bg-rose-500/5 border border-rose-500/10 px-2 py-0.5 rounded-full">
-                        <Shield className="w-3 h-3" /> Admin
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-500/5 border border-slate-500/10 px-2 py-0.5 rounded-full">
-                        <User className="w-3 h-3" /> User
-                      </span>
-                    )}
                   </td>
                   {/* Password (All users visibility and reset) */}
                   <td className="px-6 py-4 text-center">

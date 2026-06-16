@@ -67,7 +67,15 @@ export default function HonorBatchSettings({
     const todayVal = new Date(settings.simulatedToday || new Date().toISOString().split('T')[0]);
     const isTimeReached = todayVal >= start;
 
-    let mySchools = user.jabatanTim === 'Fasilitator' ? schools.filter(s => s.fasilitatorId === user.id) : schools;
+    let mySchools = [];
+    if (user.jabatanTim === 'Fasilitator') {
+      mySchools = schools.filter(s => s.fasilitatorId === user.id);
+    } else if (user.jabatanTim === 'Koordinator') {
+      const myFacilitators = users.filter(u => u.jabatanTim === 'Fasilitator' && u.coordinatorId === user.id).map(u => u.id);
+      mySchools = schools.filter(s => myFacilitators.includes(s.fasilitatorId));
+    } else {
+      mySchools = schools;
+    }
     const totalBinaan = mySchools.length;
 
     const binProgress50 = mySchools.filter(s => (s.progres_fisik || 0) >= 50).length;

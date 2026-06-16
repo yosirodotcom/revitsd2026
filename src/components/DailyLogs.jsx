@@ -192,7 +192,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
           <p className="text-xs text-slate-400 mt-1">
             {isMonitorRole 
               ? 'Pantau log aktivitas kerja harian seluruh anggota tim pelaksana beserta bukti foto kegiatan.'
-              : 'Tulis log jurnal harian Anda untuk melaporkan aktivitas pendampingan lapangan dilengkapi bukti foto.'}
+              : 'Tulis log jurnal harian Anda untuk melaporkan aktivitas fasilitasi lapangan dilengkapi bukti foto.'}
           </p>
         </div>
 

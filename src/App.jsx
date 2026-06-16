@@ -1914,7 +1914,10 @@ export default function App() {
         return authorRole !== 'Super Admin';
       }
       if (role === 'Koordinator') {
-        // Koordinator sees other Koordinator, Fasilitator, Tenaga Administrasi (no Super Admin, no Ketua Tim)
+        // Koordinator sees their assigned Fasilitator, other Koordinator, Tenaga Administrasi (no Super Admin, no Ketua Tim)
+        if (authorRole === 'Fasilitator') {
+          return author?.coordinatorId === activeUser.id;
+        }
         return authorRole !== 'Super Admin' && authorRole !== 'Ketua Tim';
       }
       return false;

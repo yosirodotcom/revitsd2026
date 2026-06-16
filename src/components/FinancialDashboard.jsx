@@ -196,8 +196,11 @@ export default function FinancialDashboard({
     let mySchools = [];
     if (user.jabatanTim === 'Fasilitator') {
       mySchools = schools.filter(s => s.fasilitatorId === user.id);
+    } else if (user.jabatanTim === 'Koordinator') {
+      const myFacilitators = users.filter(u => u.jabatanTim === 'Fasilitator' && u.coordinatorId === user.id).map(u => u.id);
+      mySchools = schools.filter(s => myFacilitators.includes(s.fasilitatorId));
     } else {
-      mySchools = schools; // Ketua Tim & Koordinator supervise all
+      mySchools = schools; // Ketua Tim & Admin supervise all
     }
     const totalBinaan = mySchools.length;
 
@@ -254,7 +257,7 @@ export default function FinancialDashboard({
           gross: grossPart2,
           eligible: part2Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part2`),
-          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah & telah melewati Bulan ke-${month}`,
+          conditions: `75% sekolah binaan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part2`,
           ...getDeductionDetails(grossPart2)
         },
@@ -264,7 +267,7 @@ export default function FinancialDashboard({
           gross: grossPart3,
           eligible: part3Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part3`),
-          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah & telah melewati Bulan ke-${month}`,
+          conditions: `90% sekolah binaan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part3`,
           ...getDeductionDetails(grossPart3)
         }

@@ -71,11 +71,21 @@ Aplikasi ini adalah dashboard monitoring progres fisik dan administrasi keuangan
 
 ## 👥 4. Matriks Akses Peran Pengguna (10 Peran Utama)
 
+### 🏢 Hirarki Organisasi
+Sistem menerapkan struktur hirarki berjenjang sebagai berikut:
+1. **Super Admin**: Administrator utama, memiliki akses penuh mengatur seluruh entitas (termasuk memetakan bawahan untuk Koordinator).
+2. **Ketua Tim**: Pimpinan proyek secara keseluruhan.
+3. **Koordinator**: Membawahi beberapa **Fasilitator** tertentu. (Super Admin dapat menetapkan Fasilitator mana yang diawasi oleh Koordinator tertentu. Koordinator *hanya* dapat melihat data, laporan, dan progres dari Fasilitator yang berada di bawahnya saja).
+4. **Fasilitator (Teknik & Pemberdayaan)**: Tenaga lapangan yang berada di bawah pengawasan Koordinator tertentu yang telah di-assign.
+5. **Tenaga Administrasi**: Berada langsung di bawah **Ketua Tim** (tanpa memiliki bawahan), bertugas mengurus keuangan dan persetujuan administratif.
+
+### 📋 Tabel Hak Akses
+
 | No | Peran / Jabatan | Nama Default | Hak Akses Utama |
 |----|-----------------|--------------|-----------------|
-| 1 | **Super Admin** | Yosi Ronadi | Kelola Tim (CRUD), Kelola Sekolah Master, Set Linimasa Proyek Global |
+| 1 | **Super Admin** | Yosi Ronadi | Kelola Tim (CRUD), Kelola Sekolah Master, Set Linimasa Proyek Global, Assign Fasilitator ke Koordinator |
 | 2 | **Ketua Tim** | Ir. H. Mulyono | Reviu akhir berkas PDF, Verifikasi progres global |
-| 3 | **Koordinator** | Hendra Wijaya | Reviu laporan bulanan Fasilitator, Klaim & Monitor dinas bulanan |
+| 3 | **Koordinator** | Hendra Wijaya | Reviu laporan bulanan Fasilitator & Monitor dinas bulanan (Hanya terbatas pada Fasilitator bawahannya) |
 | 4 | **Fasilitator Teknik** | Rizal | Klaim sekolah, Kelola Kanban tugas fisik, Input Log Harian + Gambar, Unggah PDF Laporan |
 | 5 | **Fasilitator Teknik** | Ahmad | Sama seperti Rizal |
 | 6 | **Fasilitator Pemberdayaan** | Siti Aminah | Sama seperti Rizal (Fokus non-teknis) |

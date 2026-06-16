@@ -35,6 +35,7 @@ export const initialUsers = [
     nama: "Rizal",
     jabatanKepegawaian: "Kepala Bengkel Teknik Sipil / Dosen Teknik Sipil",
     jabatanTim: "Fasilitator",
+    coordinatorId: "chandra-bayu",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
     role: "user"
@@ -44,6 +45,7 @@ export const initialUsers = [
     nama: "Hartanto Wahyu Sasongko",
     jabatanKepegawaian: "Dosen Teknik Sipil",
     jabatanTim: "Fasilitator",
+    coordinatorId: "chandra-bayu",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
     role: "user"
@@ -53,6 +55,7 @@ export const initialUsers = [
     nama: "Dian Perwita Sari",
     jabatanKepegawaian: "Dosen Teknik Arsitektur",
     jabatanTim: "Fasilitator",
+    coordinatorId: "chandra-bayu",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
     role: "user"
@@ -62,6 +65,7 @@ export const initialUsers = [
     nama: "Dewi Ria Indriana",
     jabatanKepegawaian: "Dosen Teknik Arsitektur",
     jabatanTim: "Fasilitator",
+    coordinatorId: "chandra-bayu",
     pendidikan: "Strata 2",
     statusPegawai: "PPPK",
     role: "user"
@@ -71,6 +75,7 @@ export const initialUsers = [
     nama: "Achmad Idris Setianto",
     jabatanKepegawaian: "-",
     jabatanTim: "Fasilitator",
+    coordinatorId: "chandra-bayu",
     pendidikan: "Strata 2",
     statusPegawai: "Alumni",
     role: "user"
@@ -80,6 +85,7 @@ export const initialUsers = [
     nama: "Ahmad Maulana Iqbal",
     jabatanKepegawaian: "-",
     jabatanTim: "Fasilitator",
+    coordinatorId: "chandra-bayu",
     pendidikan: "Diploma",
     statusPegawai: "Alumni",
     role: "user"
@@ -98,17 +104,17 @@ export const initialUsers = [
 // Data tugas & tanggung jawab statis berdasarkan peran
 export const roleDuties = {
   "Ketua Tim": [
-    "Menyusun rencana dan linimasa kerja kegiatan pendampingan Bantuan Pemerintah Revitalisasi Sekolah Dasar.",
+    "Menyusun rencana dan linimasa kerja kegiatan fasilitasi Bantuan Pemerintah Revitalisasi Sekolah Dasar.",
     "Memimpin/mengoordinasikan dan bertanggung jawab terhadap kinerja seluruh tim.",
     "Memastikan pekerjaan seluruh Tim Pelaksana Swakelola berjalan sesuai dengan rencana kerja dan lingkup pekerjaan, termasuk penyelesaian masalah dalam pelaksanaan program ini.",
-    "Mengesahkan laporan hasil pelaksanaan pekerjaan Tim Pelaksana Swakelola, hasil pelaksanaan pendampingan di seluruh wilayah kerjanya, dan pembinaan teknis.",
-    "Melakukan koordinasi hasil pendampingan Program Revitalisasi Satuan Pendidikan kepada instansi terkait.",
-    "Menyusun dan melaporkan hasil pekerjaan pendampingan."
+    "Mengesahkan laporan hasil pelaksanaan pekerjaan Tim Pelaksana Swakelola, hasil pelaksanaan fasilitasi di seluruh wilayah kerjanya, dan pembinaan teknis.",
+    "Melakukan koordinasi hasil fasilitasi Program Revitalisasi Satuan Pendidikan kepada instansi terkait.",
+    "Menyusun dan melaporkan hasil pekerjaan fasilitasi."
   ],
   "Koordinator": [
     "Mengoordinasikan penugasan Fasilitator.",
     "Mendampingi paling banyak 11 fasilitator sesuai wilayah kerjanya.",
-    "Berkoordinasi dengan Tenaga Ahli Pusat dalam pelaksanaan teknis pendampingan Bantuan Pemerintah Revitalisasi Sekolah Dasar.",
+    "Berkoordinasi dengan Tenaga Ahli Pusat dalam pelaksanaan teknis fasilitasi Bantuan Pemerintah Revitalisasi Sekolah Dasar.",
     "Melakukan supervisi kepada fasilitator dalam pelaksanaan Bantuan Pemerintah Revitalisasi Sekolah Dasar.",
     "Memvalidasi dan menyetujui hasil verifikasi progres dan laporan, kesesuaian antara pelaksanaan dan panduan, progres fisik 50%, serta penyelesaian 100% pekerjaan revitalisasi Sekolah Dasar yang disampaikan oleh Fasilitator.",
     "Melakukan kunjungan lapangan sebanyak dua kali sesuai dengan ketentuan kunjungan.",

@@ -242,7 +242,7 @@ export default function Dashboard({
           gross: grossPart2,
           eligible: part2Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part2`),
-          conditions: `75% sekolah dampingan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah & telah melewati Bulan ke-${month}`,
+          conditions: `75% sekolah binaan (${binProgress50}/${totalBinaan}, ${Math.round(pctProgress50 * 100)}%) mencapai progres >= 50% & seluruh laporan mingguan, bulanan, progres 50% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part2`,
           ...getDeductionDetails(grossPart2)
         },
@@ -252,7 +252,7 @@ export default function Dashboard({
           gross: grossPart3,
           eligible: part3Eligible && isTimeReached,
           isPaid: payments.some(p => p.userId === user.id && p.komponen === `tetap_bulan_${month}_part3`),
-          conditions: `90% sekolah dampingan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah & telah melewati Bulan ke-${month}`,
+          conditions: `90% sekolah binaan (${binProgress100}/${totalBinaan}, ${Math.round(pctProgress100 * 100)}%) mencapai progres 100% & seluruh laporan mingguan, bulanan, progres 100% diunggah & telah melewati Bulan ke-${month}`,
           key: `tetap_bulan_${month}_part3`,
           ...getDeductionDetails(grossPart3)
         }
@@ -343,7 +343,7 @@ export default function Dashboard({
       case 'Koordinator':
         return 'Tugas utama Anda adalah mensupervisi kinerja para fasilitator lapangan di wilayah kerja Anda, menyetujui laporan fisik dan verifikasi 50% & 100%, serta memecahkan kendala teknis.';
       case 'Fasilitator':
-        return 'Anda adalah garda terdepan pendampingan sekolah dasar. Anda memantau progres konstruksi di lapangan secara mingguan, berkunjung pada progres 50% & 100%, serta melengkapi laporan berkala.';
+        return 'Anda adalah garda terdepan fasilitasi sekolah dasar. Anda memantau progres konstruksi di lapangan secara mingguan, berkunjung pada progres 50% & 100%, serta melengkapi laporan berkala.';
       case 'Tenaga Administrasi':
         return 'Anda mengelola dokumentasi administrasi, memantau rekapitulasi pengeluaran (ATK, Perjalanan Dinas, Honor), serta melakukan pembayaran honor sesuai kelayakan progres laporan.';
       default:
@@ -386,14 +386,14 @@ export default function Dashboard({
 
   const totalSchoolsCount = displaySchools.length;
 
-  let totalLabel = "Total Sekolah Dampingan";
+  let totalLabel = "Total Sekolah Binaan";
   let totalCount = schools.length;
   let totalSubtitle = "Sekolah Dasar Master";
-  
+
   if (isFacilitator) {
-    totalLabel = "Sekolah Dampingan Anda";
+    totalLabel = "Sekolah Binaan Anda";
     totalCount = displaySchools.length;
-    totalSubtitle = "Sekolah dasar dampingan Anda";
+    totalSubtitle = "Sekolah dasar binaan Anda";
   }
 
   
@@ -404,7 +404,7 @@ export default function Dashboard({
   let avgSubtitle = "Dari semua sekolah dasar";
   if (isFacilitator) {
     avgLabel = "Rerata Progres Fisik Anda";
-    avgSubtitle = "Rerata sekolah dampingan Anda";
+    avgSubtitle = "Rerata sekolah binaan Anda";
   }
 
   // (Removed old reportsLabel variables)
@@ -918,7 +918,11 @@ export default function Dashboard({
   const facilitatorStats = isFacilitator
     ? []
     : users
-        .filter(u => u.jabatanTim === 'Fasilitator')
+        .filter(u => {
+          if (u.jabatanTim !== 'Fasilitator') return false;
+          if (activeUser?.jabatanTim === 'Koordinator') return u.coordinatorId === activeUser.id;
+          return true;
+        })
         .map(fac => {
           const facSchools = schools.filter(s => s.fasilitatorId === fac.id);
           const schoolCount = facSchools.length;
@@ -988,7 +992,7 @@ export default function Dashboard({
           id: `kepsek-${school.npsn}`,
           category: 'school_info',
           title: `Nama Kepsek: ${school.nama_sekolah}`,
-          description: `Nama Kepala Sekolah dasar dampingan Anda belum diisi.`,
+          description: `Nama Kepala Sekolah dasar binaan Anda belum diisi.`,
           actionLabel: 'Lengkapi Profil',
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
@@ -998,7 +1002,7 @@ export default function Dashboard({
           id: `hp-${school.npsn}`,
           category: 'school_info',
           title: `No. Telp Kepsek: ${school.nama_sekolah}`,
-          description: `Nomor telepon Kepala Sekolah dasar dampingan Anda belum diisi.`,
+          description: `Nomor telepon Kepala Sekolah dasar binaan Anda belum diisi.`,
           actionLabel: 'Lengkapi Profil',
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
@@ -1460,6 +1464,9 @@ export default function Dashboard({
                       let mySchools = [];
                       if (user.jabatanTim === 'Fasilitator') {
                         mySchools = schools.filter(s => s.fasilitatorId === user.id);
+                      } else if (user.jabatanTim === 'Koordinator') {
+                        const myFacilitators = users.filter(u => u.jabatanTim === 'Fasilitator' && u.coordinatorId === user.id).map(u => u.id);
+                        mySchools = schools.filter(s => myFacilitators.includes(s.fasilitatorId));
                       } else {
                         mySchools = schools;
                       }
@@ -2277,7 +2284,7 @@ export default function Dashboard({
                             </div>
                             <div className="min-w-0">
                               <span className={`text-sm font-bold block truncate transition-colors ${isSelected ? 'text-indigo-200' : 'text-slate-200'}`}>{fac.name}</span>
-                              <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Dampingan</span>
+                              <span className="text-[10px] text-slate-500 font-medium">{fac.schoolCount} Sekolah Binaan</span>
                             </div>
                           </div>
                           <span className={`font-bold text-sm shrink-0 ${isSelected ? 'text-indigo-300' : 'text-emerald-400'}`}>{fac.avgProgress}%</span>
@@ -2368,12 +2375,12 @@ export default function Dashboard({
           {isFacilitator && (
             <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
               <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2 border-b border-slate-850 pb-3">
-                <School className="w-4 h-4 text-indigo-400" /> Daftar Sekolah Dampingan Anda
+                <School className="w-4 h-4 text-indigo-400" /> Daftar Sekolah Binaan Anda
               </h3>
 
               {displaySchools.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah dampingan.</p>
+                  <p className="text-xs text-slate-500 italic mb-3">Anda belum mengklaim sekolah binaan.</p>
                   <p className="text-xs text-slate-400 mb-4">
                     Silakan buka menu <strong>"Kelola Sekolah"</strong> untuk memilih dan mengklaim sekolah dasar yang akan Anda dampingi.
                   </p>
@@ -2588,7 +2595,7 @@ export default function Dashboard({
                   <div className="flex items-center justify-between bg-indigo-950/40 border border-indigo-500/20 rounded-xl px-3 py-2 mb-3 animate-fade-in">
                     <span className="text-[11px] text-indigo-300 font-semibold">
                       <UserCheck className="w-3 h-3 inline mr-1.5 -mt-0.5" />
-                      Sekolah dampingan <strong>{selectedFacName}</strong>
+                      Sekolah binaan <strong>{selectedFacName}</strong>
                     </span>
                     <button
                       onClick={() => setSelectedFacilitator(null)}
@@ -2601,7 +2608,7 @@ export default function Dashboard({
 
                 {filteredSchools.length === 0 ? (
                   <p className="text-xs text-slate-500 italic text-center py-6">
-                    {selectedFacilitator ? 'Fasilitator ini belum memiliki sekolah dampingan.' : 'Belum ada sekolah terdaftar.'}
+                    {selectedFacilitator ? 'Fasilitator ini belum memiliki sekolah binaan.' : 'Belum ada sekolah terdaftar.'}
                   </p>
                 ) : (
                   <div className="max-h-[500px] overflow-y-auto pr-1 space-y-3">
@@ -2668,7 +2675,7 @@ export default function Dashboard({
                   <div>
                     <h4 className="font-bold text-slate-200 text-xs">Semua Tugas Selesai!</h4>
                     <p className="text-[10px] text-slate-500 leading-normal mt-1">
-                      Bagus! Anda telah menyelesaikan seluruh kewajiban pelaporan dan melengkapi data sekolah dampingan Anda.
+                      Bagus! Anda telah menyelesaikan seluruh kewajiban pelaporan dan melengkapi data sekolah binaan Anda.
                     </p>
                   </div>
                 </div>
@@ -2750,7 +2757,7 @@ export default function Dashboard({
                     <div>
                       <h2 className="text-base font-extrabold text-white">{modalFacName}</h2>
                       <span className="text-[10px] text-slate-500 font-semibold">
-                        {modalFac?.jabatanTim} • {modalFacSchools.length} Sekolah Dampingan
+                        {modalFac?.jabatanTim} • {modalFacSchools.length} Sekolah Binaan
                       </span>
                     </div>
                   </div>

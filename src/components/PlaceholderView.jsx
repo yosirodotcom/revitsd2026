@@ -8,7 +8,7 @@ export default function PlaceholderView({ viewId }) {
         return {
           title: 'Daftar Sekolah & Klaim Mandiri',
           phase: 'Fase 2',
-          desc: 'Menu ini akan memuat 41 data sekolah dasar hasil pendampingan dari data_sekolah.csv. Fasilitator dapat mengklaim tanggung jawab sekolah, mengedit info dasar sekolah, dan memantau kemajuan pekerjaan.',
+          desc: 'Menu ini akan memuat 41 data sekolah dasar hasil fasilitasi dari data_sekolah.csv. Fasilitator dapat mengklaim tanggung jawab sekolah, mengedit info dasar sekolah, dan memantau kemajuan pekerjaan.',
           tasks: [
             'Seeding 41 sekolah dari file CSV',
             'Filter Kabupaten & pencarian instan',
@@ -65,7 +65,7 @@ export default function PlaceholderView({ viewId }) {
         return {
           title: 'Pantau & Bayar Honorarium (Tenaga Administrasi)',
           phase: 'Fase 4',
-          desc: 'Dashboard pemantauan kelayakan pembayaran honorarium tim (Tetap, Output, Outcome). Kelayakan dihitung otomatis berdasarkan persentase kemajuan fisik sekolah dampingan dan status reviu laporan.',
+          desc: 'Dashboard pemantauan kelayakan pembayaran honorarium tim (Tetap, Output, Outcome). Kelayakan dihitung otomatis berdasarkan persentase kemajuan fisik sekolah binaan dan status reviu laporan.',
           tasks: [
             'Perhitungan kelayakan honor otomatis (Merah/Hijau)',
             'Syarat kelayakan Output (75% Sekolah >= 50% + Laporan direviu)',
