@@ -92,7 +92,12 @@ export default function App() {
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [isBlockingSync, setIsBlockingSync] = useState(false);
   const [isDirty, setIsDirty] = useState(() => {
-    return localStorage.getItem('revit_is_dirty') === 'true';
+    try {
+      return localStorage.getItem('revit_is_dirty') === 'true';
+    } catch (e) {
+      console.warn('Failed to read revit_is_dirty from localStorage:', e);
+      return false;
+    }
   });
   const pendingSyncUpdatesRef = useRef({});
   const [syncProgress, setSyncProgress] = useState(0);
@@ -224,52 +229,58 @@ export default function App() {
     // Users
     const storedUsers = localStorage.getItem('revit_users');
     if (storedUsers) {
-      const parsedUsers = JSON.parse(storedUsers);
-      const cleanUsers = parsedUsers.filter(u => u && isValidId(u.id));
-      if (cleanUsers.length === 0) {
+      try {
+        const parsedUsers = JSON.parse(storedUsers);
+        const cleanUsers = Array.isArray(parsedUsers) ? parsedUsers.filter(u => u && isValidId(u.id)) : [];
+        if (cleanUsers.length === 0) {
+          setUsers(initialUsers);
+          localStorage.setItem('revit_users', JSON.stringify(initialUsers));
+        } else {
+          let migrated = false;
+          const updatedUsers = cleanUsers.map(u => {
+            let updated = { ...u };
+            if (updated.id === 'yosi-ronadi' && updated.password === undefined) {
+              updated.password = '4051';
+              migrated = true;
+            }
+            if (updated.id === 'etty-rabihati' && updated.password === undefined) {
+              updated.password = 'sipil';
+              migrated = true;
+            }
+            if (updated.id === 'chandra-bayu' && updated.password === undefined) {
+              updated.password = 'arsitektur';
+              migrated = true;
+            }
+            if (updated.password === undefined) {
+              updated.password = '';
+              migrated = true;
+            }
+            // Normalisasi taxPct
+            if (updated.taxPct === undefined || updated.taxPct === null || String(updated.taxPct).trim() === '') {
+              if (updated.taxPct !== null) {
+                updated.taxPct = null;
+                migrated = true;
+              }
+            } else {
+              const parsedTax = Number(updated.taxPct);
+              if (updated.taxPct !== parsedTax) {
+                updated.taxPct = parsedTax;
+                migrated = true;
+              }
+            }
+            return updated;
+          });
+          if (migrated) {
+            localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
+            setUsers(updatedUsers);
+          } else {
+            setUsers(cleanUsers);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse stored users, resetting to initialUsers:", e);
         setUsers(initialUsers);
         localStorage.setItem('revit_users', JSON.stringify(initialUsers));
-      } else {
-        let migrated = false;
-        const updatedUsers = cleanUsers.map(u => {
-          let updated = { ...u };
-          if (updated.id === 'yosi-ronadi' && updated.password === undefined) {
-            updated.password = '4051';
-            migrated = true;
-          }
-          if (updated.id === 'etty-rabihati' && updated.password === undefined) {
-            updated.password = 'sipil';
-            migrated = true;
-          }
-          if (updated.id === 'chandra-bayu' && updated.password === undefined) {
-            updated.password = 'arsitektur';
-            migrated = true;
-          }
-          if (updated.password === undefined) {
-            updated.password = '';
-            migrated = true;
-          }
-          // Normalisasi taxPct
-          if (updated.taxPct === undefined || updated.taxPct === null || String(updated.taxPct).trim() === '') {
-            if (updated.taxPct !== null) {
-              updated.taxPct = null;
-              migrated = true;
-            }
-          } else {
-            const parsedTax = Number(updated.taxPct);
-            if (updated.taxPct !== parsedTax) {
-              updated.taxPct = parsedTax;
-              migrated = true;
-            }
-          }
-          return updated;
-        });
-        if (migrated) {
-          localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
-          setUsers(updatedUsers);
-        } else {
-          setUsers(cleanUsers);
-        }
       }
     } else {
       setUsers(initialUsers);
@@ -279,52 +290,58 @@ export default function App() {
     // Schools
     const storedSchools = localStorage.getItem('revit_schools');
     if (storedSchools) {
-      const parsed = JSON.parse(storedSchools);
-      const cleanSchools = parsed.filter(s => s && isValidId(s.npsn)).map(s => ({ ...s, npsn: String(s.npsn).trim() }));
-      if (cleanSchools.length === 0) {
+      try {
+        const parsed = JSON.parse(storedSchools);
+        const cleanSchools = Array.isArray(parsed) ? parsed.filter(s => s && isValidId(s.npsn)).map(s => ({ ...s, npsn: String(s.npsn).trim() })) : [];
+        if (cleanSchools.length === 0) {
+          setSchools(initialSchools);
+          localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
+        } else {
+          let isUpdated = false;
+          const migrated = cleanSchools.map((s) => {
+            const init = initialSchools.find((x) => String(x.npsn) === s.npsn);
+            let updated = { ...s };
+            
+            if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, s.npsn) && !isInvalidSchoolName(updated.nama, s.npsn)) {
+              updated.nama_sekolah = updated.nama;
+              isUpdated = true;
+            }
+            if (updated.kepalaSekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
+              updated.kepala_sekolah = updated.kepalaSekolah;
+              isUpdated = true;
+            }
+            
+            if (init) {
+              if (isInvalidSchoolName(updated.nama_sekolah, s.npsn)) {
+                updated.nama_sekolah = init.nama_sekolah;
+                isUpdated = true;
+              }
+              if (init.kepala_sekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
+                updated.kepala_sekolah = init.kepala_sekolah;
+                isUpdated = true;
+              }
+              if (init.koordinat && !s.koordinat) {
+                updated.koordinat = init.koordinat;
+                isUpdated = true;
+              }
+              if (init.fasilitatorId !== s.fasilitatorId) {
+                updated.fasilitatorId = init.fasilitatorId;
+                isUpdated = true;
+              }
+            }
+            return updated;
+          });
+          if (isUpdated) {
+            localStorage.setItem('revit_schools', JSON.stringify(migrated));
+            setSchools(migrated);
+          } else {
+            setSchools(cleanSchools);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse stored schools, resetting to initialSchools:", e);
         setSchools(initialSchools);
         localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
-      } else {
-        let isUpdated = false;
-        const migrated = cleanSchools.map((s) => {
-          const init = initialSchools.find((x) => String(x.npsn) === s.npsn);
-          let updated = { ...s };
-          
-          if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, s.npsn) && !isInvalidSchoolName(updated.nama, s.npsn)) {
-            updated.nama_sekolah = updated.nama;
-            isUpdated = true;
-          }
-          if (updated.kepalaSekolah && (!updated.kepala_sekolah || updated.kepala_sekolah.trim() === '')) {
-            updated.kepala_sekolah = updated.kepalaSekolah;
-            isUpdated = true;
-          }
-          
-          if (init) {
-            if (isInvalidSchoolName(updated.nama_sekolah, s.npsn)) {
-              updated.nama_sekolah = init.nama_sekolah;
-              isUpdated = true;
-            }
-            if (init.kepala_sekolah && (!updated.kepala_sekolah || updated.kepala_sekolah.trim() === '')) {
-              updated.kepala_sekolah = init.kepala_sekolah;
-              isUpdated = true;
-            }
-            if (init.koordinat && !s.koordinat) {
-              updated.koordinat = init.koordinat;
-              isUpdated = true;
-            }
-            if (init.fasilitatorId !== s.fasilitatorId) {
-              updated.fasilitatorId = init.fasilitatorId;
-              isUpdated = true;
-            }
-          }
-          return updated;
-        });
-        if (isUpdated) {
-          localStorage.setItem('revit_schools', JSON.stringify(migrated));
-          setSchools(migrated);
-        } else {
-          setSchools(cleanSchools);
-        }
       }
     } else {
       setSchools(initialSchools);
@@ -531,64 +548,86 @@ export default function App() {
     // Settings
     const storedSettings = localStorage.getItem('revit_settings');
     if (storedSettings) {
-      const parsed = JSON.parse(storedSettings);
-      if (parsed.projectStartDate === '2027-06-12') parsed.projectStartDate = '2026-06-12';
-      if (parsed.projectEndDate === '2027-12-12') parsed.projectEndDate = '2026-12-12';
-      // Hapus simulatedToday dari settings ter-parse jika ada
-      delete parsed.simulatedToday;
+      try {
+        const parsed = JSON.parse(storedSettings);
+        if (parsed.projectStartDate === '2027-06-12') parsed.projectStartDate = '2026-06-12';
+        if (parsed.projectEndDate === '2027-12-12') parsed.projectEndDate = '2026-12-12';
+        // Hapus simulatedToday dari settings ter-parse jika ada
+        delete parsed.simulatedToday;
 
-      // Deteksi jika VITE_GOOGLE_APPS_SCRIPT_URL/Token di .env berubah, kita timpa data di localStorage
-      // agar developer tidak terjebak dengan cache URL/token lama di localStorage saat memodifikasi file .env.
-      const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
-      const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+        // Deteksi jika VITE_GOOGLE_APPS_SCRIPT_URL/Token di .env berubah, kita timpa data di localStorage
+        // agar developer tidak terjebak dengan cache URL/token lama di localStorage saat memodifikasi file .env.
+        const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
+        const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
 
-      let finalUrl = parsed.googleAppsScriptUrl || envUrl;
-      let finalToken = parsed.googleAppsScriptToken || envToken;
+        let finalUrl = parsed.googleAppsScriptUrl || envUrl;
+        let finalToken = parsed.googleAppsScriptToken || envToken;
 
-      let hasEnvChanged = false;
+        let hasEnvChanged = false;
 
-      const lastEnvUrl = localStorage.getItem('revit_last_env_url');
-      if (envUrl && (lastEnvUrl !== envUrl || parsed.googleAppsScriptUrl !== envUrl)) {
-        finalUrl = envUrl;
+        const lastEnvUrl = localStorage.getItem('revit_last_env_url');
+        if (envUrl && (lastEnvUrl !== envUrl || parsed.googleAppsScriptUrl !== envUrl)) {
+          finalUrl = envUrl;
+          localStorage.setItem('revit_last_env_url', envUrl);
+          parsed.googleAppsScriptUrl = envUrl;
+          hasEnvChanged = true;
+        } else if (!lastEnvUrl && envUrl) {
+          localStorage.setItem('revit_last_env_url', envUrl);
+        }
+
+        const lastEnvToken = localStorage.getItem('revit_last_env_token');
+        if (envToken && (lastEnvToken !== envToken || parsed.googleAppsScriptToken !== envToken)) {
+          finalToken = envToken;
+          localStorage.setItem('revit_last_env_token', envToken);
+          parsed.googleAppsScriptToken = envToken;
+          hasEnvChanged = true;
+        } else if (!lastEnvToken && envToken) {
+          localStorage.setItem('revit_last_env_token', envToken);
+        }
+
+        // Jika URL atau Token ter-update, simpan kembali ke localStorage
+        if (hasEnvChanged || parsed.googleAppsScriptUrl !== finalUrl || parsed.googleAppsScriptToken !== finalToken) {
+          parsed.googleAppsScriptUrl = finalUrl;
+          parsed.googleAppsScriptToken = finalToken;
+          localStorage.setItem('revit_settings', JSON.stringify(parsed));
+        }
+
+        setSettings(prev => ({ 
+          projectStartDate: '2026-06-12',
+          projectEndDate: '2026-12-12',
+          googleAppsScriptUrl: finalUrl,
+          googleAppsScriptToken: finalToken,
+          totalProjectContract: 1500000000,
+          honorKetuaTim: 7000000,
+          honorKoordinator: 6000000,
+          honorFasilitator: 5000000,
+          honorAdministrasi: 5000000,
+          deductionTaxPct: 15,
+          deductionLembagaPct: 10,
+          biayaOperasional: 0,
+          ...parsed 
+        }));
+      } catch (e) {
+        console.error("Failed to parse settings:", e);
+        const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
+        const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
         localStorage.setItem('revit_last_env_url', envUrl);
-        parsed.googleAppsScriptUrl = envUrl;
-        hasEnvChanged = true;
-      } else if (!lastEnvUrl && envUrl) {
-        localStorage.setItem('revit_last_env_url', envUrl);
-      }
-
-      const lastEnvToken = localStorage.getItem('revit_last_env_token');
-      if (envToken && (lastEnvToken !== envToken || parsed.googleAppsScriptToken !== envToken)) {
-        finalToken = envToken;
         localStorage.setItem('revit_last_env_token', envToken);
-        parsed.googleAppsScriptToken = envToken;
-        hasEnvChanged = true;
-      } else if (!lastEnvToken && envToken) {
-        localStorage.setItem('revit_last_env_token', envToken);
+        localStorage.setItem('revit_settings', JSON.stringify({
+          projectStartDate: '2026-06-12',
+          projectEndDate: '2026-12-12',
+          googleAppsScriptUrl: envUrl,
+          googleAppsScriptToken: envToken,
+          totalProjectContract: 1500000000,
+          honorKetuaTim: 7000000,
+          honorKoordinator: 6000000,
+          honorFasilitator: 5000000,
+          honorAdministrasi: 5000000,
+          deductionTaxPct: 15,
+          deductionLembagaPct: 10,
+          biayaOperasional: 0
+        }));
       }
-
-      // Jika URL atau Token ter-update, simpan kembali ke localStorage
-      if (hasEnvChanged || parsed.googleAppsScriptUrl !== finalUrl || parsed.googleAppsScriptToken !== finalToken) {
-        parsed.googleAppsScriptUrl = finalUrl;
-        parsed.googleAppsScriptToken = finalToken;
-        localStorage.setItem('revit_settings', JSON.stringify(parsed));
-      }
-
-      setSettings(prev => ({ 
-        projectStartDate: '2026-06-12',
-        projectEndDate: '2026-12-12',
-        googleAppsScriptUrl: finalUrl,
-        googleAppsScriptToken: finalToken,
-        totalProjectContract: 1500000000,
-        honorKetuaTim: 7000000,
-        honorKoordinator: 6000000,
-        honorFasilitator: 5000000,
-        honorAdministrasi: 5000000,
-        deductionTaxPct: 15,
-        deductionLembagaPct: 10,
-        biayaOperasional: 0,
-        ...parsed 
-      }));
     } else {
       const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
       const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
@@ -632,12 +671,13 @@ export default function App() {
             const clean = remoteData.schools.filter(s => s && isValidId(s.npsn)).map(s => {
               let updated = { 
                 ...s,
-                npsn: String(s.npsn).trim()
+                npsn: String(s.npsn).trim(),
+                progres_fisik: (s.progres_fisik === undefined || s.progres_fisik === null || String(s.progres_fisik).trim() === '') ? 0 : Number(s.progres_fisik)
               };
               if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, updated.npsn) && !isInvalidSchoolName(updated.nama, updated.npsn)) {
                 updated.nama_sekolah = updated.nama;
               }
-              if (updated.kepalaSekolah && (!updated.kepala_sekolah || updated.kepala_sekolah.trim() === '')) {
+              if (updated.kepalaSekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
                 updated.kepala_sekolah = updated.kepalaSekolah;
               }
               
@@ -646,7 +686,7 @@ export default function App() {
                 if (isInvalidSchoolName(updated.nama_sekolah, updated.npsn)) {
                   updated.nama_sekolah = init.nama_sekolah;
                 }
-                if (init.kepala_sekolah && (!updated.kepala_sekolah || updated.kepala_sekolah.trim() === '')) {
+                if (init.kepala_sekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
                   updated.kepala_sekolah = init.kepala_sekolah;
                 }
                 if (init.koordinat && !s.koordinat) {
@@ -669,18 +709,23 @@ export default function App() {
             localStorage.setItem('revit_contacts', JSON.stringify(clean));
           }
           if (remoteData.tasks) {
-            const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => ({
-              ...t,
-              sekolahId: t.sekolahId || t.schoolId || '',
-              schoolId: t.sekolahId || t.schoolId || ''
-            }));
+            const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => {
+              const sId = String(t.sekolahId || t.schoolId || '').trim();
+              return {
+                ...t,
+                sekolahId: sId,
+                schoolId: sId
+              };
+            });
             setTasks(clean);
             localStorage.setItem('revit_tasks', JSON.stringify(clean));
           }
           if (remoteData.trips) {
             const clean = remoteData.trips.filter(t => t && isValidId(t.id)).map(t => {
               const normalized = { ...t };
-              if (normalized.schoolId && !normalized.sekolahId) normalized.sekolahId = normalized.schoolId;
+              const sId = String(normalized.sekolahId || normalized.schoolId || '').trim();
+              normalized.sekolahId = sId;
+              normalized.schoolId = sId;
               if (normalized.date && !normalized.tanggalMulai) normalized.tanggalMulai = normalized.date;
               if (normalized.duration && !normalized.durasiHari) normalized.durasiHari = normalized.duration;
               if (normalized.status && !normalized.statusPersetujuan) {
@@ -695,12 +740,28 @@ export default function App() {
             localStorage.setItem('revit_trips', JSON.stringify(clean));
           }
           if (remoteData.logs) {
-            const clean = remoteData.logs.filter(l => l && isValidId(l.id));
+            const clean = remoteData.logs.filter(l => l && isValidId(l.id)).map(l => {
+              const sId = String(l.sekolahId || l.schoolId || '').trim();
+              return {
+                ...l,
+                sekolahId: sId,
+                schoolId: sId
+              };
+            });
             setLogs(clean);
             localStorage.setItem('revit_logs', JSON.stringify(clean));
           }
           if (remoteData.reports) {
-            const clean = remoteData.reports.filter(r => r && isValidId(r.id));
+            const clean = remoteData.reports.filter(r => r && isValidId(r.id)).map(r => {
+              const sId = String(r.sekolahId || r.schoolId || '').trim();
+              return {
+                ...r,
+                sekolahId: sId,
+                schoolId: sId,
+                status: r.status || 'pending',
+                note: r.note || ''
+              };
+            });
             setReports(clean);
             localStorage.setItem('revit_reports', JSON.stringify(clean));
           }
@@ -720,12 +781,15 @@ export default function App() {
             localStorage.setItem('revit_payments', JSON.stringify(clean));
           }
           if (remoteData.school_docs) {
-            const clean = remoteData.school_docs.filter(d => d && isValidId(d.id)).map(d => ({
-              ...d,
-              // Normalisasi nama field lama dari Apps Script schema versi sebelumnya
-              sekolahId: d.sekolahId || d.schoolNpsn || '',
-              fileName: d.fileName || d.name || '',
-            }));
+            const clean = remoteData.school_docs.filter(d => d && isValidId(d.id)).map(d => {
+              const sId = String(d.sekolahId || d.schoolNpsn || d.schoolId || '').trim();
+              return {
+                ...d,
+                sekolahId: sId,
+                schoolId: sId,
+                fileName: d.fileName || d.name || '',
+              };
+            });
             setSchoolDocs(clean);
             localStorage.setItem('revit_school_docs', JSON.stringify(clean));
           }
@@ -816,7 +880,14 @@ export default function App() {
 
     // Active User session if exists
     const storedActiveUser = localStorage.getItem('revit_active_user');
-    if (storedActiveUser) setActiveUser(JSON.parse(storedActiveUser));
+    if (storedActiveUser) {
+      try {
+        setActiveUser(JSON.parse(storedActiveUser));
+      } catch (e) {
+        console.error("Failed to parse stored active user:", e);
+        setActiveUser(null);
+      }
+    }
 
     // Activity logs are already loaded and synced with meetings above
 
@@ -855,6 +926,15 @@ export default function App() {
   }, [settings.googleAppsScriptUrl]);
 
   const handleViewChange = (viewId) => {
+    if (!activeUser && viewId !== 'dashboard' && viewId !== 'sekolah') {
+      if (window.showAlert) {
+        window.showAlert('Silakan masuk ke sistem terlebih dahulu untuk mengakses menu atau detail kegiatan ini.');
+      } else {
+        alert('Silakan masuk ke sistem terlebih dahulu untuk mengakses menu atau detail kegiatan ini.');
+      }
+      setIsSelectingUser(true);
+      return;
+    }
     setActiveView(viewId);
     setSelectedSchoolNpsn(null); // Reset detail page when switching tabs
     setSchoolDetailReferrer(null);
@@ -988,12 +1068,13 @@ export default function App() {
         const clean = remoteData.schools.filter(s => s && isValidId(s.npsn)).map(s => {
           let updated = { 
             ...s,
-            npsn: String(s.npsn).trim()
+            npsn: String(s.npsn).trim(),
+            progres_fisik: (s.progres_fisik === undefined || s.progres_fisik === null || String(s.progres_fisik).trim() === '') ? 0 : Number(s.progres_fisik)
           };
           if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, updated.npsn) && !isInvalidSchoolName(updated.nama, updated.npsn)) {
             updated.nama_sekolah = updated.nama;
           }
-          if (updated.kepalaSekolah && (!updated.kepala_sekolah || updated.kepala_sekolah.trim() === '')) {
+          if (updated.kepalaSekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
             updated.kepala_sekolah = updated.kepalaSekolah;
           }
           
@@ -1002,7 +1083,7 @@ export default function App() {
             if (isInvalidSchoolName(updated.nama_sekolah, updated.npsn)) {
               updated.nama_sekolah = init.nama_sekolah;
             }
-            if (init.kepala_sekolah && (!updated.kepala_sekolah || updated.kepala_sekolah.trim() === '')) {
+            if (init.kepala_sekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
               updated.kepala_sekolah = init.kepala_sekolah;
             }
             if (init.koordinat && !s.koordinat) {
@@ -1025,11 +1106,14 @@ export default function App() {
         localStorage.setItem('revit_contacts', JSON.stringify(clean));
       }
       if (remoteData.tasks) {
-        const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => ({
-          ...t,
-          sekolahId: t.sekolahId || t.schoolId || '',
-          schoolId: t.sekolahId || t.schoolId || ''
-        }));
+        const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => {
+          const sId = String(t.sekolahId || t.schoolId || '').trim();
+          return {
+            ...t,
+            sekolahId: sId,
+            schoolId: sId
+          };
+        });
         setTasks(clean);
         localStorage.setItem('revit_tasks', JSON.stringify(clean));
       }
@@ -1038,7 +1122,9 @@ export default function App() {
         const clean = remoteData.trips.filter(t => t && isValidId(t.id)).map(t => {
           // Normalize old schema to new schema to prevent data loss if Code.gs is outdated
           const normalized = { ...t };
-          if (normalized.schoolId && !normalized.sekolahId) normalized.sekolahId = normalized.schoolId;
+          const sId = String(normalized.sekolahId || normalized.schoolId || '').trim();
+          normalized.sekolahId = sId;
+          normalized.schoolId = sId;
           if (normalized.date && !normalized.tanggalMulai) normalized.tanggalMulai = normalized.date;
           if (normalized.duration && !normalized.durasiHari) normalized.durasiHari = normalized.duration;
           if (normalized.status && !normalized.statusPersetujuan) {
@@ -1054,12 +1140,28 @@ export default function App() {
         localStorage.setItem('revit_trips', JSON.stringify(clean));
       }
       if (remoteData.logs) {
-        const clean = remoteData.logs.filter(l => l && isValidId(l.id));
+        const clean = remoteData.logs.filter(l => l && isValidId(l.id)).map(l => {
+          const sId = String(l.sekolahId || l.schoolId || '').trim();
+          return {
+            ...l,
+            sekolahId: sId,
+            schoolId: sId
+          };
+        });
         setLogs(clean);
         localStorage.setItem('revit_logs', JSON.stringify(clean));
       }
       if (remoteData.reports) {
-        const clean = remoteData.reports.filter(r => r && isValidId(r.id));
+        const clean = remoteData.reports.filter(r => r && isValidId(r.id)).map(r => {
+          const sId = String(r.sekolahId || r.schoolId || '').trim();
+          return {
+            ...r,
+            sekolahId: sId,
+            schoolId: sId,
+            status: r.status || 'pending',
+            note: r.note || ''
+          };
+        });
         setReports(clean);
         localStorage.setItem('revit_reports', JSON.stringify(clean));
       }
@@ -1079,12 +1181,15 @@ export default function App() {
         localStorage.setItem('revit_payments', JSON.stringify(clean));
       }
       if (remoteData.school_docs) {
-        const clean = remoteData.school_docs.filter(d => d && isValidId(d.id)).map(d => ({
-          ...d,
-          // Normalisasi nama field lama dari Apps Script schema versi sebelumnya
-          sekolahId: d.sekolahId || d.schoolNpsn || '',
-          fileName: d.fileName || d.name || '',
-        }));
+        const clean = remoteData.school_docs.filter(d => d && isValidId(d.id)).map(d => {
+          const sId = String(d.sekolahId || d.schoolNpsn || d.schoolId || '').trim();
+          return {
+            ...d,
+            sekolahId: sId,
+            schoolId: sId,
+            fileName: d.fileName || d.name || '',
+          };
+        });
         setSchoolDocs(clean);
         localStorage.setItem('revit_school_docs', JSON.stringify(clean));
       }
@@ -1426,7 +1531,7 @@ export default function App() {
     tripsArr.forEach(t => {
       const targetSchool = schools.find(s => s.npsn === t.sekolahId);
       const schoolName = targetSchool ? targetSchool.nama_sekolah : t.sekolahId;
-      addActivityLog('add_trip', `Merencanakan perjalanan dinas ke ${schoolName} tanggal ${t.tanggal}`);
+      addActivityLog('add_trip', `Merencanakan perjalanan dinas ke ${schoolName} tanggal ${t.tanggalMulai}`);
     });
     const updated = Array.isArray(newTrip) ? [...trips, ...newTrip] : [...trips, newTrip];
     setTrips(updated);
@@ -1536,16 +1641,14 @@ export default function App() {
     const updated = [...tripDocs, newDoc];
     setTripDocs(updated);
     localStorage.setItem('revit_trip_docs', JSON.stringify(updated));
-    localStorage.setItem('revit_is_dirty', 'true');
-    setIsDirty(true);
+    syncWithNewState({ tripDocs: updated });
   };
 
   const handleDeleteTripDoc = (docId) => {
     const updated = tripDocs.filter(d => d.id !== docId);
     setTripDocs(updated);
     localStorage.setItem('revit_trip_docs', JSON.stringify(updated));
-    localStorage.setItem('revit_is_dirty', 'true');
-    setIsDirty(true);
+    syncWithNewState({ tripDocs: updated });
   };
 
   // 11. Daily Logs Actions (Fase 4)
@@ -1656,6 +1759,41 @@ export default function App() {
     }
   };
 
+  const handleUpdateReportStatus = (reportId, status, note = '', shouldSync = false) => {
+    const rep = reports.find(r => r.id === reportId);
+    if (!rep) return;
+
+    const actionLabel = status === 'approved' ? 'menyetujui' : 'mengembalikan';
+    const reportUser = users.find(u => u.id === rep.userId) || { nama: 'Anggota' };
+    addActivityLog('review_monthly_report', `${activeUser.nama} (${activeUser.jabatanTim}) ${actionLabel} laporan bulanan ke-${rep.bulanKe} dari ${reportUser.nama}.${note ? ' Catatan: ' + note : ''}`, {
+      id: reportId,
+      type: 'report',
+      fileName: rep.fileName
+    }, shouldSync);
+
+    const updated = reports.map(r => {
+      if (r.id === reportId) {
+        return {
+          ...r,
+          status,
+          note,
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: activeUser.id
+        };
+      }
+      return r;
+    });
+
+    setReports(updated);
+    localStorage.setItem('revit_reports', JSON.stringify(updated));
+    if (shouldSync) {
+      syncWithNewState({ reports: updated });
+    } else {
+      localStorage.setItem('revit_is_dirty', 'true');
+      setIsDirty(true);
+    }
+  };
+
   // 13. Duty Reports Actions (Fase 4)
   const handleSaveDutyReport = (newReport) => {
     const updated = dutyReports.filter(r => !(r.userId === newReport.userId && r.dutyIndex === newReport.dutyIndex));
@@ -1724,8 +1862,7 @@ export default function App() {
     const updated = [...schoolDocs, newDoc];
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    localStorage.setItem('revit_is_dirty', 'true');
-    setIsDirty(true);
+    syncWithNewState({ schoolDocs: updated });
   };
 
   const handleDeleteSchoolDoc = (docId) => {
@@ -1738,8 +1875,7 @@ export default function App() {
     const updated = schoolDocs.filter(d => d.id !== docId);
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    localStorage.setItem('revit_is_dirty', 'true');
-    setIsDirty(true);
+    syncWithNewState({ schoolDocs: updated });
   };
 
   const handleAddPersonnelDoc = (newDoc) => {
@@ -1751,8 +1887,7 @@ export default function App() {
     const updated = [...personnelDocs, newDoc];
     setPersonnelDocs(updated);
     localStorage.setItem('revit_personnel_docs', JSON.stringify(updated));
-    localStorage.setItem('revit_is_dirty', 'true');
-    setIsDirty(true);
+    syncWithNewState({ personnelDocs: updated });
   };
 
   const handleDeletePersonnelDoc = (docId) => {
@@ -1763,8 +1898,7 @@ export default function App() {
     const updated = personnelDocs.filter(d => d.id !== docId);
     setPersonnelDocs(updated);
     localStorage.setItem('revit_personnel_docs', JSON.stringify(updated));
-    localStorage.setItem('revit_is_dirty', 'true');
-    setIsDirty(true);
+    syncWithNewState({ personnelDocs: updated });
   };
 
   const handleAddMeeting = (newMeeting, documents = []) => {
@@ -1903,14 +2037,19 @@ export default function App() {
 
     setActivityLogs((prev) => {
       const updated = [newLog, ...prev].slice(0, 50);
-      localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
-      if (shouldSync) {
-        syncWithNewState({ activityLogs: updated });
-      } else {
-        localStorage.setItem('revit_is_dirty', 'true');
-        setIsDirty(true);
-        pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, activityLogs: updated };
-      }
+      
+      // Defer localStorage changes and state synchronizations out of render cycle
+      setTimeout(() => {
+        localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
+        if (shouldSync) {
+          syncWithNewState({ activityLogs: updated });
+        } else {
+          localStorage.setItem('revit_is_dirty', 'true');
+          setIsDirty(true);
+          pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, activityLogs: updated };
+        }
+      }, 0);
+
       return updated;
     });
   };
@@ -2151,6 +2290,8 @@ export default function App() {
               logs={logs}
               users={users}
               trips={trips}
+              tripDocs={tripDocs}
+              schoolDocs={schoolDocs}
               meetings={meetings}
               onApproveTrip={handleApproveTrip}
               onRejectTrip={handleRejectTrip}
@@ -2226,6 +2367,7 @@ export default function App() {
                   onUpdateUser={handleUpdateUser}
                   trips={trips}
                   tripDocs={tripDocs}
+                  schoolDocs={schoolDocs}
                   onAddTrip={handleAddTrip}
                   onApproveTrip={handleApproveTrip}
                   onRejectTrip={handleRejectTrip}
@@ -2248,6 +2390,7 @@ export default function App() {
                   activeUser={activeUser}
                   onAddReport={(newReport) => handleAddReport(newReport, true)}
                   onDeleteReport={(reportId) => handleDeleteReport(reportId, true)}
+                  onUpdateReportStatus={(reportId, status, note) => handleUpdateReportStatus(reportId, status, note, true)}
                 />
               )}
 

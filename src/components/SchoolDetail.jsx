@@ -387,6 +387,14 @@ export default function SchoolDetail({
 
   const handleOpenFile = (file) => {
     try {
+      if (file.fileData && file.fileData.startsWith('http')) {
+        const newWindow = window.open(file.fileData, '_blank');
+        if (!newWindow) {
+          window.showAlert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
+        }
+        return;
+      }
+
       const parts = file.fileData.split(';base64,');
       const contentType = parts[0].split(':')[1];
       const raw = window.atob(parts[1]);
@@ -1281,13 +1289,6 @@ export default function SchoolDetail({
                                             {abbr}-{idx + 1}
                                           </span>
                                           <div className="flex items-center gap-1 ml-1 border-l border-slate-800/80 pl-1 shrink-0">
-                                            <button 
-                                              onClick={() => handleOpenFile(file)}
-                                              className="text-slate-500 hover:text-indigo-400 p-0.5 transition-colors cursor-pointer" 
-                                              title={`Buka ${file.fileName}`}
-                                            >
-                                              <Play className="w-2.5 h-2.5" />
-                                            </button>
                                             <button 
                                               onClick={() => handleDownloadFile(file)}
                                               className="text-slate-500 hover:text-indigo-400 p-0.5 transition-colors cursor-pointer" 

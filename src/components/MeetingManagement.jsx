@@ -27,7 +27,7 @@ const getDirectImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
   
-  if (url.includes('drive.google.com')) {
+  if (url.includes('drive.google.com') || url.includes('docs.google.com') || url.includes('googleusercontent.com')) {
     let fileId = null;
     const idMatch = url.match(/id=([^&]+)/);
     if (idMatch && idMatch[1]) {
@@ -39,7 +39,7 @@ const getDirectImageUrl = (url) => {
       }
     }
     if (fileId) {
-      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+      return `https://lh3.googleusercontent.com/d/${fileId}`;
     }
   }
   return url;
@@ -1195,6 +1195,7 @@ export default function MeetingManagement({
                         <img 
                           src={getDirectImageUrl(selectedMeetingDetail.fotoKegiatan)} 
                           alt="Dokumentasi Rapat" 
+                          crossOrigin="anonymous"
                           className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300" 
                         />
                       </div>

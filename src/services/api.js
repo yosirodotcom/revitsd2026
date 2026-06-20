@@ -82,7 +82,18 @@ export const syncService = {
           schoolId: t.sekolahId || t.schoolId || '',
           date: t.tanggalMulai || t.date || '',
           duration: t.durasiHari || t.duration || 1,
-          status: t.statusPersetujuan === 'approved' ? 'completed' : 'planned'
+          status: (() => {
+            if (t.isPaid || t.status === 'paid') return 'paid';
+            if (t.statusPersetujuan === 'approved') {
+              const todayStr = state.settings.simulatedToday || new Date().toISOString().split('T')[0];
+              const today = new Date(todayStr);
+              const end = new Date(t.tanggalSelesai || t.tanggalMulai || t.date);
+              if (today >= end) {
+                return 'completed';
+              }
+            }
+            return 'planned';
+          })()
         })),
         logs: (state.logs || []).map(l => ({
           ...l,

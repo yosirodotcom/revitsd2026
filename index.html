@@ -2,10 +2,10 @@
 <html lang="id">
   <head><script id="catch_errors">
     window.addEventListener('error', function(e) {
-      fetch('http://localhost:5176/', { method: 'POST', body: e.message + ' | ' + e.filename + ':' + e.lineno });
+      fetch('http://localhost:5176/', { method: 'POST', body: e.message + ' | ' + e.filename + ':' + e.lineno }).catch(() => {});
     });
     window.addEventListener('unhandledrejection', function(e) {
-      fetch('http://localhost:5176/', { method: 'POST', body: 'Unhandled Promise: ' + e.reason });
+      fetch('http://localhost:5176/', { method: 'POST', body: 'Unhandled Promise: ' + e.reason }).catch(() => {});
     });
   </script>
     <meta charset="UTF-8" />

@@ -23,8 +23,156 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
+
+function TripMultiMap({ schools, batchList }) {
+  const mapRef = React.useRef(null);
+  const mapInstanceRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!window.L || !mapRef.current) return;
+
+    const parseCoordinates = (sch) => {
+      if (!sch.koordinat) return null;
+      const regex = /(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/;
+      const match = sch.koordinat.match(regex);
+      if (match) {
+        return [parseFloat(match[1]), parseFloat(match[2])];
+      }
+      const urlRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+      const urlMatch = sch.koordinat.match(urlRegex);
+      if (urlMatch) {
+        return [parseFloat(urlMatch[1]), parseFloat(urlMatch[2])];
+      }
+      return null;
+    };
+
+    const getSchoolCoordinates = (sch) => {
+      const parsed = parseCoordinates(sch);
+      if (parsed) return parsed;
+
+      const centers = {
+        'Melawi': [-0.3392, 111.6994],
+        'Sintang': [0.0764, 111.4981],
+        'Sekadau': [0.0163, 110.9022],
+        'Landak': [0.4222, 109.9614],
+        'Ketapang': [-1.8422, 109.9708],
+        'Sanggau': [0.1258, 110.4239],
+        'Mempawah': [0.3691, 108.9511],
+        'Pontianak': [-0.0263, 109.3425],
+        'Bengkayang': [0.8219, 109.4975],
+        'Sambas': [1.3631, 109.3014],
+        'Singkawang': [0.9025, 108.9836],
+        'Kapuas Hulu': [0.8174, 112.9292],
+      };
+
+      const base = centers[sch.kabupaten] || [-0.0263, 109.3425];
+      const npsnNum = parseInt(sch.npsn) || 0;
+      const latOffset = ((npsnNum % 100) / 100 - 0.5) * 0.12;
+      const lngOffset = (((npsnNum / 100) % 100) / 100 - 0.5) * 0.12;
+      
+      return [base[0] + latOffset, base[1] + lngOffset];
+    };
+
+    const map = window.L.map(mapRef.current, {
+      zoomControl: true
+    }).setView([-0.0263, 109.3425], 8);
+    mapInstanceRef.current = map;
+
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    const markers = [];
+
+    batchList.forEach(t => {
+      const school = schools.find(s => String(s.npsn) === String(t.sekolahId));
+      if (!school) return;
+
+      const coords = getSchoolCoordinates(school);
+      
+      let pulseColor = 'bg-indigo-400';
+      let coreColor = 'bg-indigo-500 shadow-indigo-500/50';
+      if (school.progres_fisik === 100) {
+        pulseColor = 'bg-emerald-400';
+        coreColor = 'bg-emerald-500 shadow-emerald-500/50';
+      } else if (school.progres_fisik === 0) {
+        pulseColor = 'bg-amber-400';
+        coreColor = 'bg-amber-500 shadow-amber-500/50';
+      }
+
+      const customIcon = window.L.divIcon({
+        html: `<div class="relative flex items-center justify-center">
+          <span class="absolute inline-flex h-6 w-6 animate-ping rounded-full ${pulseColor} opacity-30"></span>
+          <div class="relative rounded-full h-4 w-4 ${coreColor} border-2 border-slate-950 flex items-center justify-center shadow-lg">
+            <div class="h-1.5 w-1.5 rounded-full bg-white"></div>
+          </div>
+        </div>`,
+        className: 'custom-div-icon',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      const marker = window.L.marker(coords, { icon: customIcon });
+
+      const mapsUrl = school.koordinat && school.koordinat.startsWith('http')
+        ? school.koordinat
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(school.koordinat || `${school.nama_sekolah}, Kabupaten ${school.kabupaten}`)}`;
+
+      const popupHtml = `
+        <div class="p-1 font-sans" style="color: #f1f5f9; min-width: 140px;">
+          <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">NPSN ${school.npsn}</div>
+          <h4 class="font-bold text-xs text-slate-100 mt-0.5 leading-snug">${school.nama_sekolah}</h4>
+          <div class="flex items-center gap-1.5 text-[10px] text-slate-350 mt-1">
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[9px] font-medium text-slate-400">${school.kabupaten}</span>
+            <span class="text-emerald-400 font-bold">${school.progres_fisik}% Progres</span>
+          </div>
+          <div class="mt-2">
+            <a href="${mapsUrl}" target="_blank" rel="noreferrer" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-bold py-1 px-2 rounded-lg transition-colors cursor-pointer text-center no-underline border-0 block">
+              Google Maps
+            </a>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml, {
+        closeButton: false,
+        maxWidth: 200,
+        className: 'custom-leaflet-popup'
+      });
+
+      marker.addTo(map);
+      markers.push(marker);
+    });
+
+    if (markers.length > 0) {
+      const group = new window.L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.2));
+    }
+
+    setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 200);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [schools, batchList]);
+
+  return (
+    <div className="relative w-full h-[240px] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/60 shadow-xl">
+      <div ref={mapRef} className="w-full h-full z-10" />
+    </div>
+  );
+}
 
 export default function Dashboard({ 
   activeUser, 
@@ -36,6 +184,8 @@ export default function Dashboard({
   logs = [],
   users = [],
   trips = [],
+  tripDocs = [],
+  schoolDocs = [],
   onApproveTrip,
   onRejectTrip,
   onApproveTripsBatch,
@@ -75,6 +225,7 @@ export default function Dashboard({
   const [editingLogId, setEditingLogId] = useState(null);
   const [editingLogText, setEditingLogText] = useState('');
   const scrollContainerRef = React.useRef(null);
+  const [selectedTimelineEvent, setSelectedTimelineEvent] = useState(null);
 
   const formatNumberWithDots = (val) => {
     if (val === undefined || val === null || isNaN(val)) return '';
@@ -85,7 +236,7 @@ export default function Dashboard({
     if (!url) return '';
     if (url.startsWith('data:')) return url;
     
-    if (url.includes('drive.google.com')) {
+    if (url.includes('drive.google.com') || url.includes('docs.google.com') || url.includes('googleusercontent.com')) {
       let fileId = null;
       const idMatch = url.match(/id=([^&]+)/);
       if (idMatch && idMatch[1]) {
@@ -97,7 +248,7 @@ export default function Dashboard({
         }
       }
       if (fileId) {
-        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+        return `https://lh3.googleusercontent.com/d/${fileId}`;
       }
     }
     return url;
@@ -779,7 +930,10 @@ export default function Dashboard({
         title: `Perjalanan Dinas ${userName} (${batch.length} Sekolah)`,
         type: 'dinas',
         details: `${userRole} • Kab: ${kabList} • Kunjungan ke-${firstTrip.kunjunganKe || '?'}`,
-        raw: firstTrip
+        raw: firstTrip,
+        batch: batch,
+        userName: userName,
+        userRole: userRole
       });
     });
   }
@@ -987,7 +1141,7 @@ export default function Dashboard({
     // 2. Missing School Metadata & Document Uploads
     displaySchools.forEach(school => {
       // Check metadata fields
-      if (!school.kepala_sekolah || school.kepala_sekolah.trim() === '') {
+      if (!school.kepala_sekolah || String(school.kepala_sekolah).trim() === '') {
         tasksList.push({
           id: `kepsek-${school.npsn}`,
           category: 'school_info',
@@ -997,7 +1151,7 @@ export default function Dashboard({
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
       }
-      if (!school.hp_kepala_sekolah || school.hp_kepala_sekolah.trim() === '') {
+      if (!school.hp_kepala_sekolah || String(school.hp_kepala_sekolah).trim() === '') {
         tasksList.push({
           id: `hp-${school.npsn}`,
           category: 'school_info',
@@ -1007,7 +1161,7 @@ export default function Dashboard({
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
       }
-      if (!school.kecamatan || school.kecamatan.trim() === '') {
+      if (!school.kecamatan || String(school.kecamatan).trim() === '') {
         tasksList.push({
           id: `kecamatan-${school.npsn}`,
           category: 'school_info',
@@ -1017,7 +1171,7 @@ export default function Dashboard({
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
       }
-      if (!school.desa || school.desa.trim() === '') {
+      if (!school.desa || String(school.desa).trim() === '') {
         tasksList.push({
           id: `desa-${school.npsn}`,
           category: 'school_info',
@@ -1027,7 +1181,7 @@ export default function Dashboard({
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
       }
-      if (!school.koordinat || school.koordinat.trim() === '') {
+      if (!school.koordinat || String(school.koordinat).trim() === '') {
         tasksList.push({
           id: `koordinat-${school.npsn}`,
           category: 'school_info',
@@ -1037,7 +1191,7 @@ export default function Dashboard({
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
       }
-      if (!school.perencanaId || school.perencanaId.trim() === '') {
+      if (!school.perencanaId || String(school.perencanaId).trim() === '') {
         tasksList.push({
           id: `perencana-${school.npsn}`,
           category: 'school_info',
@@ -1047,7 +1201,7 @@ export default function Dashboard({
           action: () => onSelectSchool && onSelectSchool(school.npsn)
         });
       }
-      if (!school.pengawasId || school.pengawasId.trim() === '') {
+      if (!school.pengawasId || String(school.pengawasId).trim() === '') {
         tasksList.push({
           id: `pengawas-${school.npsn}`,
           category: 'school_info',
@@ -2142,11 +2296,7 @@ export default function Dashboard({
                                   className={`absolute ${ts.cardHeight} rounded-xl border px-3 flex items-center justify-between ${ts.fontSize} font-bold cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md group ${colorClass}`}
                                   style={{ left, width }}
                                   onClick={() => {
-                                    if (event.type === 'dinas') {
-                                      onViewChange && onViewChange('trips');
-                                    } else if (event.type === 'rapat') {
-                                      onViewChange && onViewChange('meetings');
-                                    }
+                                    setSelectedTimelineEvent(event);
                                   }}
                                 >
                                   {/* Drag pill handle on hover */}
@@ -2854,9 +3004,23 @@ export default function Dashboard({
                       </div>
                     ) : (
                       modalTrips.map((trip) => {
-                        const tripSchool = schools.find(s => s.npsn === trip.sekolahId);
+                        const getTripDisplayStatus = (t) => {
+                          if (t.isPaid || t.status === 'paid') return 'paid';
+                          if (t.statusPersetujuan === 'approved') {
+                            const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
+                            const today = new Date(todayStr);
+                            const start = new Date(t.tanggalMulai || t.date);
+                            const end = new Date(t.tanggalSelesai || t.tanggalMulai || t.date);
+                            if (today < start) return 'planned';
+                            else if (today >= start && today <= end) return 'active';
+                            else return 'completed';
+                          }
+                          return 'planned';
+                        };
+
                         const statusConfig = {
-                          planned: { label: 'Direncanakan', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                          planned: { label: 'Akan dikunjungi', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                          active: { label: 'Sedang Berjalan', color: 'text-sky-400 bg-sky-500/10 border-sky-500/20 animate-pulse' },
                           completed: { label: 'Selesai', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
                           paid: { label: 'Dibayar', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
                         };
@@ -2865,8 +3029,9 @@ export default function Dashboard({
                           approved: { label: 'Disetujui', color: 'text-emerald-400', bg: 'bg-emerald-500/5 border-emerald-500/15' },
                           rejected: { label: 'Ditolak', color: 'text-rose-400', bg: 'bg-rose-500/5 border-rose-500/15' },
                         };
-                        const st = statusConfig[trip.status] || statusConfig.planned;
+                        const st = statusConfig[getTripDisplayStatus(trip)] || statusConfig.planned;
                         const ap = trip.statusPersetujuan ? (approvalConfig[trip.statusPersetujuan] || null) : null;
+                        const tripSchool = schools.find(s => s.npsn === trip.sekolahId);
                         return (
                           <div key={trip.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 hover:border-slate-700 transition-colors">
                             <div className="flex justify-between items-start gap-3">
@@ -3113,6 +3278,433 @@ export default function Dashboard({
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 )}
+              </div>
+
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
+
+      {/* Selected Timeline Event Detail Modal */}
+      {selectedTimelineEvent && (() => {
+        const event = selectedTimelineEvent;
+        const isRapat = event.type === 'rapat';
+        const isDinas = event.type === 'dinas';
+        
+        return createPortal(
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in select-none">
+            <div className="bg-slate-905 border border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+              
+              {/* Close Button */}
+              <button 
+                onClick={() => setSelectedTimelineEvent(null)}
+                className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-950 text-slate-400 hover:text-white transition-colors border border-slate-805 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Title Header */}
+              <div className="border-b border-slate-800 pb-4 mb-4">
+                <span className={`text-[10px] ${isRapat ? 'text-emerald-450 bg-emerald-500/10 border-emerald-500/20' : 'text-sky-400 bg-sky-500/10 border-sky-500/20'} border px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider`}>
+                  {isRapat ? 'Detail Rapat Koordinasi' : 'Detail Perjalanan Dinas'}
+                </span>
+                <h3 className="text-lg font-extrabold text-white mt-2">{event.title}</h3>
+                <div className="flex gap-2.5 items-center mt-1 text-[11px] text-slate-400 font-medium">
+                  <span>Mulai: <strong>{formatLogDate(event.startDateStr)}</strong></span>
+                  <span>•</span>
+                  <span>Selesai: <strong>{formatLogDate(event.endDateStr)}</strong></span>
+                </div>
+              </div>
+
+              {/* Detail Content */}
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-1 text-slate-300">
+                {isRapat && (() => {
+                  const meet = event.raw;
+                  return (
+                    <div className="space-y-4">
+                      <div className="bg-slate-950/60 border border-slate-850 p-4 rounded-2xl space-y-2">
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Lokasi Rapat</span>
+                          <span className="text-xs font-bold text-white block mt-0.5">{meet.lokasi || '-'}</span>
+                        </div>
+                        {meet.jam && (
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Waktu / Jam</span>
+                            <span className="text-xs font-bold text-white block mt-0.5">{meet.jam}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {meet.keterangan && (
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-1">Catatan / Notulen Rapat</span>
+                          <p className="text-xs text-slate-450 bg-slate-950/40 p-3 rounded-xl border border-slate-850/60 leading-relaxed">
+                            {meet.keterangan}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Participants */}
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">Daftar Peserta Rapat</span>
+                        {(!meet.pesertaIds || meet.pesertaIds.length === 0) ? (
+                          <p className="text-xs text-slate-500 italic">Tidak ada peserta terdaftar.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {meet.pesertaIds.map(uid => {
+                              const u = users.find(usr => usr.id === uid);
+                              if (!u) return null;
+                              return (
+                                <span key={uid} className="text-[10px] font-bold px-2.5 py-1 rounded-lg border bg-slate-950/60 border-slate-800 text-slate-300">
+                                  {u.nama} ({u.jabatanTim})
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {meet.fotoKegiatan && (
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">Dokumentasi Rapat</span>
+                          <img 
+                            src={getDirectImageUrl(meet.fotoKegiatan)} 
+                            alt="Dokumentasi Rapat" 
+                            crossOrigin="anonymous"
+                            className="w-full max-h-48 object-cover rounded-xl border border-slate-800 cursor-pointer"
+                            onClick={() => window.open(meet.fotoKegiatan, '_blank')}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {isDinas && (() => {
+                  const trip = event.raw;
+                  const batchList = event.batch || [trip];
+                  const docs = tripDocs.filter(d => d.tripId === trip.id);
+                  
+                  const getDurationFriendly = (startDateStr, endDateStr) => {
+                    if (!startDateStr || !endDateStr) return '-';
+                    try {
+                      const start = new Date(startDateStr);
+                      const end = new Date(endDateStr);
+                      if (isNaN(start.getTime()) || isNaN(end.getTime())) return '-';
+                      
+                      let years = end.getFullYear() - start.getFullYear();
+                      let months = end.getMonth() - start.getMonth();
+                      let days = end.getDate() - start.getDate();
+                      
+                      if (days < 0) {
+                        months -= 1;
+                        const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+                        days += prevMonth.getDate();
+                      }
+                      
+                      if (months < 0) {
+                        years -= 1;
+                        months += 12;
+                      }
+                      
+                      const totalMonths = (years * 12) + months;
+                      
+                      const parts = [];
+                      if (totalMonths > 0) parts.push(`${totalMonths} Bulan`);
+                      if (days > 0 || parts.length === 0) parts.push(`${days} Hari`);
+                      
+                      return parts.join(' ');
+                    } catch {
+                      return '-';
+                    }
+                  };
+
+                  const getTripDisplayStatus = (t) => {
+                    if (t.isPaid || t.status === 'paid') return 'paid';
+                    if (t.statusPersetujuan === 'approved') {
+                      const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
+                      const today = new Date(todayStr);
+                      const start = new Date(t.tanggalMulai || t.date);
+                      const end = new Date(t.tanggalSelesai || t.tanggalMulai || t.date);
+                      if (today < start) {
+                        return 'planned';
+                      } else if (today >= start && today <= end) {
+                        return 'active';
+                      } else {
+                        return 'completed';
+                      }
+                    }
+                    return 'planned';
+                  };
+
+                  const statusConfig = {
+                    planned: { label: 'Akan dikunjungi', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                    active: { label: 'Sedang Berjalan', color: 'text-sky-400 bg-sky-500/10 border-sky-500/20 animate-pulse' },
+                    completed: { label: 'Selesai', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                    paid: { label: 'Dibayar', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                  };
+                  const approvalConfig = {
+                    pending: { label: 'Menunggu Persetujuan', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                    approved: { label: 'Disetujui', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                    rejected: { label: 'Ditolak', color: 'text-rose-450 bg-rose-500/10 border-rose-500/20' },
+                  };
+
+                  const st = statusConfig[getTripDisplayStatus(trip)] || statusConfig.planned;
+                  const ap = trip.statusPersetujuan ? (approvalConfig[trip.statusPersetujuan] || null) : null;
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="bg-slate-950/60 border border-slate-850 p-4 rounded-2xl grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Petugas Dinas</span>
+                          <span className="text-xs font-bold text-white block mt-0.5">{event.userName} ({event.userRole})</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Kunjungan Ke</span>
+                          <span className="text-xs font-bold text-white block mt-0.5">Ke-{trip.kunjunganKe || '?'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Status Perjalanan</span>
+                          <span className={`inline-block text-[9.5px] font-extrabold px-2 py-0.5 rounded border mt-0.5 ${st.color}`}>{st.label}</span>
+                        </div>
+                        {ap && (
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Status Persetujuan</span>
+                            <span className={`inline-block text-[9.5px] font-extrabold px-2 py-0.5 rounded border mt-0.5 ${ap.color}`}>
+                              {ap.label}{trip.approvedBy ? ` (${trip.approvedBy})` : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Schools List */}
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2.5">Daftar Sekolah Binaan yang Dikunjungi ({batchList.length} Sekolah)</span>
+                        <div className="space-y-2">
+                          {batchList.map(t => {
+                            const school = schools.find(s => s.npsn === t.sekolahId);
+                            const schoolName = school ? school.nama_sekolah : `NPSN ${t.sekolahId}`;
+                            const progValue = school ? (school.progres_fisik || 0) : 0;
+                            
+                            const schoolStart = school?.tanggal_mulai_sekolah || settings.projectStartDate;
+                            const visitDate = t.tanggalMulai || t.date || trip.tanggalMulai || trip.date;
+                            
+                            // Calculate months elapsed at visit
+                            const d1 = new Date(schoolStart);
+                            const d2 = new Date(visitDate);
+                            const monthsElapsedAtVisit = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+                            
+                            const isProgOk = trip.kunjunganKe === 1 ? progValue >= 50 : progValue >= 100;
+                            const isTimeOk = trip.kunjunganKe === 1 ? monthsElapsedAtVisit >= 3 : monthsElapsedAtVisit >= 6;
+                            const isEligible = isProgOk || isTimeOk;
+                            
+                            const durationStr = getDurationFriendly(schoolStart, visitDate);
+                            const doc50 = (schoolDocs || []).find(d => String(d.sekolahId) === String(t.sekolahId) && d.category === 'lap_progres_50');
+
+                            return (
+                              <div 
+                                key={t.id} 
+                                className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 rounded-2xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 transition-all duration-300 gap-3"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${isEligible ? 'bg-emerald-400' : 'bg-rose-550 animate-pulse'}`}></div>
+                                    <span 
+                                      onClick={() => {
+                                        setSelectedTimelineEvent(null);
+                                        onSelectSchool && onSelectSchool(t.sekolahId);
+                                      }}
+                                      className="font-extrabold text-xs text-slate-100 truncate hover:text-indigo-400 hover:underline cursor-pointer transition-colors"
+                                      title={schoolName}
+                                    >
+                                      {schoolName}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                                      isProgOk 
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                    }`}>
+                                      Progres: <strong className="font-extrabold">{progValue}%</strong>
+                                    </span>
+                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                                      isTimeOk 
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                    }`}>
+                                      Mulai Dikunjungi: <strong className="font-extrabold">{durationStr}</strong>
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center shrink-0">
+                                  {doc50 ? (
+                                    <a 
+                                      href={doc50.fileData} 
+                                      download={doc50.fileName}
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-[9.5px] font-extrabold px-3 py-1.5 rounded-full border transition-all cursor-pointer text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 border-emerald-500/20"
+                                      title="Unduh Laporan 50%"
+                                    >
+                                      <Download className="w-3.5 h-3.5" /> Lap 50%
+                                    </a>
+                                  ) : (
+                                    <span className="text-[9.5px] font-bold text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-full border border-rose-500/20 select-none">
+                                      Lap 50% Belum Ada
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Attached Documents (Surat Tugas & SPPD) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Surat Tugas Section */}
+                        <div className="bg-slate-950/30 border border-slate-850 rounded-xl p-3.5 flex flex-col">
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <div className="w-5 h-5 rounded bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                              <FileText className="w-3 h-3" />
+                            </div>
+                            <span className="text-[10px] text-slate-300 uppercase tracking-wider font-extrabold">Surat Tugas Resmi</span>
+                          </div>
+                          {docs.filter(d => d.category === 'surat_tugas' || !d.category).length === 0 ? (
+                            <p className="text-[10.5px] text-slate-500 italic py-3 text-center bg-slate-950/20 rounded-lg border border-dashed border-slate-850/80">
+                              Belum ada Surat Tugas terlampir.
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                              {docs.filter(d => d.category === 'surat_tugas' || !d.category).map(doc => (
+                                <div key={doc.id} className="flex items-center justify-between p-2 bg-slate-950/40 border border-slate-850/60 rounded-lg">
+                                  <div className="min-w-0 flex-1 mr-2">
+                                    <p className="text-[11px] font-bold text-slate-200 truncate" title={doc.name}>{doc.name}</p>
+                                    <p className="text-[9px] text-slate-500">Diunggah: {formatLogDate(doc.uploadedAt)}</p>
+                                  </div>
+                                  <a
+                                    href={doc.fileData}
+                                    download={doc.name}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded transition-colors shrink-0 border border-indigo-500/20 font-bold text-[9.5px]"
+                                    title="Unduh / Lihat Dokumen"
+                                  >
+                                    Unduh
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* SPPD Section */}
+                        <div className="bg-slate-950/30 border border-slate-850 rounded-xl p-3.5 flex flex-col">
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <div className="w-5 h-5 rounded bg-violet-500/20 flex items-center justify-center text-violet-400">
+                              <FileText className="w-3 h-3" />
+                            </div>
+                            <span className="text-[10px] text-slate-300 uppercase tracking-wider font-extrabold">SPPD Resmi</span>
+                          </div>
+                          {docs.filter(d => d.category === 'sppd').length === 0 ? (
+                            <p className="text-[10.5px] text-slate-500 italic py-3 text-center bg-slate-950/20 rounded-lg border border-dashed border-slate-850/80">
+                              Belum ada SPPD terlampir.
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                              {docs.filter(d => d.category === 'sppd').map(doc => (
+                                <div key={doc.id} className="flex items-center justify-between p-2 bg-slate-950/40 border border-slate-850/60 rounded-lg">
+                                  <div className="min-w-0 flex-1 mr-2">
+                                    <p className="text-[11px] font-bold text-slate-200 truncate" title={doc.name}>{doc.name}</p>
+                                    <p className="text-[9px] text-slate-500">Diunggah: {formatLogDate(doc.uploadedAt)}</p>
+                                  </div>
+                                  <a
+                                    href={doc.fileData}
+                                    download={doc.name}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2 py-1 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 rounded transition-colors shrink-0 border border-violet-500/20 font-bold text-[9.5px]"
+                                    title="Unduh / Lihat Dokumen"
+                                  >
+                                    Unduh
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Map Lokasi Sekolah */}
+                      <div className="space-y-3 mt-4 pt-4 border-t border-slate-800/80">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">Peta Lokasi Kunjungan Sekolah</span>
+                        </div>
+                        <TripMultiMap schools={schools} batchList={batchList} />
+                      </div>
+
+                      {trip.laporanHasil && (
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-1">Laporan Hasil / Keterangan</span>
+                          <p className="text-xs text-slate-400 bg-slate-950/40 p-3 rounded-xl border border-slate-850/60 leading-relaxed">
+                            {trip.laporanHasil}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="border-t border-slate-800 pt-4 mt-4 flex gap-3">
+                <button
+                  onClick={() => setSelectedTimelineEvent(null)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-slate-200 transition-all cursor-pointer border-0"
+                >
+                  Tutup
+                </button>
+                {(() => {
+                  const hasDinasAccess = activeUser && ['Fasilitator', 'Koordinator', 'Super Admin'].includes(activeUser.jabatanTim);
+                  const hasRapatAccess = activeUser !== null;
+                  
+                  if (isDinas && hasDinasAccess) {
+                    return (
+                      <button
+                        onClick={() => {
+                          setSelectedTimelineEvent(null);
+                          onViewChange('dinas');
+                        }}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-650/10 flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                      >
+                        <span>Kelola Perjalanan</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    );
+                  }
+                  
+                  if (isRapat && hasRapatAccess) {
+                    return (
+                      <button
+                        onClick={() => {
+                          setSelectedTimelineEvent(null);
+                          onViewChange('rapat');
+                        }}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-650/10 flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                      >
+                        <span>Buka Halaman Rapat</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    );
+                  }
+                  
+                  return null;
+                })()}
               </div>
 
             </div>

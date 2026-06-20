@@ -179,7 +179,7 @@ export default function FinancialDashboard({
     const userReport = reports.find(r => r.userId === user.id && Number(r.bulanKe) === Number(month));
     const reportFinished = 
       user.jabatanTim === 'Tenaga Administrasi' || 
-      ((user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') 
+      (user.jabatanTim === 'Ketua Tim' 
         ? !!userReport 
         : (userReport && userReport.status === 'approved'));
 

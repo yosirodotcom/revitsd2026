@@ -36,7 +36,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
     if (!url) return '';
     if (url.startsWith('data:')) return url;
     
-    if (url.includes('drive.google.com')) {
+    if (url.includes('drive.google.com') || url.includes('docs.google.com') || url.includes('googleusercontent.com')) {
       let fileId = null;
       // Extract from uc?id=...
       const idMatch = url.match(/id=([^&]+)/);
@@ -51,8 +51,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
       }
       
       if (fileId) {
-        // Google Drive thumbnail endpoint is often more reliable for img tags
-        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+        return `https://lh3.googleusercontent.com/d/${fileId}`;
       }
     }
     return url;
@@ -428,13 +427,13 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                                 </span>
                                 {editingLogFoto ? (
                                   <div className="relative border border-slate-800 rounded-xl overflow-hidden aspect-video bg-slate-950 flex items-center justify-center">
-                                    <img src={getDirectImageUrl(editingLogFoto)} alt="Preview edit" className="w-full h-full object-cover" />
+                                    <img src={getDirectImageUrl(editingLogFoto)} alt="Preview edit" crossOrigin="anonymous" className="w-full h-full object-cover" />
                                     <button
                                       type="button"
                                       onClick={() => setEditingLogFoto('')}
                                       className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-950 transition-colors cursor-pointer"
                                     >
-                                      <X className="w-3 h-3" />
+                                      <X className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 ) : (

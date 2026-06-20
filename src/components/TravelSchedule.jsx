@@ -20,6 +20,7 @@ export default function TravelSchedule({
   onUpdateTripsBatch,
   onDeleteTripsBatch,
   tripDocs = [],
+  schoolDocs = [],
   onAddTripDoc,
   onDeleteTripDoc,
   onCloseDocsModal
@@ -31,7 +32,41 @@ export default function TravelSchedule({
     const date = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${date}`;
   };
-  const todayDate = getTodayDateStr();
+  const todayDate = settings?.simulatedToday || getTodayDateStr();
+
+  const getDurationFriendly = (startDateStr, endDateStr) => {
+    if (!startDateStr || !endDateStr) return '-';
+    try {
+      const start = new Date(startDateStr);
+      const end = new Date(endDateStr);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return '-';
+      
+      let years = end.getFullYear() - start.getFullYear();
+      let months = end.getMonth() - start.getMonth();
+      let days = end.getDate() - start.getDate();
+      
+      if (days < 0) {
+        months -= 1;
+        const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+        days += prevMonth.getDate();
+      }
+      
+      if (months < 0) {
+        years -= 1;
+        months += 12;
+      }
+      
+      const totalMonths = (years * 12) + months;
+      
+      const parts = [];
+      if (totalMonths > 0) parts.push(`${totalMonths} Bulan`);
+      if (days > 0 || parts.length === 0) parts.push(`${days} Hari`);
+      
+      return parts.join(' ');
+    } catch {
+      return '-';
+    }
+  };
 
   const [collectiveStart, setCollectiveStart] = useState('');
   const [collectiveEnd, setCollectiveEnd] = useState('');
@@ -56,16 +91,14 @@ export default function TravelSchedule({
     );
   };
 
-  // Auto-select eligible schools when modal opens or collectiveType changes
+  // Auto-select all schools that are not already scheduled when modal opens or collectiveType changes
   useEffect(() => {
     if (showCollectiveModal) {
-      const eligible = mySchools.filter(school => {
-        const triggers = getSchoolTriggers(school);
+      const selectable = mySchools.filter(school => {
         const alreadyScheduled = hasSchoolTrip(school.npsn, collectiveType, activeUser.id);
-        const isEligible = collectiveType === 1 ? triggers.triggerKunjungan1 : triggers.triggerKunjungan2;
-        return isEligible && !alreadyScheduled;
+        return !alreadyScheduled;
       });
-      setSelectedSchoolNpsns(eligible.map(s => s.npsn));
+      setSelectedSchoolNpsns(selectable.map(s => s.npsn));
     }
   }, [showCollectiveModal, collectiveType, schools, activeUser.id]);
 
@@ -373,162 +406,185 @@ export default function TravelSchedule({
 
       {/* Trip Documents Modal */}
       {docsModalTrip && createPortal(
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <h3 className="font-bold text-slate-200">Dokumen Perjalanan Dinas</h3>
-              </div>
-              <button onClick={() => { setDocsModalTrip(null); onCloseDocsModal?.(); }} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors border-0 cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto space-y-4">
-              {/* Trip Info */}
-              <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3 flex flex-col gap-1">
-                <span className="text-sm font-semibold text-slate-200">
-                  {Array.isArray(docsModalTrip) 
-                    ? `Kunjungan Kolektif (${docsModalTrip.length} Sekolah)` 
-                    : schools.find(s => String(s.npsn) === String(docsModalTrip.sekolahId))?.nama_sekolah || `NPSN ${docsModalTrip.sekolahId}`}
-                </span>
-                <span className="text-xs text-slate-400">
-                  Kunjungan ke-{Array.isArray(docsModalTrip) ? docsModalTrip[0].kunjunganKe : docsModalTrip.kunjunganKe} ({formatDateShort(Array.isArray(docsModalTrip) ? docsModalTrip[0].tanggalMulai : docsModalTrip.tanggalMulai)} - {formatDateShort(Array.isArray(docsModalTrip) ? docsModalTrip[0].tanggalSelesai : docsModalTrip.tanggalSelesai)})
-                </span>
-              </div>
+        (() => {
+          const modalTrip = docsModalTrip.trip || docsModalTrip;
+          const modalCategory = docsModalTrip.category || 'surat_tugas';
+          const isSppd = modalCategory === 'sppd';
+          const themeColorClass = isSppd ? 'violet' : 'indigo';
 
-              {/* Upload Input for Super Admin */}
-              {isSuperAdmin && (
-                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 flex flex-col gap-3">
-                  <label className="text-xs font-semibold text-indigo-300">Unggah Dokumen Baru (SPPD / Surat Tugas)</label>
-                  {uploadProgress !== null ? (
-                    <div className="space-y-1.5 pt-1.5">
-                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
-                        <span className="truncate max-w-[120px] text-indigo-300">{uploadFileName}</span>
-                        <span className="text-indigo-400">{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
-                        <div 
-                          className="bg-indigo-500 h-full rounded-full transition-all duration-150"
-                          style={{ width: `${uploadProgress}%` }}
+          const filteredDocs = tripDocs.filter(d => 
+            d.tripId === (Array.isArray(modalTrip) ? modalTrip[0].id : modalTrip.id) &&
+            (isSppd ? d.category === 'sppd' : (d.category === 'surat_tugas' || !d.category))
+          );
+
+          return (
+            <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg bg-${themeColorClass}-500/20 flex items-center justify-center text-${themeColorClass}-400`}>
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <h3 className="font-bold text-slate-200">
+                      {isSppd ? 'Dokumen SPPD Perjalanan Dinas' : 'Dokumen Surat Tugas Perjalanan Dinas'}
+                    </h3>
+                  </div>
+                  <button onClick={() => { setDocsModalTrip(null); onCloseDocsModal?.(); }} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors border-0 cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="p-4 overflow-y-auto space-y-4">
+                  {/* Trip Info */}
+                  <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3 flex flex-col gap-1">
+                    <span className="text-sm font-semibold text-slate-200">
+                      {Array.isArray(modalTrip) 
+                        ? `Kunjungan Kolektif (${modalTrip.length} Sekolah)` 
+                        : schools.find(s => String(s.npsn) === String(modalTrip.sekolahId))?.nama_sekolah || `NPSN ${modalTrip.sekolahId}`}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Kunjungan ke-{Array.isArray(modalTrip) ? modalTrip[0]?.kunjunganKe : modalTrip?.kunjunganKe} ({formatDateShort(Array.isArray(modalTrip) ? modalTrip[0]?.tanggalMulai : modalTrip?.tanggalMulai)} - {formatDateShort(Array.isArray(modalTrip) ? modalTrip[0]?.tanggalSelesai : modalTrip?.tanggalSelesai)})
+                    </span>
+                  </div>
+
+                  {/* Upload Input for Super Admin */}
+                  {isSuperAdmin && (
+                    <div className={`bg-${themeColorClass}-500/5 border border-${themeColorClass}-500/20 rounded-xl p-4 flex flex-col gap-3`}>
+                      <label className={`text-xs font-semibold text-${themeColorClass}-300`}>
+                        {isSppd ? 'Unggah Dokumen Baru (SPPD Resmi)' : 'Unggah Dokumen Baru (Surat Tugas Resmi)'}
+                      </label>
+                      {uploadProgress !== null ? (
+                        <div className="space-y-1.5 pt-1.5">
+                          <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                            <span className={`truncate max-w-[120px] text-${themeColorClass}-300`}>{uploadFileName}</span>
+                            <span className={`text-${themeColorClass}-400`}>{uploadProgress}%</span>
+                          </div>
+                          <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                            <div 
+                              className={`bg-${themeColorClass}-500 h-full rounded-full transition-all duration-150`}
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className={`block w-full text-xs text-slate-400
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-lg file:border-0
+                            file:text-xs file:font-semibold
+                            file:bg-${themeColorClass}-500/20 file:text-${themeColorClass}-400
+                            hover:file:bg-${themeColorClass}-500/30 file:cursor-pointer file:transition-colors`}
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            
+                            // Max 10MB
+                            if (file.size > 10 * 1024 * 1024) {
+                              window.showAlert('Ukuran file maksimal 10MB.');
+                              e.target.value = '';
+                              return;
+                            }
+
+                            setUploadFileName(file.name);
+                            setUploadProgress(0);
+
+                            const interval = setInterval(() => {
+                              setUploadProgress(prev => {
+                                if (prev === null) {
+                                  clearInterval(interval);
+                                  return null;
+                                }
+                                const next = prev + 20;
+                                if (next >= 100) {
+                                  clearInterval(interval);
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const base64Data = event.target.result;
+                                    const targetTripId = Array.isArray(modalTrip) ? modalTrip[0].id : modalTrip.id;
+                                    onAddTripDoc({
+                                      tripId: targetTripId,
+                                      name: file.name,
+                                      fileName: file.name,
+                                      fileSize: file.size,
+                                      category: modalCategory,
+                                      fileData: base64Data,
+                                      uploadedBy: activeUser.id,
+                                      uploadedAt: new Date().toISOString()
+                                    });
+                                    e.target.value = '';
+                                    setUploadProgress(null);
+                                    setUploadFileName('');
+                                  };
+                                  reader.readAsDataURL(file);
+                                  return 100;
+                                }
+                                return next;
+                              });
+                            }, 150);
+                          }}
                         />
-                      </div>
+                      )}
+                      <p className="text-[10px] text-slate-500">Format: PDF, JPG, PNG. Maks: 10MB.</p>
                     </div>
-                  ) : (
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="block w-full text-xs text-slate-400
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-lg file:border-0
-                        file:text-xs file:font-semibold
-                        file:bg-indigo-500/20 file:text-indigo-400
-                        hover:file:bg-indigo-500/30 file:cursor-pointer file:transition-colors"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        
-                        // Max 10MB
-                        if (file.size > 10 * 1024 * 1024) {
-                          window.showAlert('Ukuran file maksimal 10MB.');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        setUploadFileName(file.name);
-                        setUploadProgress(0);
-
-                        const interval = setInterval(() => {
-                          setUploadProgress(prev => {
-                            if (prev === null) {
-                              clearInterval(interval);
-                              return null;
-                            }
-                            const next = prev + 20;
-                            if (next >= 100) {
-                              clearInterval(interval);
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                const base64Data = event.target.result;
-                                const targetTripId = Array.isArray(docsModalTrip) ? docsModalTrip[0].id : docsModalTrip.id;
-                                onAddTripDoc({
-                                  tripId: targetTripId,
-                                  name: file.name,
-                                  fileData: base64Data,
-                                  uploadedBy: activeUser.id,
-                                  uploadedAt: new Date().toISOString()
-                                });
-                                e.target.value = '';
-                                setUploadProgress(null);
-                                setUploadFileName('');
-                              };
-                              reader.readAsDataURL(file);
-                              return 100;
-                            }
-                            return next;
-                          });
-                        }, 150);
-                      }}
-                    />
                   )}
-                  <p className="text-[10px] text-slate-500">Format: PDF, JPG, PNG. Maks: 10MB.</p>
-                </div>
-              )}
 
-              {/* Document List */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-400">Daftar Dokumen Terlampir</label>
-                {tripDocs.filter(d => d.tripId === (Array.isArray(docsModalTrip) ? docsModalTrip[0].id : docsModalTrip.id)).length === 0 ? (
-                  <p className="text-xs text-slate-500 italic py-4 text-center bg-slate-950/20 rounded-xl border border-dashed border-slate-800">
-                    Belum ada dokumen terlampir.
-                  </p>
-                ) : (
-                  tripDocs.filter(d => d.tripId === (Array.isArray(docsModalTrip) ? docsModalTrip[0].id : docsModalTrip.id)).map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 bg-slate-950/40 border border-slate-800 rounded-xl">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 rounded bg-slate-900 flex items-center justify-center shrink-0 border border-slate-800">
-                          <FileText className="w-4 h-4 text-slate-400" />
+                  {/* Document List */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-400">
+                      {isSppd ? 'Daftar Dokumen SPPD Terlampir' : 'Daftar Dokumen Surat Tugas Terlampir'}
+                    </label>
+                    {filteredDocs.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic py-4 text-center bg-slate-950/20 rounded-xl border border-dashed border-slate-800">
+                        Belum ada dokumen terlampir.
+                      </p>
+                    ) : (
+                      filteredDocs.map(doc => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-slate-950/40 border border-slate-800 rounded-xl">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-8 h-8 rounded bg-slate-900 flex items-center justify-center shrink-0 border border-slate-800">
+                              <FileText className={`w-4 h-4 text-${themeColorClass}-400`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-slate-200 truncate">{doc.name}</p>
+                              <p className="text-[10px] text-slate-500 truncate">Diunggah pada {formatDateShort(doc.uploadedAt)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <a
+                              href={doc.fileData}
+                              download={doc.name}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`p-1.5 bg-${themeColorClass}-500/10 hover:bg-${themeColorClass}-500/20 text-${themeColorClass}-400 rounded-lg transition-colors`}
+                              title="Unduh / Lihat"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                            {isSuperAdmin && (
+                              <button
+                                onClick={async () => {
+                                  if (await window.showConfirm('Hapus dokumen ini?')) {
+                                    onDeleteTripDoc(doc.id);
+                                  }
+                                }}
+                                className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border-0 cursor-pointer"
+                                title="Hapus"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-slate-200 truncate">{doc.name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">Diunggah pada {formatDateShort(doc.uploadedAt)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0 ml-2">
-                        <a
-                          href={doc.fileData}
-                          download={doc.name}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors"
-                          title="Unduh / Lihat"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </a>
-                        {isSuperAdmin && (
-                          <button
-                            onClick={async () => {
-                              if (await window.showConfirm('Hapus dokumen ini?')) {
-                                onDeleteTripDoc(doc.id);
-                              }
-                            }}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border-0 cursor-pointer"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>,
+          );
+        })(),
         document.body
       )}
 
@@ -644,7 +700,7 @@ export default function TravelSchedule({
                         }`}
                       >
                         <Calendar className="w-4 h-4" />
-                        Atur Jadwal Kolektif
+                        Jadwalkan Kunjungan
                       </button>
                     </div>
                   </div>
@@ -848,7 +904,7 @@ export default function TravelSchedule({
                             }`}
                           >
                             <Calendar className="w-4 h-4" />
-                            Simpan Rencana Kunjungan
+                            Ajukan Jadwal Kunjungan
                           </button>
                         );
                       })()}
@@ -1212,14 +1268,24 @@ export default function TravelSchedule({
                               </>
                             )}
                             
-                            {/* Batch Level Document Button */}
+                            {/* Batch Level Document Button - Surat Tugas */}
                             <button
-                              onClick={(e) => { e.stopPropagation(); setDocsModalTrip(batchTrips); }}
+                              onClick={(e) => { e.stopPropagation(); setDocsModalTrip({ trip: batchTrips, category: 'surat_tugas' }); }}
                               className="px-2 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-500/20 cursor-pointer ml-2"
                               title="Kelola Dokumen Perjalanan (Surat Tugas)"
                             >
                               <FileText className="w-3.5 h-3.5" />
                               <span className="text-[10px] font-bold">Surat Tugas</span>
+                            </button>
+
+                            {/* Batch Level Document Button - SPPD */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDocsModalTrip({ trip: batchTrips, category: 'sppd' }); }}
+                              className="px-2 py-1.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 rounded-lg transition-colors flex items-center gap-1.5 border border-violet-500/20 cursor-pointer ml-1.5"
+                              title="Kelola Dokumen Perjalanan (SPPD)"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-bold">SPPD</span>
                             </button>
 
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500 ml-1" /> : <ChevronDown className="w-4 h-4 text-slate-500 ml-1" />}
@@ -1376,18 +1442,80 @@ export default function TravelSchedule({
                             </div>
                           </div>
                           
-                          <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800/50 relative z-10">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              Lokasi Kunjungan ({batchTrips.length} Sekolah)
+                           <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800/50 relative z-10 space-y-3">
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                              <MapPin className="w-3 h-3 text-indigo-400" />
+                              Daftar Sekolah Kunjungan ({batchTrips.length} Sekolah)
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              {schoolsArr.map((schoolName, i) => {
-                                const colorClass = badgeColors[i % badgeColors.length];
-                                return (
-                                  <span key={i} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${colorClass} shadow-sm backdrop-blur-sm transition-transform hover:scale-105 cursor-default`}>
-                                    {schoolName}
-                                  </span>
+                            <div className="grid grid-cols-1 gap-2">
+                              {batchTrips.map(t => {
+                                const school = schools.find(s => String(s.npsn) === String(t.sekolahId));
+                                const schoolName = school ? school.nama_sekolah : `NPSN ${t.sekolahId}`;
+                                const progValue = school ? (school.progres_fisik || 0) : 0;
+                                
+                                const schoolStart = school?.tanggal_mulai_sekolah || projectStart;
+                                const visitDate = t.tanggalMulai || t.date || firstTrip.tanggalMulai;
+                                
+                                // Calculate months elapsed at visit
+                                const d1 = new Date(schoolStart);
+                                const d2 = new Date(visitDate);
+                                const monthsElapsedAtVisit = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+                                
+                                const isProgOk = firstTrip.kunjunganKe === 1 ? progValue >= 50 : progValue >= 100;
+                                const isTimeOk = firstTrip.kunjunganKe === 1 ? monthsElapsedAtVisit >= 3 : monthsElapsedAtVisit >= 6;
+                                const isEligible = isProgOk || isTimeOk;
+                                
+                                const durationStr = getDurationFriendly(schoolStart, visitDate);
+                                const doc50 = (schoolDocs || []).find(d => String(d.sekolahId) === String(t.sekolahId) && d.category === 'lap_progres_50');
+
+                                 return (
+                                  <div 
+                                    key={t.id} 
+                                    className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 rounded-2xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 transition-all duration-300 gap-3"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${isEligible ? 'bg-emerald-400' : 'bg-rose-550 animate-pulse'}`}></div>
+                                        <span className="font-extrabold text-xs text-slate-100 truncate max-w-[200px]" title={schoolName}>{schoolName}</span>
+                                      </div>
+                                      
+                                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                                          isProgOk 
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        }`}>
+                                          Progres: <strong className="font-extrabold">{progValue}%</strong>
+                                        </span>
+                                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                                          isTimeOk 
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        }`}>
+                                          Mulai Dikunjungi: <strong className="font-extrabold">{durationStr}</strong>
+                                        </span>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center shrink-0">
+                                      {doc50 ? (
+                                        <a 
+                                          href={doc50.fileData} 
+                                          download={doc50.fileName}
+                                          target="_blank" 
+                                          rel="noreferrer"
+                                          className="inline-flex items-center gap-1.5 text-[9.5px] font-extrabold px-3 py-1.5 rounded-full border transition-all cursor-pointer text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 border-emerald-500/20"
+                                          title="Unduh Laporan 50%"
+                                        >
+                                          <Download className="w-3.5 h-3.5" /> Lap 50%
+                                        </a>
+                                      ) : (
+                                        <span className="text-[9.5px] font-bold text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-full border border-rose-500/20 select-none">
+                                          Lap 50% Belum Ada
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -1408,11 +1536,20 @@ export default function TravelSchedule({
                                 </span>
                                 <div className="flex items-center gap-1">
                                   <button
-                                    onClick={() => setDocsModalTrip(batchTrips)}
+                                    onClick={() => setDocsModalTrip({ trip: batchTrips, category: 'surat_tugas' })}
                                     className="p-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors cursor-pointer border border-indigo-500/20 flex items-center gap-1"
-                                    title="Lihat Dokumen"
+                                    title="Lihat Surat Tugas"
                                   >
                                     <FileText className="w-3 h-3" />
+                                    <span className="text-[9px] font-bold">ST</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setDocsModalTrip({ trip: batchTrips, category: 'sppd' })}
+                                    className="p-1.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 rounded-lg transition-colors cursor-pointer border border-violet-500/20 flex items-center gap-1"
+                                    title="Lihat SPPD"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    <span className="text-[9px] font-bold">SPPD</span>
                                   </button>
                                   <button
                                     onClick={() => {
@@ -1440,13 +1577,20 @@ export default function TravelSchedule({
                             )}
                           </div>
                           {batchStatus !== 'pending' && (
-                            <div className="flex justify-end pt-1">
+                            <div className="flex justify-end pt-1 gap-2">
                               <button
-                                onClick={() => setDocsModalTrip(batchTrips)}
+                                onClick={() => setDocsModalTrip({ trip: batchTrips, category: 'surat_tugas' })}
                                 className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded transition-colors flex items-center gap-1.5 border border-indigo-500/20 cursor-pointer"
                               >
                                 <FileText className="w-3 h-3" />
                                 <span className="text-[10px] font-bold">Lihat Surat Tugas</span>
+                              </button>
+                              <button
+                                onClick={() => setDocsModalTrip({ trip: batchTrips, category: 'sppd' })}
+                                className="px-2 py-1 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 rounded transition-colors flex items-center gap-1.5 border border-violet-500/20 cursor-pointer"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span className="text-[10px] font-bold">Lihat SPPD</span>
                               </button>
                             </div>
                           )}
