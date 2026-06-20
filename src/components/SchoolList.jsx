@@ -53,6 +53,8 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const markerGroupRef = useRef(null);
+  const isInitialFitBoundsRef = useRef(true);
   
   // Modals state
   const [isAddingMaster, setIsAddingMaster] = useState(false);
@@ -94,29 +96,64 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
     return matchesSearch && matchesKabupaten && matchesFacilitator;
   });
 
+  // Reset fitBounds flag when filters change
+  useEffect(() => {
+    isInitialFitBoundsRef.current = true;
+  }, [searchTerm, selectedKabupaten, selectedFacilitatorFilter]);
+
+  // Effect 1: Initialize map instance once when entering map mode
   useEffect(() => {
     if (viewMode !== 'map' || !mapRef.current) return;
     if (!window.L) return;
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
+    if (!mapInstanceRef.current) {
+      const map = window.L.map(mapRef.current, {
+        zoomControl: false
+      }).setView([-0.0263, 109.3425], 8);
+      
+      mapInstanceRef.current = map;
+
+      window.L.control.zoom({
+        position: 'bottomright'
+      }).addTo(map);
+
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      const markerGroup = window.L.layerGroup().addTo(map);
+      markerGroupRef.current = markerGroup;
     }
 
-    const map = window.L.map(mapRef.current, {
-      zoomControl: false
-    }).setView([-0.0263, 109.3425], 8);
-    
-    mapInstanceRef.current = map;
+    setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 100);
 
-    window.L.control.zoom({
-      position: 'bottomright'
-    }).addTo(map);
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerGroupRef.current = null;
+      }
+    };
+  }, [viewMode]);
 
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19
-    }).addTo(map);
+  // Effect 2: Update markers on the map dynamically without resetting map viewport (unless filters change)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !window.L) return;
+
+    let markerGroup = markerGroupRef.current;
+    if (!markerGroup) {
+      markerGroup = window.L.layerGroup().addTo(map);
+      markerGroupRef.current = markerGroup;
+    }
+
+    // Clear old markers
+    markerGroup.clearLayers();
 
     const markers = [];
     
@@ -145,7 +182,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
         iconAnchor: [12, 12]
       });
 
-      const marker = window.L.marker(coords, { icon: customIcon }).addTo(map);
+      const marker = window.L.marker(coords, { icon: customIcon });
 
       const mapsUrl = school.koordinat && school.koordinat.startsWith('http')
         ? school.koordinat
@@ -180,27 +217,17 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
         className: 'custom-leaflet-popup'
       });
 
+      marker.addTo(markerGroup);
       markers.push(marker);
     });
 
-    if (markers.length > 0) {
+    // Only adjust zoom / pan to fit bounds when initial load or when filters are changed by user
+    if (markers.length > 0 && isInitialFitBoundsRef.current) {
       const group = new window.L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.15));
+      isInitialFitBoundsRef.current = false;
     }
-
-    setTimeout(() => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
-      }
-    }, 100);
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, [viewMode, filteredSchools, onSelectSchool]);
+  }, [filteredSchools, onSelectSchool]);
 
 
   // Handle Add Master School (Admin only)

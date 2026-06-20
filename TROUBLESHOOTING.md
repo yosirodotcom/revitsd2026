@@ -79,3 +79,13 @@ Tujuan dokumen ini adalah sebagai buku panduan (*playbook*) bagi developer atau 
 * **Solusi**:
   1. **Daftarkan dan Konversi di Apps Script**: Daftarkan skema `meetings` dan tambahkan handler di fungsi `doPost` Apps Script untuk mendeteksi `newItem.fotoKegiatan` bertipe Base64, mengunggahnya ke Google Drive, dan menyimpan link URL publiknya di Spreadsheet.
   2. **Gunakan Endpoint Thumbnail di Frontend**: Buat fungsi pembantu `getDirectImageUrl` di frontend (`MeetingManagement.jsx`) yang mengonversi URL Google Drive (`drive.google.com`) menjadi format URL thumbnail publik (`https://drive.google.com/thumbnail?id=FILE_ID&sz=w800`) agar tag `<img>` dapat memuat gambar secara andal tanpa kendala CORS/Mixed Content.
+
+### J. Aplikasi Blank / Crash Saat Mengunggah Berkas Besar (QuotaExceededError di LocalStorage)
+* **Gejala**: Ketika pengguna mencoba mengunggah dokumen berukuran antara 4MB hingga 10MB (misalnya dokumen personil KTP/CV/SK), tampilan aplikasi mendadak menjadi putih kosong (*blank screen*) dan tidak dapat merespons.
+* **Penyebab**: 
+  1. **Batasan Quota LocalStorage**: Browser membatasi kapasitas `localStorage` maksimal sebesar 5MB per asal (*origin*). Berkas 4MB jika dikonversi menjadi string Base64 ukurannya membengkak menjadi sekitar ~5.3MB.
+  2. **Duplikasi Data di Log**: Saat berkas diunggah, data Base64 utuh yang berukuran besar dikirimkan ganda, baik ke state utama (`personnelDocs` / `schoolDocs` / `reports`) maupun ke riwayat aktivitas (`activityLogs`) yang disimpan ke `localStorage` tanpa penanganan kesalahan (*uncaught exception*).
+* **Solusi**:
+  1. **Optimalisasi Payload Log**: Modifikasi fungsi `handleAddReport`, `handleAddSchoolDoc`, dan `handleAddPersonnelDoc` agar **tidak menyertakan isi Base64 file** (`fileData`) pada log aktivitas yang dikirim ke `addActivityLog()`. Sebagai gantinya, log aktivitas hanya menyimpan referensi metadata dokumen saja.
+  2. **Pencarian Berkas Dinamis**: Perbarui fungsi pembuka berkas `handleOpenActivityFile` di frontend agar secara dinamis mencari `fileData` dari state utama berdasarkan ID jika properti `fileData` tidak ada di entri log.
+  3. **Global Proteksi Quota**: Tambahkan pembungkus (*wrapper*) global `try-catch` pada `localStorage.setItem` (di [main.jsx](file:///d:/repos/revitsd2026/src/main.jsx)) untuk mencegah aplikasi crash jika kuota penuh. Dengan proteksi ini, data tetap tersimpan di memori React state (in-memory) sehingga proses sinkronisasi ke Google Drive tetap dapat berjalan sukses. Setelah disinkronkan, server akan mengembalikan URL Drive pendek yang sangat kecil untuk menggantikan data Base64 lokal, sehingga membebaskan kapasitas penyimpanan `localStorage`.

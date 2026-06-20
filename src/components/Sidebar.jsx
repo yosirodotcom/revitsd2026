@@ -49,12 +49,12 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
     { id: 'logs-harian', name: 'Log Harian Lapangan', icon: FileText, roles: ['*'] },
     
     // Keuangan & Pemantauan (Administrasi / Admin)
-    { id: 'settings-anggaran', name: 'Pengaturan Anggaran', icon: Settings, roles: ['Tenaga Administrasi', 'Super Admin'] },
-    { id: 'bayar-honor', name: 'Bayar Honor', icon: CircleDollarSign, roles: ['Tenaga Administrasi', 'Super Admin'] },
-    { id: 'batch-honor', name: 'Batch Lunas Honor', icon: BadgeCheck, roles: ['Tenaga Administrasi', 'Super Admin'] },
+    { id: 'settings-anggaran', name: 'Pengaturan Anggaran', icon: Settings, roles: ['Tenaga Administrasi'] },
+    { id: 'bayar-honor', name: 'Bayar Honor', icon: CircleDollarSign, roles: ['Tenaga Administrasi'] },
+    { id: 'batch-honor', name: 'Batch Lunas Honor', icon: BadgeCheck, roles: ['Tenaga Administrasi'] },
     
     // Super Admin Only
-    { id: 'pantau-tanggung-jawab', name: 'Pantau Tugas Tim', icon: ShieldAlert, roles: ['Super Admin'] },
+    { id: 'pantau-tanggung-jawab', name: 'Pantau Tugas Tim', icon: ShieldAlert, roles: [] },
     { id: 'kelola-tim', name: 'Kelola Anggota Tim', icon: Users, roles: ['Super Admin'] },
     { id: 'kelola-fasilitator', name: 'Kelola Fasilitator', icon: UserCog, roles: ['Super Admin'] },
   ];
@@ -64,7 +64,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
       return ['dashboard', 'logs-harian', 'settings-anggaran', 'batch-honor'].includes(item.id);
     }
     if (item.roles.includes('*')) return true;
-    if (activeUser.role === 'admin' && (item.roles.includes('Super Admin') || item.id === 'pantau-honor' || item.id === 'pantau-tanggung-jawab' || item.id === 'batch-honor')) return true;
+    if (activeUser.role === 'admin' && (item.roles.includes('Super Admin') || item.id === 'pantau-honor')) return true;
     if (item.id === 'tanggung-jawab' && ['Fasilitator', 'Ketua Tim', 'Koordinator'].includes(activeUser.jabatanTim)) return false;
     return item.roles.includes(activeUser.jabatanTim);
   });

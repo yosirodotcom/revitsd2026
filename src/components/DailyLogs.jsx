@@ -119,6 +119,10 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      e.target.value = '';
+      return window.showAlert('Ukuran file gambar terlalu besar! Maksimal 10MB.');
+    }
     compressImage(file, (dataUrl) => {
       setPreviewImage(dataUrl);
       setFormData((prev) => ({ ...prev, foto: dataUrl }));
@@ -128,6 +132,10 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
   const handleEditImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      e.target.value = '';
+      return window.showAlert('Ukuran file gambar terlalu besar! Maksimal 10MB.');
+    }
     compressImage(file, (dataUrl) => {
       setEditingLogFoto(dataUrl);
     });

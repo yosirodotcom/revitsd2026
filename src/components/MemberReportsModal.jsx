@@ -10,6 +10,8 @@ export default function MemberReportsModal({
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({ bulanKe: 1 });
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadFileName, setUploadFileName] = useState('');
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -20,29 +22,46 @@ export default function MemberReportsModal({
       return window.showAlert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
     }
 
-    if (file.size > 1.5 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       e.target.value = '';
-      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 1.5MB.');
+      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 10MB.');
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async (event) => {
-      const targetMonth = Number(formData.bulanKe);
-      const newReport = {
-        id: `report-${user.id}-bulan-${targetMonth}`,
-        userId: user.id,
-        bulanKe: targetMonth,
-        fileName: file.name,
-        fileData: event.target.result, // Base64
-        submittedAt: new Date().toISOString()
-      };
+    setUploadFileName(file.name);
+    setUploadProgress(0);
 
-      onAddReport(newReport);
-      window.showAlert(`Laporan Bulanan Ke-${targetMonth} milik "${user.nama}" berhasil diunggah!`);
-      setIsAdding(false);
-      e.target.value = '';
-    };
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev === null) {
+          clearInterval(interval);
+          return null;
+        }
+        const next = prev + 20;
+        if (next >= 100) {
+          clearInterval(interval);
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = (event) => {
+            const targetMonth = Number(formData.bulanKe);
+            const newReport = {
+              id: `report-${user.id}-bulan-${targetMonth}`,
+              userId: user.id,
+              bulanKe: targetMonth,
+              fileName: file.name,
+              fileData: event.target.result, // Base64
+              submittedAt: new Date().toISOString()
+            };
+
+            onAddReport(newReport);
+            setIsAdding(false);
+            setUploadProgress(null);
+            setUploadFileName('');
+          };
+          return 100;
+        }
+        return next;
+      });
+    }, 150);
   };
 
   const handleOpenPdf = (rep) => {
@@ -67,7 +86,6 @@ export default function MemberReportsModal({
   const handleDeleteClick = async (rep) => {
     if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe} milik "${user.nama}"?`)) {
       onDeleteReport(rep.id);
-      window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
     }
   };
 
@@ -132,14 +150,29 @@ export default function MemberReportsModal({
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    Berkas PDF (Maks 1.5MB)
+                    Berkas PDF (Maks 10MB)
                   </label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="w-full bg-slate-950 border border-slate-855 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none"
-                  />
+                  {uploadProgress !== null ? (
+                    <div className="space-y-1.5 pt-1.5">
+                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                        <span className="truncate max-w-[120px] text-indigo-300">{uploadFileName}</span>
+                        <span className="text-indigo-400">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                        <div 
+                          className="bg-indigo-500 h-full rounded-full transition-all duration-150"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange}
+                      className="w-full bg-slate-950 border border-slate-855 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none cursor-pointer"
+                    />
+                  )}
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-850">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Info, RefreshCw, LogIn, Activity, X } from 'lucide-react';
+import { AlertTriangle, Info, RefreshCw, LogIn, Activity, X, Check } from 'lucide-react';
 import { initialUsers } from './data/initialData';
 import { initialSchools } from './data/initialSchools';
 import UserSelect from './components/UserSelect';
@@ -95,6 +95,23 @@ export default function App() {
     return localStorage.getItem('revit_is_dirty') === 'true';
   });
   const pendingSyncUpdatesRef = useRef({});
+  const [syncProgress, setSyncProgress] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (syncStatus === 'connecting') {
+      setSyncProgress(0);
+      interval = setInterval(() => {
+        setSyncProgress(prev => {
+          if (prev >= 95) return prev;
+          if (prev < 40) return prev + 10;
+          if (prev < 75) return prev + 5;
+          return prev + 1;
+        });
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [syncStatus]);
 
   const [settings, setSettings] = useState({
     projectStartDate: '2026-06-12',
@@ -652,7 +669,10 @@ export default function App() {
             localStorage.setItem('revit_contacts', JSON.stringify(clean));
           }
           if (remoteData.tasks) {
-            const clean = remoteData.tasks.filter(t => t && isValidId(t.id));
+            const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => ({
+              ...t,
+              sekolahId: t.sekolahId || t.schoolId || ''
+            }));
             setTasks(clean);
             localStorage.setItem('revit_tasks', JSON.stringify(clean));
           }
@@ -699,7 +719,12 @@ export default function App() {
             localStorage.setItem('revit_payments', JSON.stringify(clean));
           }
           if (remoteData.school_docs) {
-            const clean = remoteData.school_docs.filter(d => d && isValidId(d.id));
+            const clean = remoteData.school_docs.filter(d => d && isValidId(d.id)).map(d => ({
+              ...d,
+              // Normalisasi nama field lama dari Apps Script schema versi sebelumnya
+              sekolahId: d.sekolahId || d.schoolNpsn || '',
+              fileName: d.fileName || d.name || '',
+            }));
             setSchoolDocs(clean);
             localStorage.setItem('revit_school_docs', JSON.stringify(clean));
           }
@@ -740,12 +765,12 @@ export default function App() {
           let cleanActivityLogs = activityLogs;
           if (remoteData.activity_logs) {
             cleanActivityLogs = remoteData.activity_logs.filter(l => l && isValidId(l.id)).map(l => {
-              if (l.fileRef_fileData) {
+              if (l.fileRef_id) {
                 l.fileRef = {
-                  id: l.fileRef_id || '',
+                  id: l.fileRef_id,
                   type: l.fileRef_type || '',
                   fileName: l.fileRef_fileName || '',
-                  fileData: l.fileRef_fileData
+                  fileData: l.fileRef_fileData || ''
                 };
               } else {
                 l.fileRef = null;
@@ -773,6 +798,8 @@ export default function App() {
           }
           setSyncStatus('success');
           setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+          setSyncProgress(100);
+          await new Promise((resolve) => setTimeout(resolve, 500));
           setIsBlockingSync(false);
         } catch (err) {
           console.error("Initial load from Sheets failed, using localStorage fallback:", err);
@@ -915,6 +942,10 @@ export default function App() {
         pendingSyncUpdatesRef.current = {};
         setSyncStatus('success');
         setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+        if (isManual) {
+          setSyncProgress(100);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
         setIsBlockingSync(false);
         isSyncingRef.current = false;
         return;
@@ -930,6 +961,10 @@ export default function App() {
         console.warn('[Sync] Peringatan: State lokal berubah saat mengambil data dari server. Membatalkan update state untuk mencegah hilangnya data (data akan di-push di siklus berikutnya).');
         setSyncStatus('success');
         setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+        if (isManual) {
+          setSyncProgress(100);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
         setIsBlockingSync(false);
         isSyncingRef.current = false;
         
@@ -989,7 +1024,10 @@ export default function App() {
         localStorage.setItem('revit_contacts', JSON.stringify(clean));
       }
       if (remoteData.tasks) {
-        const clean = remoteData.tasks.filter(t => t && isValidId(t.id));
+        const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => ({
+          ...t,
+          sekolahId: t.sekolahId || t.schoolId || ''
+        }));
         setTasks(clean);
         localStorage.setItem('revit_tasks', JSON.stringify(clean));
       }
@@ -1039,7 +1077,12 @@ export default function App() {
         localStorage.setItem('revit_payments', JSON.stringify(clean));
       }
       if (remoteData.school_docs) {
-        const clean = remoteData.school_docs.filter(d => d && isValidId(d.id));
+        const clean = remoteData.school_docs.filter(d => d && isValidId(d.id)).map(d => ({
+          ...d,
+          // Normalisasi nama field lama dari Apps Script schema versi sebelumnya
+          sekolahId: d.sekolahId || d.schoolNpsn || '',
+          fileName: d.fileName || d.name || '',
+        }));
         setSchoolDocs(clean);
         localStorage.setItem('revit_school_docs', JSON.stringify(clean));
       }
@@ -1080,12 +1123,12 @@ export default function App() {
       let cleanActivityLogs = activityLogs;
       if (remoteData.activity_logs) {
         cleanActivityLogs = remoteData.activity_logs.filter(l => l && isValidId(l.id)).map(l => {
-          if (l.fileRef_fileData) {
+          if (l.fileRef_id) {
             l.fileRef = {
-              id: l.fileRef_id || '',
+              id: l.fileRef_id,
               type: l.fileRef_type || '',
               fileName: l.fileRef_fileName || '',
-              fileData: l.fileRef_fileData
+              fileData: l.fileRef_fileData || ''
             };
           } else {
             l.fileRef = null;
@@ -1116,6 +1159,10 @@ export default function App() {
       pendingSyncUpdatesRef.current = {};
       setSyncStatus('success');
       setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+      if (isManual) {
+        setSyncProgress(100);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
       setIsBlockingSync(false);
     } catch (error) {
       console.error('Sync Error:', error);
@@ -1263,6 +1310,11 @@ export default function App() {
       dialog.resolve(false);
     }
     setDialog(null);
+  };
+
+  const handleCloseSchoolDetail = () => {
+    setSelectedSchoolNpsn(null);
+    triggerSync();
   };
 
   // 7. School Actions (Fase 2)
@@ -1482,14 +1534,16 @@ export default function App() {
     const updated = [...tripDocs, newDoc];
     setTripDocs(updated);
     localStorage.setItem('revit_trip_docs', JSON.stringify(updated));
-    syncWithNewState({ tripDocs: updated });
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
   };
 
   const handleDeleteTripDoc = (docId) => {
     const updated = tripDocs.filter(d => d.id !== docId);
     setTripDocs(updated);
     localStorage.setItem('revit_trip_docs', JSON.stringify(updated));
-    syncWithNewState({ tripDocs: updated });
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
   };
 
   // 11. Daily Logs Actions (Fase 4)
@@ -1565,30 +1619,39 @@ export default function App() {
   };
 
   // 12. Monthly Reports PDF Actions (Fase 4)
-  const handleAddReport = (newReport) => {
+  const handleAddReport = (newReport, shouldSync = false) => {
     addActivityLog('upload_monthly_report', `Mengunggah laporan bulanan ke-${newReport.bulanKe}: ${newReport.fileName}`, {
       id: newReport.id,
       type: 'report',
-      fileName: newReport.fileName,
-      fileData: newReport.fileData
-    });
+      fileName: newReport.fileName
+    }, shouldSync);
     // Overwrite if same month exists
     const updated = reports.filter(r => !(r.userId === newReport.userId && r.bulanKe === newReport.bulanKe));
     updated.push(newReport);
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
-    syncWithNewState({ reports: updated });
+    if (shouldSync) {
+      syncWithNewState({ reports: updated });
+    } else {
+      localStorage.setItem('revit_is_dirty', 'true');
+      setIsDirty(true);
+    }
   };
 
-  const handleDeleteReport = (reportId) => {
+  const handleDeleteReport = (reportId, shouldSync = false) => {
     const rep = reports.find(r => r.id === reportId);
     if (rep) {
-      addActivityLog('delete_monthly_report', `Menghapus laporan bulanan ke-${rep.bulanKe}: ${rep.fileName}`);
+      addActivityLog('delete_monthly_report', `Menghapus laporan bulanan ke-${rep.bulanKe}: ${rep.fileName}`, null, shouldSync);
     }
     const updated = reports.filter(r => r.id !== reportId);
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
-    syncWithNewState({ reports: updated });
+    if (shouldSync) {
+      syncWithNewState({ reports: updated });
+    } else {
+      localStorage.setItem('revit_is_dirty', 'true');
+      setIsDirty(true);
+    }
   };
 
   // 13. Duty Reports Actions (Fase 4)
@@ -1654,13 +1717,13 @@ export default function App() {
     addActivityLog('upload_school_doc', `Mengunggah dokumen sekolah ${schoolName}: ${newDoc.fileName}`, {
       id: newDoc.id,
       type: 'school_doc',
-      fileName: newDoc.fileName,
-      fileData: newDoc.fileData
-    });
+      fileName: newDoc.fileName
+    }, false);
     const updated = [...schoolDocs, newDoc];
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    syncWithNewState({ schoolDocs: updated });
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
   };
 
   const handleDeleteSchoolDoc = (docId) => {
@@ -1668,36 +1731,38 @@ export default function App() {
     if (doc) {
       const targetSchool = schools.find(s => s.npsn === doc.sekolahId);
       const schoolName = targetSchool ? targetSchool.nama_sekolah : doc.sekolahId;
-      addActivityLog('delete_school_doc', `Menghapus dokumen sekolah ${schoolName}: ${doc.fileName}`);
+      addActivityLog('delete_school_doc', `Menghapus dokumen sekolah ${schoolName}: ${doc.fileName}`, null, false);
     }
     const updated = schoolDocs.filter(d => d.id !== docId);
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    syncWithNewState({ schoolDocs: updated });
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
   };
 
   const handleAddPersonnelDoc = (newDoc) => {
     addActivityLog('upload_personnel_doc', `Mengunggah dokumen personil: dokumen ${newDoc.type} ${newDoc.fileName}`, {
       id: newDoc.id,
       type: 'personnel',
-      fileName: newDoc.fileName,
-      fileData: newDoc.fileData
-    });
+      fileName: newDoc.fileName
+    }, false);
     const updated = [...personnelDocs, newDoc];
     setPersonnelDocs(updated);
     localStorage.setItem('revit_personnel_docs', JSON.stringify(updated));
-    syncWithNewState({ personnelDocs: updated });
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
   };
 
   const handleDeletePersonnelDoc = (docId) => {
     const doc = personnelDocs.find(d => d.id === docId);
     if (doc) {
-      addActivityLog('delete_personnel_doc', `Menghapus dokumen personil: dokumen ${doc.type} ${doc.fileName}`);
+      addActivityLog('delete_personnel_doc', `Menghapus dokumen personil: dokumen ${doc.type} ${doc.fileName}`, null, false);
     }
     const updated = personnelDocs.filter(d => d.id !== docId);
     setPersonnelDocs(updated);
     localStorage.setItem('revit_personnel_docs', JSON.stringify(updated));
-    syncWithNewState({ personnelDocs: updated });
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
   };
 
   const handleAddMeeting = (newMeeting, documents = []) => {
@@ -1822,7 +1887,7 @@ export default function App() {
     });
   };
 
-  const addActivityLog = (actionType, description, fileRef = null) => {
+  const addActivityLog = (actionType, description, fileRef = null, shouldSync = true) => {
     if (!activeUser) return;
 
     const newLog = {
@@ -1837,7 +1902,13 @@ export default function App() {
     setActivityLogs((prev) => {
       const updated = [newLog, ...prev].slice(0, 50);
       localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
-      syncWithNewState({ activityLogs: updated });
+      if (shouldSync) {
+        syncWithNewState({ activityLogs: updated });
+      } else {
+        localStorage.setItem('revit_is_dirty', 'true');
+        setIsDirty(true);
+        pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, activityLogs: updated };
+      }
       return updated;
     });
   };
@@ -1861,14 +1932,33 @@ export default function App() {
   };
 
   const handleOpenActivityFile = (fileRef) => {
-    if (!fileRef || !fileRef.fileData) return;
+    if (!fileRef) return;
+
+    let fileData = fileRef.fileData;
+    if (!fileData && fileRef.id) {
+      const pDoc = personnelDocs.find(d => d.id === fileRef.id);
+      const sDoc = schoolDocs.find(d => d.id === fileRef.id);
+      const tDoc = tripDocs.find(d => d.id === fileRef.id);
+      const rDoc = reports.find(d => d.id === fileRef.id);
+      
+      const found = pDoc || sDoc || tDoc || rDoc;
+      if (found) {
+        fileData = found.fileData;
+      }
+    }
+
+    if (!fileData) {
+      window.showAlert('Dokumen tidak ditemukan atau belum disinkronkan.');
+      return;
+    }
+
     try {
-      if (fileRef.fileData.startsWith('http')) {
-        window.open(fileRef.fileData, '_blank');
+      if (fileData.startsWith('http')) {
+        window.open(fileData, '_blank');
         return;
       }
       
-      const parts = fileRef.fileData.split(';base64,');
+      const parts = fileData.split(';base64,');
       const contentType = parts[0].split(':')[1];
       const raw = window.atob(parts[1]);
       const rawLength = raw.length;
@@ -1976,7 +2066,7 @@ export default function App() {
                 <button
                   onClick={() => triggerSync(null, true)}
                   disabled={syncStatus === 'connecting'}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none ${
+                  className={`relative overflow-hidden flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none ${
                     syncStatus === 'connecting'
                       ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 cursor-wait'
                       : syncStatus === 'success'
@@ -1994,7 +2084,18 @@ export default function App() {
                       : 'Klik untuk sinkronisasi dengan Google Sheets')
                   }
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === 'connecting' ? 'animate-spin' : ''}`} />
+                  {/* Progress indicator bar at the bottom */}
+                  {syncStatus === 'connecting' && (
+                    <div 
+                      className="absolute bottom-0 left-0 h-[2px] bg-amber-500 transition-all duration-150" 
+                      style={{ width: `${syncProgress}%` }}
+                    />
+                  )}
+                  {syncStatus === 'connecting' ? (
+                    <span className="text-[10px] font-bold text-amber-400 min-w-[24px] text-center">{syncProgress}%</span>
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
                   <span>
                     {syncStatus === 'connecting' && 'Sinkronisasi...'}
                     {syncStatus === 'success' && `Tersambung (${lastSyncTime})`}
@@ -2134,6 +2235,7 @@ export default function App() {
                   onDeleteTrip={handleDeleteTrip}
                   onAddTripDoc={handleAddTripDoc}
                   onDeleteTripDoc={handleDeleteTripDoc}
+                  onCloseDocsModal={() => triggerSync()}
                 />
               )}
 
@@ -2142,8 +2244,8 @@ export default function App() {
                   reports={reports}
                   users={users}
                   activeUser={activeUser}
-                  onAddReport={handleAddReport}
-                  onDeleteReport={handleDeleteReport}
+                  onAddReport={(newReport) => handleAddReport(newReport, true)}
+                  onDeleteReport={(reportId) => handleDeleteReport(reportId, true)}
                 />
               )}
 
@@ -2247,7 +2349,10 @@ export default function App() {
           user={personnelDocsUser}
           activeUser={activeUser}
           documents={personnelDocs.filter((d) => d.userId === personnelDocsUser.id)}
-          onClose={() => setPersonnelDocsUser(null)}
+          onClose={() => {
+            setPersonnelDocsUser(null);
+            triggerSync();
+          }}
           onAddDoc={handleAddPersonnelDoc}
           onDeleteDoc={handleDeletePersonnelDoc}
         />
@@ -2258,7 +2363,10 @@ export default function App() {
         <MemberReportsModal
           user={memberReportsUser}
           reports={reports.filter((r) => r.userId === memberReportsUser.id)}
-          onClose={() => setMemberReportsUser(null)}
+          onClose={() => {
+            setMemberReportsUser(null);
+            triggerSync();
+          }}
           onAddReport={handleAddReport}
           onDeleteReport={handleDeleteReport}
         />
@@ -2329,7 +2437,7 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl relative scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950">
             <button
-              onClick={() => setSelectedSchoolNpsn(null)}
+              onClick={handleCloseSchoolDetail}
               className="absolute top-6 right-6 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-950/40 hover:bg-slate-800 border border-slate-800 transition-all z-50 cursor-pointer"
               title="Tutup Detail"
             >
@@ -2341,7 +2449,7 @@ export default function App() {
               contacts={contacts}
               tasks={tasks}
               activeUser={activeUser}
-              onBack={() => setSelectedSchoolNpsn(null)}
+              onBack={handleCloseSchoolDetail}
               onUpdateSchool={handleUpdateSchool}
               onAddTask={handleAddTask}
               onUpdateTaskStatus={handleUpdateTaskStatus}
@@ -2357,20 +2465,67 @@ export default function App() {
 
       {/* Full-Screen Syncing Overlay */}
       {isBlockingSync && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fade-in select-none">
-          <div className="relative w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col gap-6 text-center items-center backdrop-blur-lg">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400 relative">
-              <RefreshCw className="w-8 h-8 animate-spin" />
+        <div 
+          className="fixed inset-0 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fade-in select-none"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.88)' }}
+        >
+          <div 
+            className="relative w-full max-w-sm rounded-3xl p-8 flex flex-col gap-5 text-center items-center animate-scale-in"
+            style={{ 
+              backgroundColor: 'rgb(10, 15, 30)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 40px rgba(99,102,241,0.12)'
+            }}
+          >
+            <div 
+              className="w-16 h-16 rounded-2xl flex items-center justify-center relative"
+              style={{ backgroundColor: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }}
+            >
+              <RefreshCw className={`w-8 h-8 ${syncProgress === 100 ? 'hidden' : 'animate-spin'}`} style={{ animationDuration: '3s', color: '#a78bfa' }} />
+              {syncProgress === 100 && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-2xl animate-fade-in" style={{ backgroundColor: 'rgba(52,211,153,0.1)' }}>
+                  <Check className="w-8 h-8 animate-bounce" style={{ color: '#34d399' }} />
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <h3 className="font-extrabold text-white text-base uppercase tracking-wider">
-                Sinkronisasi Data
+            <div className="space-y-2 w-full">
+              <h3 className="font-extrabold text-sm uppercase tracking-wider" style={{ color: '#e2e8f0' }}>
+                {syncProgress === 100 ? 'Sinkronisasi Selesai' : 'Sinkronisasi Data'}
               </h3>
-              <p className="text-slate-300 text-xs leading-relaxed">
-                Sedang menyelaraskan data dengan Google Sheets & Drive...
+              <p className="text-[11px] leading-relaxed" style={{ color: '#94a3b8' }}>
+                {syncProgress === 100 ? 'Data berhasil diselaraskan!' : 'Sedang menyelaraskan data dengan Google Sheets & Drive...'}
               </p>
-              <p className="text-rose-450 text-[10px] font-bold mt-2 animate-pulse">
-                Mohon jangan menutup atau merefresh browser sampai proses selesai.
+              
+              {/* Progress Bar */}
+              <div 
+                className="w-full rounded-full h-3 overflow-hidden mt-4 relative"
+                style={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}
+              >
+                <div 
+                  className="h-full rounded-full transition-all duration-300 ease-out relative overflow-hidden"
+                  style={{ 
+                    width: `${syncProgress}%`,
+                    background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa)'
+                  }}
+                >
+                  {/* Shimmer animation */}
+                  <div 
+                    className="absolute inset-0 opacity-60"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 1.2s infinite linear'
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-[10px] font-bold mt-1.5 px-0.5" style={{ color: '#475569' }}>
+                <span>Progres</span>
+                <span style={{ color: '#a78bfa' }}>{syncProgress}%</span>
+              </div>
+
+              <p className="text-[9px] font-semibold mt-3 animate-pulse" style={{ color: '#f87171' }}>
+                Mohon jangan menutup atau merefresh browser.
               </p>
             </div>
           </div>

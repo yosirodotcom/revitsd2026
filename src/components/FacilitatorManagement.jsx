@@ -10,6 +10,8 @@ import {
   Award,
   Info,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   X
 } from 'lucide-react';
 
@@ -18,6 +20,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
   const [selectedSchoolForFac, setSelectedSchoolForFac] = useState({}); // { [facId]: npsn }
   const [selectedFacForSchool, setSelectedFacForSchool] = useState({}); // { [npsn]: facId }
   const [notification, setNotification] = useState(null); // { type: 'success'|'error', message: '' }
+  const [isGuidanceExpanded, setIsGuidanceExpanded] = useState(false);
 
   // Show a temporary notification helper
   const showNotification = (type, message) => {
@@ -51,13 +54,6 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
   // Handle Assign School to Facilitator
   const handleAssign = (npsn, facId) => {
     if (!npsn || !facId) return;
-
-    // Check if facilitator has reached the 8 school limit
-    const currentCount = getAssignedSchools(facId).length;
-    if (currentCount >= 8) {
-      showNotification('error', 'Gagal: Fasilitator telah mencapai batas maksimal penugasan (8 sekolah).');
-      return;
-    }
 
     const school = schools.find((s) => s.npsn === npsn);
     const fac = users.find((u) => u.id === facId);
@@ -107,17 +103,33 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
         </div>
       )}
 
-      {/* Info Warning Alert */}
-      <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 flex gap-3 items-start select-none">
-        <Info className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-400 space-y-1">
-          <p className="font-semibold text-slate-200">Panduan Penugasan Swakelola</p>
-          <p>
-            Beban kerja masing-masing **Fasilitator** dibatasi maksimal **8 sekolah dasar**. 
-            Satu sekolah dasar hanya dapat diawasi oleh **1 fasilitator** dalam satu waktu. 
-            Sekolah yang telah ditugaskan ke salah satu fasilitator tidak akan muncul di opsi penugasan fasilitator lainnya.
-          </p>
-        </div>
+      {/* Info Warning Alert - Collapsible Guidance */}
+      <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 select-none">
+        <button 
+          onClick={() => setIsGuidanceExpanded(!isGuidanceExpanded)}
+          className="w-full flex items-center justify-between gap-3 text-left focus:outline-none cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <Info className="w-5 h-5 text-indigo-400 shrink-0" />
+            <span className="text-xs font-semibold text-slate-200">Panduan Penugasan Swakelola</span>
+          </div>
+          {isGuidanceExpanded ? (
+            <ChevronUp className="w-4 h-4 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          )}
+        </button>
+        
+        {isGuidanceExpanded && (
+          <div className="mt-3 pl-8 text-xs text-slate-400 leading-relaxed space-y-2 animate-fade-in">
+            <p>
+              Satu sekolah dasar hanya dapat diawasi oleh <strong className="text-indigo-300">1 fasilitator</strong> dalam satu waktu.
+            </p>
+            <p>
+              Sekolah yang telah ditugaskan ke salah satu fasilitator tidak akan muncul di opsi penugasan fasilitator lainnya.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Top Statistics Cards */}
@@ -209,13 +221,6 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {facilitators.map((fac) => {
             const assigned = getAssignedSchools(fac.id);
-            const isFull = assigned.length >= 8;
-            
-            // Calculate progress bar color
-            let progressColor = 'bg-indigo-600';
-            if (assigned.length <= 3) progressColor = 'bg-emerald-500';
-            else if (assigned.length >= 7) progressColor = 'bg-rose-500';
-            else if (assigned.length >= 5) progressColor = 'bg-amber-500';
 
             return (
               <div 
@@ -238,21 +243,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                   </div>
                 </div>
 
-                {/* Workload Indicator (Visual load bar) */}
-                <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-850 select-none">
-                  <div className="flex justify-between items-center text-xs font-semibold text-slate-400 mb-1.5">
-                    <span>Beban Penugasan Sekolah</span>
-                    <span className={isFull ? 'text-rose-400 font-bold' : 'text-slate-350'}>
-                      {assigned.length} / 8 <span className="text-[10px] text-slate-500 font-medium">(Maks 8)</span>
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-850 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
-                      style={{ width: `${(assigned.length / 8) * 100}%` }}
-                    />
-                  </div>
-                </div>
+
 
                 {/* List of currently assigned schools */}
                 <div className="space-y-2 flex-1">
@@ -297,12 +288,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
 
                 {/* Add assignment dropdown section */}
                 <div className="pt-3 border-t border-slate-850">
-                  {isFull ? (
-                    <div className="text-[11px] text-rose-400 bg-rose-500/[0.02] border border-rose-950 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 select-none">
-                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
-                      <span>Batas kuota penugasan tercapai. Lepas tugas sekolah lain terlebih dahulu.</span>
-                    </div>
-                  ) : unassignedSchools.length === 0 ? (
+                  {unassignedSchools.length === 0 ? (
                     <div className="text-[11px] text-slate-500 bg-slate-950/40 border border-slate-850 px-3 py-2 rounded-xl font-medium select-none">
                       Semua sekolah dasar terdaftar sudah memiliki fasilitator.
                     </div>
@@ -399,16 +385,14 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                         <option value="">-- Pilih Fasilitator --</option>
                         {facilitators.map((fac) => {
                           const currentLoad = getAssignedSchools(fac.id).length;
-                          const isFull = currentLoad >= 8;
 
                           return (
                             <option 
                               key={fac.id} 
                               value={fac.id} 
-                              disabled={isFull}
-                              className="bg-slate-950 disabled:text-slate-600 disabled:bg-slate-900"
+                              className="bg-slate-950"
                             >
-                              {fac.nama} ({currentLoad}/8 {isFull ? ' - PENUH' : ''})
+                              {fac.nama} ({currentLoad} sekolah binaan)
                             </option>
                           );
                         })}

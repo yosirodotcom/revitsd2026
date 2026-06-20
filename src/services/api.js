@@ -59,7 +59,11 @@ export const syncService = {
           honorAdministrasi: state.settings.honorAdministrasi || 5000000,
           deductionTaxPct: state.settings.deductionTaxPct || 15,
           deductionLembagaPct: state.settings.deductionLembagaPct || 10,
-          biayaOperasional: state.settings.biayaOperasional || 0
+          biayaOperasional: state.settings.biayaOperasional || 0,
+          danaTahap1Diterima: state.settings.danaTahap1Diterima || false,
+          danaTahap2Diterima: state.settings.danaTahap2Diterima || false,
+          danaTahap3Diterima: state.settings.danaTahap3Diterima || false,
+          simulatedToday: state.settings.simulatedToday || ''
         },
         users: state.users,
         schools: (state.schools || []).map(s => ({
@@ -68,7 +72,11 @@ export const syncService = {
           kepalaSekolah: s.kepala_sekolah || s.kepalaSekolah || ''
         })),
         contacts: state.contacts,
-        tasks: state.tasks,
+        tasks: (state.tasks || []).map(t => ({
+          ...t,
+          sekolahId: t.sekolahId || t.schoolId || '',
+          schoolId: t.sekolahId || t.schoolId || ''
+        })),
         trips: (state.trips || []).map(t => ({
           ...t,
           schoolId: t.sekolahId || t.schoolId || '',

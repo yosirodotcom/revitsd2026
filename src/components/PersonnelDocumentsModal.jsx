@@ -20,6 +20,8 @@ export default function PersonnelDocumentsModal({
   const isSuperAdmin = activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin';
   const isOwnDocuments = activeUser.id === user.id;
 
+  const [uploadingState, setUploadingState] = React.useState({});
+
   const handleUpload = (e, category) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -32,35 +34,65 @@ export default function PersonnelDocumentsModal({
       return window.showAlert('Format file tidak didukung! Hanya diperbolehkan berkas PDF (.pdf) atau Gambar (.png, .jpg, .jpeg).');
     }
 
-    // Check size limit: 5MB
-    if (file.size > 5.0 * 1024 * 1024) {
+    // Check size limit: 10MB
+    if (file.size > 10.0 * 1024 * 1024) {
       e.target.value = '';
-      return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 5MB untuk menghemat kuota penyimpanan browser.');
+      return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 10MB.');
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const newDoc = {
-        id: `pdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        userId: user.id,
-        type: category.key,
-        fileName: file.name,
-        fileSize: (file.size / 1024).toFixed(1) + ' KB',
-        fileData: event.target.result, // Base64 data URL
-        uploadedAt: new Date().toISOString()
-      };
+    setUploadingState((prev) => ({
+      ...prev,
+      [category.key]: { progress: 0, fileName: file.name }
+    }));
 
-      onAddDoc(newDoc);
-      window.showAlert(`Dokumen "${file.name}" berhasil diunggah dalam kategori "${category.label}"!`);
-      e.target.value = '';
-    };
+    const progressInterval = setInterval(() => {
+      setUploadingState((prev) => {
+        const state = prev[category.key];
+        if (!state) {
+          clearInterval(progressInterval);
+          return prev;
+        }
+        const nextProgress = state.progress + 20;
+        if (nextProgress >= 100) {
+          clearInterval(progressInterval);
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = (event) => {
+            const newDoc = {
+              id: `pdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              userId: user.id,
+              type: category.key,
+              fileName: file.name,
+              fileSize: (file.size / 1024).toFixed(1) + ' KB',
+              fileData: event.target.result, // Base64 data URL
+              uploadedAt: new Date().toISOString()
+            };
+
+            onAddDoc(newDoc);
+            setUploadingState((latest) => {
+              const copy = { ...latest };
+              delete copy[category.key];
+              return copy;
+            });
+          };
+          return {
+            ...prev,
+            [category.key]: { ...state, progress: 100 }
+          };
+        }
+        return {
+          ...prev,
+          [category.key]: { ...state, progress: nextProgress }
+        };
+      });
+    }, 150);
+
+    e.target.value = '';
   };
 
   const handleDeleteClick = async (file) => {
     if (await window.showConfirm(`Apakah Anda yakin ingin menghapus dokumen "${file.fileName}"?`)) {
       onDeleteDoc(file.id);
-      window.showAlert(`Dokumen "${file.fileName}" berhasil dihapus.`);
     }
   };
 
@@ -210,8 +242,24 @@ export default function PersonnelDocumentsModal({
                     </div>
                   )}
 
-                  {/* Upload Action */}
-                  {shouldShowUpload && (
+                  {/* Uploading Progress Bar or Action */}
+                  {uploadingState[category.key] ? (
+                    <div className="pt-2 select-none space-y-2 bg-slate-950/30 border border-dashed border-indigo-500/20 rounded-xl p-3">
+                      <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                        <span className="truncate max-w-[200px] text-indigo-300 flex items-center gap-1.5">
+                          <UploadCloud className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
+                          {uploadingState[category.key].fileName}
+                        </span>
+                        <span className="text-indigo-400 font-bold">{uploadingState[category.key].progress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                        <div 
+                          className="bg-indigo-500 h-full rounded-full transition-all duration-150"
+                          style={{ width: `${uploadingState[category.key].progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : shouldShowUpload ? (
                     <div className="pt-1 select-none">
                       <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-800 hover:border-indigo-500/40 bg-slate-950/30 hover:bg-slate-950/60 text-[11px] font-semibold text-slate-400 hover:text-indigo-400 transition-all duration-200 cursor-pointer">
                         <UploadCloud className="w-4 h-4 text-indigo-400" />
@@ -224,7 +272,7 @@ export default function PersonnelDocumentsModal({
                         />
                       </label>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}

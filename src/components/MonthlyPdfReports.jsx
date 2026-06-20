@@ -41,6 +41,8 @@ export default function MonthlyPdfReports({
     fileName: '',
     fileData: ''
   });
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadFileName, setUploadFileName] = useState('');
 
   // Handle PDF upload conversion to Base64 and auto-submit
   const handleFileChange = (e) => {
@@ -52,40 +54,60 @@ export default function MonthlyPdfReports({
       return window.showAlert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
     }
 
-    // Size limit of 1.5MB for LocalStorage protection
-    if (file.size > 1.5 * 1024 * 1024) {
+    // Size limit of 10MB for LocalStorage protection
+    if (file.size > 10 * 1024 * 1024) {
       e.target.value = '';
-      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 1.5MB untuk kebutuhan demo lokal ini.');
+      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 10MB.');
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async (event) => {
-      const targetMonth = Number(formData.bulanKe);
-      // Check if report for this month already exists
-      const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth);
-      if (exists) {
-        if (!await window.showConfirm(`Laporan untuk Bulan Ke-${targetMonth} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
-          e.target.value = '';
-          return;
+    setUploadFileName(file.name);
+    setUploadProgress(0);
+
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev === null) {
+          clearInterval(interval);
+          return null;
         }
-      }
+        const next = prev + 20;
+        if (next >= 100) {
+          clearInterval(interval);
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = async (event) => {
+            const targetMonth = Number(formData.bulanKe);
+            // Check if report for this month already exists
+            const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth);
+            if (exists) {
+              if (!await window.showConfirm(`Laporan untuk Bulan Ke-${targetMonth} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
+                e.target.value = '';
+                setUploadProgress(null);
+                setUploadFileName('');
+                return;
+              }
+            }
 
-      const newReport = {
-        id: `report-${activeUser.id}-bulan-${targetMonth}`,
-        userId: activeUser.id,
-        bulanKe: targetMonth,
-        fileName: file.name,
-        fileData: event.target.result, // Base64 data URL
-        submittedAt: new Date().toISOString()
-      };
+            const newReport = {
+              id: `report-${activeUser.id}-bulan-${targetMonth}`,
+              userId: activeUser.id,
+              bulanKe: targetMonth,
+              fileName: file.name,
+              fileData: event.target.result, // Base64 data URL
+              submittedAt: new Date().toISOString()
+            };
 
-      onAddReport(newReport);
-      window.showAlert(`Laporan Bulanan Ke-${targetMonth} berhasil dikirim!`);
-      setFormData({ bulanKe: 1, fileName: '', fileData: '' });
-      e.target.value = '';
-      setIsAdding(false);
-    };
+            onAddReport(newReport);
+            setFormData({ bulanKe: 1, fileName: '', fileData: '' });
+            e.target.value = '';
+            setUploadProgress(null);
+            setUploadFileName('');
+            setIsAdding(false);
+          };
+          return 100;
+        }
+        return next;
+      });
+    }, 150);
   };
 
   // Safe PDF opener from Base64 Data URL (converts to Blob first to avoid browser security blockages)
@@ -252,15 +274,30 @@ export default function MonthlyPdfReports({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Pilih Berkas PDF (Maks 1.5MB)
+                  Pilih Berkas PDF (Maks 10MB)
                 </label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 py-2.5"
-                  required
-                />
+                {uploadProgress !== null ? (
+                  <div className="space-y-1.5 pt-1.5">
+                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                      <span className="truncate max-w-[120px] text-indigo-300">{uploadFileName}</span>
+                      <span className="text-indigo-400">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                      <div 
+                        className="bg-indigo-500 h-full rounded-full transition-all duration-150"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 py-2.5"
+                    required
+                  />
+                )}
               </div>
             </div>
 

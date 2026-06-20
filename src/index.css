@@ -509,3 +509,9 @@ input[type="date"] {
   animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* Shimmer animation for progress bars */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+

@@ -176,9 +176,9 @@ export default function MeetingManagement({
     if (files.length === 0) return;
 
     files.forEach(file => {
-      // 1.5MB size limit to prevent localStorage storage issues
-      if (file.size > 1.5 * 1024 * 1024) {
-        return window.showAlert(`Ukuran file "${file.name}" terlalu besar! Maksimal 1.5MB.`);
+      // 10MB size limit to prevent localStorage storage issues
+      if (file.size > 10 * 1024 * 1024) {
+        return window.showAlert(`Ukuran file "${file.name}" terlalu besar! Maksimal 10MB.`);
       }
 
       const reader = new FileReader();

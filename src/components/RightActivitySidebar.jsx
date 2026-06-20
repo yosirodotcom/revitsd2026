@@ -23,8 +23,8 @@ export default function RightActivitySidebar({
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      if (window.showAlert) window.showAlert('Ukuran berkas maksimal 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      if (window.showAlert) window.showAlert('Ukuran berkas maksimal 10MB');
       return;
     }
     const reader = new FileReader();
@@ -342,7 +342,7 @@ export default function RightActivitySidebar({
                   </p>
 
                   {/* Attachment Link */}
-                  {log.fileRef && log.fileRef.fileData && (
+                  {log.fileRef && (log.fileRef.fileData || log.fileRef.id) && (
                     <button
                       onClick={() => onOpenFile(log.fileRef)}
                       className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-lg transition-all cursor-pointer select-none"

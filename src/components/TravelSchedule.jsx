@@ -21,7 +21,8 @@ export default function TravelSchedule({
   onDeleteTripsBatch,
   tripDocs = [],
   onAddTripDoc,
-  onDeleteTripDoc
+  onDeleteTripDoc,
+  onCloseDocsModal
 }) {
   const getTodayDateStr = () => {
     const d = new Date();
@@ -41,6 +42,8 @@ export default function TravelSchedule({
   const [expandedBatches, setExpandedBatches] = useState({});
   const [editingTrip, setEditingTrip] = useState(null);
   const [docsModalTrip, setDocsModalTrip] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadFileName, setUploadFileName] = useState('');
 
   // Cek apakah sekolah sudah memiliki trip non-rejected untuk kunjungan tertentu (dari fasilitator yg login)
   const hasSchoolTrip = (schoolNpsn, visitNum, fasilitatorId) => {
@@ -379,7 +382,7 @@ export default function TravelSchedule({
                 </div>
                 <h3 className="font-bold text-slate-200">Dokumen Perjalanan Dinas</h3>
               </div>
-              <button onClick={() => setDocsModalTrip(null)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors border-0 cursor-pointer">
+              <button onClick={() => { setDocsModalTrip(null); onCloseDocsModal?.(); }} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors border-0 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -401,43 +404,77 @@ export default function TravelSchedule({
               {isSuperAdmin && (
                 <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 flex flex-col gap-3">
                   <label className="text-xs font-semibold text-indigo-300">Unggah Dokumen Baru (SPPD / Surat Tugas)</label>
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="block w-full text-xs text-slate-400
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-lg file:border-0
-                      file:text-xs file:font-semibold
-                      file:bg-indigo-500/20 file:text-indigo-400
-                      hover:file:bg-indigo-500/30 file:cursor-pointer file:transition-colors"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-                      
-                      // Max 5MB
-                      if (file.size > 5 * 1024 * 1024) {
-                        window.showAlert('Ukuran file maksimal 5MB.');
-                        e.target.value = '';
-                        return;
-                      }
+                  {uploadProgress !== null ? (
+                    <div className="space-y-1.5 pt-1.5">
+                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                        <span className="truncate max-w-[120px] text-indigo-300">{uploadFileName}</span>
+                        <span className="text-indigo-400">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                        <div 
+                          className="bg-indigo-500 h-full rounded-full transition-all duration-150"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="block w-full text-xs text-slate-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-xs file:font-semibold
+                        file:bg-indigo-500/20 file:text-indigo-400
+                        hover:file:bg-indigo-500/30 file:cursor-pointer file:transition-colors"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        
+                        // Max 10MB
+                        if (file.size > 10 * 1024 * 1024) {
+                          window.showAlert('Ukuran file maksimal 10MB.');
+                          e.target.value = '';
+                          return;
+                        }
 
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const base64Data = event.target.result;
-                        const targetTripId = Array.isArray(docsModalTrip) ? docsModalTrip[0].id : docsModalTrip.id;
-                        onAddTripDoc({
-                          tripId: targetTripId,
-                          name: file.name,
-                          fileData: base64Data,
-                          uploadedBy: activeUser.id,
-                          uploadedAt: new Date().toISOString()
-                        });
-                        e.target.value = '';
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                  <p className="text-[10px] text-slate-500">Format: PDF, JPG, PNG. Maks: 5MB.</p>
+                        setUploadFileName(file.name);
+                        setUploadProgress(0);
+
+                        const interval = setInterval(() => {
+                          setUploadProgress(prev => {
+                            if (prev === null) {
+                              clearInterval(interval);
+                              return null;
+                            }
+                            const next = prev + 20;
+                            if (next >= 100) {
+                              clearInterval(interval);
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const base64Data = event.target.result;
+                                const targetTripId = Array.isArray(docsModalTrip) ? docsModalTrip[0].id : docsModalTrip.id;
+                                onAddTripDoc({
+                                  tripId: targetTripId,
+                                  name: file.name,
+                                  fileData: base64Data,
+                                  uploadedBy: activeUser.id,
+                                  uploadedAt: new Date().toISOString()
+                                });
+                                e.target.value = '';
+                                setUploadProgress(null);
+                                setUploadFileName('');
+                              };
+                              reader.readAsDataURL(file);
+                              return 100;
+                            }
+                            return next;
+                          });
+                        }, 150);
+                      }}
+                    />
+                  )}
+                  <p className="text-[10px] text-slate-500">Format: PDF, JPG, PNG. Maks: 10MB.</p>
                 </div>
               )}
 

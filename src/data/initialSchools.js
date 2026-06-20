@@ -5,287 +5,287 @@ export const initialSchools = [
     npsn: "30104982",
     nama_sekolah: "SD Negeri 19 Tanjung Tengang",
     kabupaten: "Melawi",
-    koordinat: "https://maps.app.goo.gl/VWZMmroSseNtA57W9",
+    koordinat: "-0.3568557, 111.6858073",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30105005",
     nama_sekolah: "SD Negeri 01 Pemuar",
     kabupaten: "Melawi",
-    koordinat: "https://maps.app.goo.gl/Pqo3F512GBqngW2R9",
+    koordinat: "-0.3037705, 111.6430775",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30104987",
     nama_sekolah: "SD Negeri 02 Keberak",
     kabupaten: "Melawi",
-    koordinat: "https://maps.app.goo.gl/kFiEnjppU1QBRksV8",
+    koordinat: "-0.3937609, 111.5528948",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30104971",
     nama_sekolah: "SD Negeri 01 Pinoh Utara",
     kabupaten: "Melawi",
-    koordinat: "https://maps.app.goo.gl/7GGh7kKFkp5hCwxC9",
+    koordinat: "-0.3269568, 111.7405406",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30104991",
     nama_sekolah: "SD Negeri 01 Ella Hilir",
     kabupaten: "Melawi",
-    koordinat: "https://maps.app.goo.gl/GF3Rwpqr32NSTc6N9",
+    koordinat: "-0.4039258, 112.0040536",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30102754",
     nama_sekolah: "SD Negeri 18 Nanga Toran",
     kabupaten: "Sintang",
-    koordinat: "https://maps.app.goo.gl/Uakb5PKLEC1244gd7",
+    koordinat: "-0.0809356, 112.0531695",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30102686",
     nama_sekolah: "SD Negeri 23 Periang",
     kabupaten: "Sintang",
-    koordinat: "https://maps.app.goo.gl/Y7kbYrs7LX4AnmXFA",
+    koordinat: "-0.1984112, 111.978483",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30105740",
     nama_sekolah: "SD Negeri 17 Mungguk",
     kabupaten: "Sekadau",
-    koordinat: "https://maps.app.goo.gl/ETtEDSnMmg417JBy6",
+    koordinat: "0.016222, 110.888708",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30105938",
     nama_sekolah: "SD Negeri 44 Sungai Akar",
     kabupaten: "Sekadau",
-    koordinat: "https://maps.app.goo.gl/jqBx9hJ6DkJHKyWz5",
+    koordinat: "0.0615154, 110.9152151",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30104282",
     nama_sekolah: "SD Negeri 27 Tengkook",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/vXUjcdEfdftqenxv5",
+    koordinat: "0.4975883, 110.1792795",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30104275",
     nama_sekolah: "SD Negeri 26 Raba Bayur",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/85LSSc2PEodgJvSK6",
+    koordinat: "0.4248151, 110.1370506",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30103866",
     nama_sekolah: "SD Negeri 10 Sandai",
     kabupaten: "Ketapang",
-    koordinat: "https://maps.app.goo.gl/U5PwUQqmYs44JnkV8",
+    koordinat: "-1.185844, 110.6127813",
     fasilitatorId: "ahmad-maulana-iqbal"
   },
   {
     npsn: "30103918",
     nama_sekolah: "SD Negeri 11 Sandai",
     kabupaten: "Ketapang",
-    koordinat: "https://maps.app.goo.gl/9E4e1qxtZUj9jTof6",
+    koordinat: "-1.2320019, 110.5323589",
     fasilitatorId: "ahmad-maulana-iqbal"
   },
   {
     npsn: "30105665",
     nama_sekolah: "SD Negeri 12 Nyonak",
     kabupaten: "Sekadau",
-    koordinat: "https://maps.app.goo.gl/UfBCAfWc8m4NKr7CA",
+    koordinat: "-0.5597113, 110.7106499",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30102233",
     nama_sekolah: "SD Negeri 10 Melugai",
     kabupaten: "Sanggau",
-    koordinat: "https://maps.app.goo.gl/f7KrB958WiF43Tcm7",
+    koordinat: "0.0595149, 110.1292712",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30102127",
     nama_sekolah: "SD Negeri 04 Kampung Baru",
     kabupaten: "Sanggau",
-    koordinat: "https://maps.app.goo.gl/bNVC6owYQbVdmHRy6",
+    koordinat: "-0.2557582, 109.9552944",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30101565",
     nama_sekolah: "SD Negeri 03 Jongkat",
     kabupaten: "Mempawah",
-    koordinat: "https://maps.app.goo.gl/wUrHLnHZMci9aBDp6",
+    koordinat: "0.0611956, 109.205726",
     fasilitatorId: "dewi-ria-indriana"
   },
   {
     npsn: "30107886",
     nama_sekolah: "SD Negeri 34 Suka Ramai",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/fqANSgA2zbXTiaGG7",
+    koordinat: "0.3395486, 109.2885831",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30104701",
     nama_sekolah: "SD Negeri 20 Pakato",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/kVpKZ88no1atSmWN9",
+    koordinat: "0.6108689, 109.4006361",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30104522",
     nama_sekolah: "SD Negeri 07 Raba",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/rirYbFerZmxmqFUs8",
+    koordinat: "0.5069986, 109.3209128",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30104241",
     nama_sekolah: "SD Negeri 31 Begantung",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/CrMYHWPJSJWCNxDVA",
+    koordinat: "0.5957468, 109.6749375",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30104510",
     nama_sekolah: "SD Negeri 04 Setolo",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/NiVvVLkP8ZUvxhuk9",
+    koordinat: "0.589868, 109.6292702",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30104344",
     nama_sekolah: "SD Negeri 10 Ampadan",
     kabupaten: "Landak",
-    koordinat: "https://maps.app.goo.gl/evXDsCysyZSqg1oWA",
+    koordinat: "0.648987, 109.581097",
     fasilitatorId: "rizal"
   },
   {
     npsn: "30100855",
     nama_sekolah: "SD Negeri 10 Segedong",
     kabupaten: "Mempawah",
-    koordinat: "https://maps.app.goo.gl/RgKnJyAUCST11j6C6",
+    koordinat: "0.2004961, 109.194505",
     fasilitatorId: "dewi-ria-indriana"
   },
   {
     npsn: "30101553",
     nama_sekolah: "SD Negeri 08 Sungai Pinyuh",
     kabupaten: "Mempawah",
-    koordinat: "https://maps.app.goo.gl/haDFuhyaaDub2A2h9",
+    koordinat: "0.284531, 109.056833",
     fasilitatorId: "dewi-ria-indriana"
   },
   {
     npsn: "30105395",
     nama_sekolah: "SD Negeri 27 Pontianak Timur",
     kabupaten: "Pontianak",
-    koordinat: "https://maps.app.goo.gl/TV1dvqX6MVNJakNx9",
+    koordinat: "-0.0308226, 109.370654",
     fasilitatorId: "dian-perwita-sari"
   },
   {
     npsn: "30105415",
     nama_sekolah: "SD Negeri 06 Pontianak Timur",
     kabupaten: "Pontianak",
-    koordinat: "https://maps.app.goo.gl/hxPXBacboVeRHbuE6",
+    koordinat: "-0.0423343, 109.3617344",
     fasilitatorId: "dian-perwita-sari"
   },
   {
     npsn: "30105277",
     nama_sekolah: "SD Negeri 04 Pontianak Timur",
     kabupaten: "Pontianak",
-    koordinat: "https://maps.app.goo.gl/hmvk7QkVLRdPEqLz6",
+    koordinat: "-0.026315, 109.368782",
     fasilitatorId: "dian-perwita-sari"
   },
   {
     npsn: "30104187",
     nama_sekolah: "SD Negeri 10 Senangak",
     kabupaten: "Bengkayang",
-    koordinat: "https://maps.app.goo.gl/eaRVix9CheXFGEHt8",
+    koordinat: "1.2560577, 109.721553",
     fasilitatorId: "dewi-ria-indriana"
   },
   {
     npsn: "30103967",
     nama_sekolah: "SD Negeri 20 Pakucing II",
     kabupaten: "Bengkayang",
-    koordinat: "https://maps.app.goo.gl/dk6hLkkyGc8ah5Fh8",
+    koordinat: "0.8629606, 109.1288207",
     fasilitatorId: "dewi-ria-indriana"
   },
   {
     npsn: "30105386",
     nama_sekolah: "SD Negeri 32 Pontianak Tenggara",
     kabupaten: "Pontianak",
-    koordinat: "https://maps.app.goo.gl/BciFDQP9M594QUd18",
+    koordinat: "-0.077876, 109.35169",
     fasilitatorId: "dian-perwita-sari"
   },
   {
     npsn: "69888560",
     nama_sekolah: "SD Negeri 21 Tempapan Hulu",
     kabupaten: "Sambas",
-    koordinat: "https://maps.app.goo.gl/5YdnEDMCL6tEbZQr9",
+    koordinat: "1.6429109, 109.3327156",
     fasilitatorId: "ahmad-maulana-iqbal"
   },
   {
     npsn: "30100435",
     nama_sekolah: "SD Negeri 04 Tanjung Putat",
     kabupaten: "Sambas",
-    koordinat: "https://maps.app.goo.gl/RU5wgBcghP1TCZZA6",
+    koordinat: "1.2648035, 109.1909486",
     fasilitatorId: "ahmad-maulana-iqbal"
   },
   {
     npsn: "30105548",
     nama_sekolah: "SD Negeri 62 Singkawang",
     kabupaten: "Singkawang",
-    koordinat: "https://maps.app.goo.gl/wrnMs4d8j6KexJeg6",
+    koordinat: "0.8683758, 109.093837",
     fasilitatorId: "dewi-ria-indriana"
   },
   {
     npsn: "30102503",
     nama_sekolah: "SD Panca Setya 01 Sintang",
     kabupaten: "Sintang",
-    koordinat: "https://maps.app.goo.gl/WQUjsNEqahBA1eY6A",
+    koordinat: "0.0756384, 111.4995285",
     fasilitatorId: "hartanto-wahyu-sasongko"
   },
   {
     npsn: "30103248",
     nama_sekolah: "SD Negeri 06 Nanga Seberuang",
     kabupaten: "Kapuas Hulu",
-    koordinat: "https://maps.app.goo.gl/PDcgzN8UkwRjMkiu5",
+    koordinat: "0.4673148, 111.8861909",
     fasilitatorId: "dian-perwita-sari"
   },
   {
     npsn: "30102820",
     nama_sekolah: "SD Negeri 15 UPT III Silat",
     kabupaten: "Kapuas Hulu",
-    koordinat: "https://maps.app.goo.gl/SFTwDLojNQcLwVUw8",
+    koordinat: "0.3309103, 111.7724729",
     fasilitatorId: "dian-perwita-sari"
   },
   {
     npsn: "30102240",
     nama_sekolah: "SD Negeri 09 Selayang",
     kabupaten: "Sanggau",
-    koordinat: "https://maps.app.goo.gl/Z4basNxmBXxXFCeB9",
+    koordinat: "-0.1822944, 110.0044647",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30105876",
     nama_sekolah: "SD Negeri 02 Belitang",
     kabupaten: "Sekadau",
-    koordinat: "https://maps.app.goo.gl/hS8P4zBpdTkNHsXn7",
+    koordinat: "0.443353, 111.205574",
     fasilitatorId: "achmad-idris-setianto"
   },
   {
     npsn: "30103889",
     nama_sekolah: "SD Negeri 08 Benua Kayong",
     kabupaten: "Ketapang",
-    koordinat: "https://maps.app.goo.gl/8wSRa8vZMpVRkPoq9",
+    koordinat: "-1.8547038, 110.0160641",
     fasilitatorId: "ahmad-maulana-iqbal"
   },
   {
     npsn: "30102041",
     nama_sekolah: "SD Negeri 07 Mangkau",
     kabupaten: "Sanggau",
-    koordinat: "https://maps.app.goo.gl/1FMCWXf8ukqjbwwz6",
+    koordinat: "1.0340079, 110.2278471",
     fasilitatorId: "achmad-idris-setianto"
   }
 ];

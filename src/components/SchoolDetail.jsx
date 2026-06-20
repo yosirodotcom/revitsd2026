@@ -24,6 +24,7 @@ export default function SchoolDetail({
 }) {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'documents'
   const [progresInput, setProgresInput] = useState(school?.progres_fisik || 0);
+  const [uploadingState, setUploadingState] = useState({});
 
   // Inline edit state: which field is being edited and its temp value
   const [inlineField, setInlineField] = useState(null); // 'kecamatan' | 'desa' | 'kepala_sekolah' | 'hp_kepala_sekolah' | 'perencanaId' | 'pengawasId' | 'fasilitatorId'
@@ -315,34 +316,59 @@ export default function SchoolDetail({
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 50 * 1024 * 1024) {
-      return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 50MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 10MB.');
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const newDoc = {
-        id: `sdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        sekolahId: school.npsn,
-        category: categoryKey,
-        fileName: file.name,
-        fileSize: (file.size / 1024).toFixed(1) + ' KB',
-        fileData: event.target.result, // Base64 data URL
-        uploadedBy: activeUser ? activeUser.nama : 'Guest',
-        uploadedAt: new Date().toISOString()
-      };
+    setUploadingState((prev) => ({
+      ...prev,
+      [categoryKey]: { progress: 0, fileName: file.name }
+    }));
 
-      onAddSchoolDoc(newDoc);
-      
-      const isReport = reportCategories.some(c => c.key === categoryKey);
-      const catLabel = isReport 
-        ? reportCategories.find(c => c.key === categoryKey).label 
-        : docCategories.find(c => c.key === categoryKey).label;
+    const progressInterval = setInterval(() => {
+      setUploadingState((prev) => {
+        const state = prev[categoryKey];
+        if (!state) {
+          clearInterval(progressInterval);
+          return prev;
+        }
+        const nextProgress = state.progress + 20;
+        if (nextProgress >= 100) {
+          clearInterval(progressInterval);
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = (event) => {
+            const newDoc = {
+              id: `sdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              sekolahId: school.npsn,
+              category: categoryKey,
+              fileName: file.name,
+              fileSize: (file.size / 1024).toFixed(1) + ' KB',
+              fileData: event.target.result, // Base64 data URL
+              uploadedBy: activeUser ? activeUser.nama : 'Guest',
+              uploadedAt: new Date().toISOString()
+            };
 
-      window.showAlert(`Dokumen "${file.name}" berhasil diunggah dalam kategori "${catLabel}"!`);
-      e.target.value = '';
-    };
+            onAddSchoolDoc(newDoc);
+            setUploadingState((latest) => {
+              const copy = { ...latest };
+              delete copy[categoryKey];
+              return copy;
+            });
+          };
+          return {
+            ...prev,
+            [categoryKey]: { ...state, progress: 100 }
+          };
+        }
+        return {
+          ...prev,
+          [categoryKey]: { ...state, progress: nextProgress }
+        };
+      });
+    }, 150);
+
+    e.target.value = '';
   };
 
   const handleDownloadFile = (file) => {
@@ -1104,7 +1130,7 @@ export default function SchoolDetail({
               </div>
 
               {/* Right Column: Progress & Docs checklist */}
-              <div className="space-y-6">
+              <div className="flex flex-col gap-6 lg:h-full">
                 
                 {/* Manual Progress Slider */}
                 <div className={isAuthorizedToEdit ? 'card-update-progress-glow rounded-2xl p-6 transition-all duration-300' : 'bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 transition-all duration-300'}>
@@ -1156,7 +1182,7 @@ export default function SchoolDetail({
                       </button>
                     </div>
                   ) : (
-                    <div className="text-center py-4 bg-slate-950/40 rounded-xl border border-slate-850 p-4">
+                    <div className="text-center py-4 bg-slate-950/40 rounded-xl border border-slate-855 p-4">
                       <AlertTriangle className="w-5 h-5 text-slate-605 mx-auto mb-2" />
                       <p className="text-xs text-slate-500 leading-relaxed">
                         Hanya Fasilitator atau Super Admin yang dapat mengubah progres.
@@ -1166,13 +1192,13 @@ export default function SchoolDetail({
                 </div>
 
                 {/* Documents table list */}
-                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 flex flex-col gap-4">
+                <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 flex flex-col gap-4 flex-1">
                   <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 border-b border-slate-800 pb-2">
                     <FileCheck className="w-4 h-4 text-indigo-400" /> Progres Upload Dokumen
                   </h3>
                   
                   {/* Table list */}
-                  <div className="overflow-x-auto max-h-[360px] overflow-y-auto border border-slate-855/80 rounded-xl bg-slate-950/20">
+                  <div className="overflow-x-auto flex-1 min-h-[240px] overflow-y-auto border border-slate-855/80 rounded-xl bg-slate-950/20">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-900/40 border-b border-slate-855 text-slate-400 text-[9px] uppercase tracking-wider font-bold select-none sticky top-0 backdrop-blur-md">
@@ -1183,19 +1209,116 @@ export default function SchoolDetail({
                       <tbody className="divide-y divide-slate-900/60">
                         {allDocTypes.map((doc) => {
                           const uploadedCount = mySchoolDocs.filter((d) => d.category === doc.key).length;
+                          const abbreviations = {
+                            administrasi: 'DA',
+                            teknis: 'DT',
+                            rab_fisik: 'RF',
+                            rab_meubeler: 'RM',
+                            rab_manajemen: 'RN',
+                            kurva_s: 'KS',
+                            berita_acara: 'BA',
+                            pks: 'PKS',
+                            lap_pendahuluan: 'LP',
+                            lap_harian: 'LH',
+                            lap_mingguan: 'LM',
+                            lap_bulanan: 'LB',
+                            lap_progres_50: 'LP50',
+                            lap_progres_100: 'LP100',
+                            lap_akhir: 'LA',
+                            lap_lainnya: 'LL'
+                          };
+                          const abbr = abbreviations[doc.key] || 'DOC';
 
                           return (
                             <tr key={doc.key} className="hover:bg-slate-900/20 transition-colors">
                               <td className="py-2.5 px-3 font-medium text-slate-300">
-                                <span className="block truncate max-w-[170px] sm:max-w-none text-[11px]" title={doc.label}>
-                                  {doc.label}
-                                </span>
-                                <span className="text-[8px] text-slate-500 font-semibold uppercase block leading-tight">{doc.type}</span>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="block truncate max-w-[170px] sm:max-w-none text-[11px]" title={doc.label}>
+                                    {doc.label}
+                                  </span>
+                                  {isAuthorizedToEdit && (
+                                    <label className="p-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer shrink-0" title="Unggah Dokumen">
+                                      <Plus className="w-3.5 h-3.5" />
+                                      <input
+                                        type="file"
+                                        onChange={(e) => handleUploadSchoolDoc(e, doc.key)}
+                                        className="hidden"
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                                <span className="text-[8px] text-slate-500 font-semibold uppercase block leading-tight mt-0.5">{doc.type}</span>
+
+                                {/* Uploading state inline */}
+                                {uploadingState[doc.key] && (
+                                  <div className="mt-1.5 bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-lg p-2 space-y-1 animate-pulse">
+                                    <div className="flex justify-between items-center text-[9px] font-semibold text-slate-400">
+                                      <span className="truncate max-w-[120px] text-indigo-300">
+                                        {uploadingState[doc.key].fileName}
+                                      </span>
+                                      <span className="text-indigo-400 font-bold">{uploadingState[doc.key].progress}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                                      <div 
+                                        className="bg-indigo-500 h-full rounded-full transition-all duration-155"
+                                        style={{ width: `${uploadingState[doc.key].progress}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Files List inside Table Row */}
+                                {uploadedCount > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {mySchoolDocs
+                                      .filter((d) => d.category === doc.key)
+                                      .map((file, idx) => (
+                                        <div key={file.id} className="flex items-center gap-1.5 bg-slate-950/60 hover:bg-slate-950/90 border border-slate-855 rounded-lg px-2 py-0.5 text-[9px] transition-colors" title={`${file.fileName} (Diunggah oleh: ${file.uploadedBy})`}>
+                                          <span 
+                                            onClick={() => handleOpenFile(file)}
+                                            className="text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer font-bold select-none"
+                                          >
+                                            {abbr}-{idx + 1}
+                                          </span>
+                                          <div className="flex items-center gap-1 ml-1 border-l border-slate-800/80 pl-1 shrink-0">
+                                            <button 
+                                              onClick={() => handleOpenFile(file)}
+                                              className="text-slate-500 hover:text-indigo-400 p-0.5 transition-colors cursor-pointer" 
+                                              title={`Buka ${file.fileName}`}
+                                            >
+                                              <Play className="w-2.5 h-2.5" />
+                                            </button>
+                                            <button 
+                                              onClick={() => handleDownloadFile(file)}
+                                              className="text-slate-500 hover:text-indigo-400 p-0.5 transition-colors cursor-pointer" 
+                                              title={`Download ${file.fileName}`}
+                                            >
+                                              <Download className="w-2.5 h-2.5" />
+                                            </button>
+                                            {canDeleteDoc(file) && (
+                                              <button
+                                                onClick={async () => {
+                                                  if (await window.showConfirm(`Hapus dokumen "${file.fileName}"?`)) {
+                                                    onDeleteSchoolDoc(file.id);
+                                                  }
+                                                }}
+                                                className="text-slate-650 hover:text-rose-450 p-0.5 transition-colors cursor-pointer"
+                                                title={`Hapus ${file.fileName}`}
+                                              >
+                                                <Trash2 className="w-2.5 h-2.5" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))
+                                    }
+                                  </div>
+                                )}
                               </td>
                               <td className={`py-2.5 px-3 text-center font-bold text-xs transition-colors ${
                                 uploadedCount > 0 
-                                  ? 'bg-emerald-500/30 text-emerald-400' 
-                                  : 'bg-rose-500/30 text-rose-450'
+                                  ? 'bg-emerald-500/20 text-emerald-400' 
+                                  : 'bg-rose-500/20 text-rose-450'
                               }`}>
                                 {uploadedCount > 0 ? uploadedCount : '-'}
                               </td>
@@ -1249,6 +1372,23 @@ export default function SchoolDetail({
 
                       {/* Files List */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[220px] pr-1">
+                        {uploadingState[cat.key] && (
+                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5 animate-pulse">
+                            <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                              <span className="truncate max-w-[150px] text-indigo-300 flex items-center gap-1.5">
+                                <Plus className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
+                                {uploadingState[cat.key].fileName}
+                              </span>
+                              <span className="text-indigo-400 font-bold">{uploadingState[cat.key].progress}%</span>
+                            </div>
+                            <div className="w-full bg-slate-950 rounded-full h-1 overflow-hidden border border-slate-800">
+                              <div 
+                                className="bg-indigo-500 h-full rounded-full transition-all duration-155"
+                                style={{ width: `${uploadingState[cat.key].progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         {catFiles.map((file) => (
                           <div
                             key={file.id}
@@ -1348,6 +1488,23 @@ export default function SchoolDetail({
 
                       {/* Files List */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[220px] pr-1">
+                        {uploadingState[cat.key] && (
+                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5 animate-pulse">
+                            <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                              <span className="truncate max-w-[150px] text-indigo-300 flex items-center gap-1.5">
+                                <Plus className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
+                                {uploadingState[cat.key].fileName}
+                              </span>
+                              <span className="text-indigo-400 font-bold">{uploadingState[cat.key].progress}%</span>
+                            </div>
+                            <div className="w-full bg-slate-950 rounded-full h-1 overflow-hidden border border-slate-800">
+                              <div 
+                                className="bg-indigo-500 h-full rounded-full transition-all duration-155"
+                                style={{ width: `${uploadingState[cat.key].progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         {catFiles.map((file) => (
                           <div
                             key={file.id}
