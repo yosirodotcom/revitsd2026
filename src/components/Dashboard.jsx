@@ -2248,7 +2248,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Average Progress per Fasilitator */}
+          {/* Average Progress per Facilitator */}
           {!isFacilitator && (
             <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-md">
               <h3 className="font-bold text-slate-200 text-sm mb-4 flex items-center gap-2">
@@ -2266,7 +2266,7 @@ export default function Dashboard({
                         key={fac.id}
                         className={`rounded-2xl overflow-hidden transition-all duration-300 ${
                           isSelected
-                            ? 'bg-indigo-950/40 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                            ? 'bg-slate-950 ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10'
                             : 'bg-slate-950/20 hover:bg-slate-950/40'
                         }`}
                       >
@@ -2313,7 +2313,7 @@ export default function Dashboard({
                               }, {})
                             ).map(([kabName, kabSchools], kIdx) => (
                               <div key={kabName} className="space-y-1">
-                                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                                <span className="text-[9px] font-extrabold text-slate-450 uppercase tracking-wider block">
                                   📍 Kabupaten {kabName}
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
@@ -2324,7 +2324,7 @@ export default function Dashboard({
                                       'bg-indigo-500/10 border-indigo-500/20 text-indigo-400',
                                       'bg-amber-500/10 border-amber-500/20 text-amber-400',
                                       'bg-purple-500/10 border-purple-500/20 text-purple-400',
-                                      'bg-rose-500/10 border-rose-500/20 text-rose-450',
+                                      'bg-rose-500/10 border-rose-500/20 text-rose-455',
                                       'bg-teal-500/10 border-teal-500/20 text-teal-400',
                                       'bg-violet-500/10 border-violet-500/20 text-violet-400'
                                     ];
