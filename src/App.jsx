@@ -671,7 +671,8 @@ export default function App() {
           if (remoteData.tasks) {
             const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => ({
               ...t,
-              sekolahId: t.sekolahId || t.schoolId || ''
+              sekolahId: t.sekolahId || t.schoolId || '',
+              schoolId: t.sekolahId || t.schoolId || ''
             }));
             setTasks(clean);
             localStorage.setItem('revit_tasks', JSON.stringify(clean));
@@ -1026,7 +1027,8 @@ export default function App() {
       if (remoteData.tasks) {
         const clean = remoteData.tasks.filter(t => t && isValidId(t.id)).map(t => ({
           ...t,
-          sekolahId: t.sekolahId || t.schoolId || ''
+          sekolahId: t.sekolahId || t.schoolId || '',
+          schoolId: t.sekolahId || t.schoolId || ''
         }));
         setTasks(clean);
         localStorage.setItem('revit_tasks', JSON.stringify(clean));

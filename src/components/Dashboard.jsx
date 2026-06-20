@@ -373,11 +373,11 @@ export default function Dashboard({
   const displaySchoolNpsns = displaySchools.map(s => s.npsn);
 
   const displayTasks = isFacilitator
-    ? tasks.filter(t => displaySchoolNpsns.includes(t.schoolId))
+    ? tasks.filter(t => displaySchoolNpsns.includes(t.schoolId || t.sekolahId))
     : tasks;
 
   const displayReports = isFacilitator
-    ? reports.filter(r => displaySchoolNpsns.includes(r.schoolId))
+    ? reports.filter(r => r.userId === activeUser.id)
     : reports;
 
   const displayLogs = isFacilitator
@@ -2728,8 +2728,7 @@ export default function Dashboard({
         const modalFac = users.find(u => u.id === facModalId);
         const modalFacName = modalFac?.nama || 'Fasilitator';
         const modalFacSchools = schools.filter(s => s.fasilitatorId === facModalId);
-        const modalFacNpsns = modalFacSchools.map(s => s.npsn);
-        const modalReports = reports.filter(r => modalFacNpsns.includes(r.schoolId) || r.uploadedBy === facModalId);
+        const modalReports = reports.filter(r => r.userId === facModalId);
         const modalTrips = trips.filter(t => t.userId === facModalId);
 
         const getSchoolName = (npsn) => {
@@ -2825,16 +2824,7 @@ export default function Dashboard({
                                   <span className="font-bold text-slate-200 text-sm truncate">{report.fileName}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-400 font-medium">
-                                  <span 
-                                    onClick={() => {
-                                      setFacModalId(null);
-                                      onSelectSchool && onSelectSchool(report.schoolId);
-                                    }}
-                                    className="hover:text-indigo-400 cursor-pointer transition-colors hover:underline"
-                                    title="Lihat detail sekolah"
-                                  >
-                                    {getSchoolName(report.schoolId)}
-                                  </span> — <span className="text-slate-500">Bulan {report.month}</span>
+                                  <span className="text-slate-400">Laporan Bulanan</span> — <span className="text-slate-500">Bulan Ke-{report.bulanKe}</span>
                                 </p>
                               </div>
                               <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border shrink-0 ${st.color}`}>
