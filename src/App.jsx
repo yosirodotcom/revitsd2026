@@ -53,6 +53,50 @@ const parseSettings = (rawSettings) => {
   return parsed;
 };
 
+const DEFAULT_DIRTY_TABLES = {
+  settings: false,
+  users: false,
+  schools: false,
+  contacts: false,
+  tasks: false,
+  trips: false,
+  logs: false,
+  reports: false,
+  duty_reports: false,
+  expenses: false,
+  payments: false,
+  school_docs: false,
+  personnel_docs: false,
+  meeting_docs: false,
+  trip_docs: false,
+  meetings: false,
+  activity_logs: false,
+  kendala: false,
+  kendala_comments: false,
+  kendala_docs: false,
+  warnings: false
+};
+
+const getLocalDirtyTables = (initAllTrue = false) => {
+  const stored = localStorage.getItem('revit_dirty_tables');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      // Fallback
+    }
+  }
+  const initial = {};
+  Object.keys(DEFAULT_DIRTY_TABLES).forEach(key => {
+    initial[key] = initAllTrue || !stored;
+  });
+  return initial;
+};
+
+const setLocalDirtyTables = (dirty) => {
+  localStorage.setItem('revit_dirty_tables', JSON.stringify(dirty));
+};
+
 export default function App() {
   // 1. Core State
   const [users, setUsers] = useState([]);
@@ -74,6 +118,13 @@ export default function App() {
   const [tripDocs, setTripDocs] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [isActivitySidebarOpen, setIsActivitySidebarOpen] = useState(false);
+
+  // Phase 5 States (Laporkan Kendala)
+  const [kendala, setKendala] = useState([]);
+  const [kendalaComments, setKendalaComments] = useState([]);
+  const [kendalaDocs, setKendalaDocs] = useState([]);
+  const [warnings, setWarnings] = useState([]);
+  const [activeSchoolTab, setActiveSchoolTab] = useState('profile');
 
   // Session & Nav States
   const [activeUser, setActiveUser] = useState(null);
@@ -195,6 +246,7 @@ export default function App() {
 
   const latestStateRef = React.useRef();
   const isSyncingRef = React.useRef(false);
+  const dismissTimeoutRef = React.useRef(null);
 
   // Track latest state to avoid closure staleness in timers
   useEffect(() => {
@@ -215,9 +267,13 @@ export default function App() {
       meetingDocs,
       tripDocs,
       activityLogs,
+      kendala,
+      kendalaComments,
+      kendalaDocs,
+      warnings,
       settings
     };
-  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, personnelDocs, meetings, meetingDocs, tripDocs, activityLogs, settings]);
+  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, personnelDocs, meetings, meetingDocs, tripDocs, activityLogs, kendala, kendalaComments, kendalaDocs, warnings, settings]);
 
   // NOTE: useEffect sinkronisasi manual_log → daily logs telah DIHAPUS.
   // useEffect tersebut menyebabkan bug di mana log harian yang dihapus langsung dibuat ulang
@@ -538,6 +594,58 @@ export default function App() {
       localStorage.setItem('revit_trip_docs', JSON.stringify([]));
     }
 
+    // Kendala
+    const storedKendala = localStorage.getItem('revit_kendala');
+    if (storedKendala) {
+      try {
+        setKendala(JSON.parse(storedKendala).filter(Boolean));
+      } catch {
+        setKendala([]);
+      }
+    } else {
+      setKendala([]);
+      localStorage.setItem('revit_kendala', JSON.stringify([]));
+    }
+
+    // Kendala Comments
+    const storedKendalaComments = localStorage.getItem('revit_kendala_comments');
+    if (storedKendalaComments) {
+      try {
+        setKendalaComments(JSON.parse(storedKendalaComments).filter(Boolean));
+      } catch {
+        setKendalaComments([]);
+      }
+    } else {
+      setKendalaComments([]);
+      localStorage.setItem('revit_kendala_comments', JSON.stringify([]));
+    }
+
+    // Kendala Docs
+    const storedKendalaDocs = localStorage.getItem('revit_kendala_docs');
+    if (storedKendalaDocs) {
+      try {
+        setKendalaDocs(JSON.parse(storedKendalaDocs).filter(Boolean));
+      } catch {
+        setKendalaDocs([]);
+      }
+    } else {
+      setKendalaDocs([]);
+      localStorage.setItem('revit_kendala_docs', JSON.stringify([]));
+    }
+
+    // Warnings
+    const storedWarnings = localStorage.getItem('revit_warnings');
+    if (storedWarnings) {
+      try {
+        setWarnings(JSON.parse(storedWarnings).filter(Boolean));
+      } catch {
+        setWarnings([]);
+      }
+    } else {
+      setWarnings([]);
+      localStorage.setItem('revit_warnings', JSON.stringify([]));
+    }
+
     // Diagnostics
     console.log("=== SINKRONISASI DIAGNOSTIC ===");
     console.log("1. .env URL:", import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL);
@@ -649,12 +757,57 @@ export default function App() {
       }));
     }
 
+    const getStateFromLocalStorage = () => {
+      const parseOrFallback = (key, fallback) => {
+        try {
+          const val = localStorage.getItem(key);
+          return val ? JSON.parse(val) : fallback;
+        } catch (e) {
+          console.warn(`Failed to parse ${key} from localStorage:`, e);
+          return fallback;
+        }
+      };
+
+      return {
+        users: parseOrFallback('revit_users', []),
+        schools: parseOrFallback('revit_schools', []),
+        contacts: parseOrFallback('revit_contacts', []),
+        tasks: parseOrFallback('revit_tasks', []),
+        trips: parseOrFallback('revit_trips', []),
+        logs: parseOrFallback('revit_logs', []),
+        reports: parseOrFallback('revit_reports', []),
+        dutyReports: parseOrFallback('revit_duty_reports', []),
+        expenses: parseOrFallback('revit_expenses', []),
+        payments: parseOrFallback('revit_payments', []),
+        schoolDocs: parseOrFallback('revit_school_docs', []),
+        personnelDocs: parseOrFallback('revit_personnel_docs', []),
+        meetings: parseOrFallback('revit_meetings', []),
+        meetingDocs: parseOrFallback('revit_meeting_docs', []),
+        tripDocs: parseOrFallback('revit_trip_docs', []),
+        activityLogs: parseOrFallback('revit_activity_logs', []),
+        kendala: parseOrFallback('revit_kendala', []),
+        kendalaComments: parseOrFallback('revit_kendala_comments', []),
+        kendalaDocs: parseOrFallback('revit_kendala_docs', []),
+        warnings: parseOrFallback('revit_warnings', []),
+        settings: parseOrFallback('revit_settings', {})
+      };
+    };
+
     // Initial fetch from Google Sheets if configured
     const checkAndFetchInitialData = async () => {
       if (syncService.isConfigured()) {
         setSyncStatus('connecting');
         setIsBlockingSync(true);
         try {
+          // If local state is dirty, push local changes before fetching to avoid overwriting them
+          const isLocalDirty = localStorage.getItem('revit_is_dirty') === 'true';
+          if (isLocalDirty) {
+            console.log('[Sync] Initial load found dirty state. Syncing local changes to Google Sheets first.');
+            const localState = getStateFromLocalStorage();
+            await triggerSync(localState, false);
+            return;
+          }
+
           const remoteData = await syncService.fetchData();
           
           if (remoteData.users) {
@@ -850,6 +1003,35 @@ export default function App() {
           const finalActivityLogs = syncMeetingActivityLogs(cleanMeetings, cleanActivityLogs);
           setActivityLogs(finalActivityLogs);
           localStorage.setItem('revit_activity_logs', JSON.stringify(finalActivityLogs));
+          
+          if (remoteData.kendala) {
+            const clean = remoteData.kendala.filter(k => k && isValidId(k.id)).map(k => ({
+              ...k,
+              schoolId: k.schoolId ? String(k.schoolId).trim() : ''
+            }));
+            setKendala(clean);
+            localStorage.setItem('revit_kendala', JSON.stringify(clean));
+          }
+          if (remoteData.kendala_comments) {
+            const clean = remoteData.kendala_comments.filter(c => c && isValidId(c.id));
+            setKendalaComments(clean);
+            localStorage.setItem('revit_kendala_comments', JSON.stringify(clean));
+          }
+          if (remoteData.kendala_docs) {
+            const clean = remoteData.kendala_docs.filter(d => d && isValidId(d.id));
+            setKendalaDocs(clean);
+            localStorage.setItem('revit_kendala_docs', JSON.stringify(clean));
+          }
+          if (remoteData.warnings) {
+            const clean = remoteData.warnings.filter(w => w && isValidId(w.id)).map(w => ({
+              ...w,
+              schoolId: w.schoolId ? String(w.schoolId).trim() : '',
+              dismissed: w.dismissed === true || w.dismissed === 'true'
+            }));
+            setWarnings(clean);
+            localStorage.setItem('revit_warnings', JSON.stringify(clean));
+          }
+
           if (remoteData.settings) {
             const parsedSettings = parseSettings(remoteData.settings);
             // Cegah URL/Token remote menimpa URL/Token lokal kita
@@ -990,6 +1172,10 @@ export default function App() {
         meetingDocs,
         tripDocs,
         activityLogs,
+        kendala,
+        kendalaComments,
+        kendalaDocs,
+        warnings,
         settings,
         ...pendingSyncUpdatesRef.current
       };
@@ -1004,8 +1190,11 @@ export default function App() {
         localStorage.setItem('revit_is_dirty', 'false');
         setIsDirty(false);
 
+        const dirtyTables = getLocalDirtyTables();
+
         try {
-          await syncService.pushData(stateToPush);
+          await syncService.pushData(stateToPush, dirtyTables);
+          setLocalDirtyTables(DEFAULT_DIRTY_TABLES);
         } catch (e) {
           // Jika push gagal, kembalikan status dirty agar dipush ulang di kesempatan berikutnya
           localStorage.setItem('revit_is_dirty', 'true');
@@ -1250,6 +1439,35 @@ export default function App() {
       const finalActivityLogs = syncMeetingActivityLogs(cleanMeetings, cleanActivityLogs);
       setActivityLogs(finalActivityLogs);
       localStorage.setItem('revit_activity_logs', JSON.stringify(finalActivityLogs));
+
+      if (remoteData.kendala) {
+        const clean = remoteData.kendala.filter(k => k && isValidId(k.id)).map(k => ({
+          ...k,
+          schoolId: k.schoolId ? String(k.schoolId).trim() : ''
+        }));
+        setKendala(clean);
+        localStorage.setItem('revit_kendala', JSON.stringify(clean));
+      }
+      if (remoteData.kendala_comments) {
+        const clean = remoteData.kendala_comments.filter(c => c && isValidId(c.id));
+        setKendalaComments(clean);
+        localStorage.setItem('revit_kendala_comments', JSON.stringify(clean));
+      }
+      if (remoteData.kendala_docs) {
+        const clean = remoteData.kendala_docs.filter(d => d && isValidId(d.id));
+        setKendalaDocs(clean);
+        localStorage.setItem('revit_kendala_docs', JSON.stringify(clean));
+      }
+      if (remoteData.warnings) {
+        const clean = remoteData.warnings.filter(w => w && isValidId(w.id)).map(w => ({
+          ...w,
+          schoolId: w.schoolId ? String(w.schoolId).trim() : '',
+          dismissed: w.dismissed === true || w.dismissed === 'true'
+        }));
+        setWarnings(clean);
+        localStorage.setItem('revit_warnings', JSON.stringify(clean));
+      }
+
       if (remoteData.settings) {
         const parsedSettings = parseSettings(remoteData.settings);
         // Cegah URL/Token remote menimpa URL/Token lokal kita
@@ -1291,6 +1509,25 @@ export default function App() {
     localStorage.setItem('revit_is_dirty', 'true');
     setIsDirty(true);
     
+    // Tandai tabel kotor
+    const dirty = getLocalDirtyTables();
+    Object.keys(updatedStateKeys).forEach(key => {
+      let tableName = key;
+      if (key === 'dutyReports') tableName = 'duty_reports';
+      if (key === 'schoolDocs') tableName = 'school_docs';
+      if (key === 'personnelDocs') tableName = 'personnel_docs';
+      if (key === 'meetingDocs') tableName = 'meeting_docs';
+      if (key === 'tripDocs') tableName = 'trip_docs';
+      if (key === 'activityLogs') tableName = 'activity_logs';
+      if (key === 'kendalaComments') tableName = 'kendala_comments';
+      if (key === 'kendalaDocs') tableName = 'kendala_docs';
+      
+      if (tableName in DEFAULT_DIRTY_TABLES) {
+        dirty[tableName] = true;
+      }
+    });
+    setLocalDirtyTables(dirty);
+    
     pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, ...updatedStateKeys };
     
     const nextState = {
@@ -1310,6 +1547,10 @@ export default function App() {
       meetingDocs,
       tripDocs,
       activityLogs,
+      kendala,
+      kendalaComments,
+      kendalaDocs,
+      warnings,
       settings,
       ...pendingSyncUpdatesRef.current
     };
@@ -1348,8 +1589,24 @@ export default function App() {
 
   // 4. Update Settings (Super Admin)
   const handleUpdateSettings = (newSettings) => {
+    const prevSettings = settings;
+    const urlChanged = newSettings.googleAppsScriptUrl !== prevSettings.googleAppsScriptUrl ||
+                       newSettings.googleAppsScriptToken !== prevSettings.googleAppsScriptToken;
+    
     setSettings(newSettings);
     localStorage.setItem('revit_settings', JSON.stringify(newSettings));
+    
+    if (urlChanged) {
+      // Tandai semua tabel sebagai kotor untuk full upload ke backend baru
+      const allDirty = {};
+      Object.keys(DEFAULT_DIRTY_TABLES).forEach(key => {
+        allDirty[key] = true;
+      });
+      setLocalDirtyTables(allDirty);
+      localStorage.setItem('revit_is_dirty', 'true');
+      setIsDirty(true);
+    }
+    
     syncWithNewState({ settings: newSettings }, true);
   };
 
@@ -1421,6 +1678,7 @@ export default function App() {
 
   const handleCloseSchoolDetail = () => {
     setSelectedSchoolNpsn(null);
+    setActiveSchoolTab('profile');
     triggerSync();
   };
 
@@ -1429,29 +1687,41 @@ export default function App() {
     const updated = [...schools, newSchool];
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
-    syncWithNewState({ schools: updated });
+    syncWithNewState({ schools: updated }, true);
   };
 
   const handleUpdateSchool = (updatedSchool) => {
+    let updatedLogs = null;
     const oldSchool = schools.find((s) => s.npsn === updatedSchool.npsn);
     if (oldSchool && oldSchool.progres_fisik !== updatedSchool.progres_fisik) {
-      addActivityLog('update_progress', `Update progress sekolah ${updatedSchool.nama_sekolah} ke ${updatedSchool.progres_fisik}%`);
+      updatedLogs = addActivityLog('update_progress', `Update progress sekolah ${updatedSchool.nama_sekolah} ke ${updatedSchool.progres_fisik}%`, null, false);
     }
     const updated = schools.map((s) => (s.npsn === updatedSchool.npsn ? updatedSchool : s));
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
-    syncWithNewState({ schools: updated });
+    
+    const syncState = { schools: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState, true);
   };
 
   const handleClaimSchool = (npsn, fasilitatorId) => {
+    let updatedLogs = null;
     const schoolObj = schools.find((s) => s.npsn === npsn);
     if (schoolObj) {
-      addActivityLog('claim_school', `Mengklaim sekolah ${schoolObj.nama_sekolah}`);
+      updatedLogs = addActivityLog('claim_school', `Mengklaim sekolah ${schoolObj.nama_sekolah}`, null, false);
     }
     const updated = schools.map((s) => (s.npsn === npsn ? { ...s, fasilitatorId } : s));
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
-    syncWithNewState({ schools: updated });
+    
+    const syncState = { schools: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState, true);
   };
 
   // 8. Contact Actions (Fase 3)
@@ -1490,53 +1760,391 @@ export default function App() {
   const handleAddTask = (newTask) => {
     const targetSchool = schools.find((s) => s.npsn === newTask.sekolahId);
     const schoolName = targetSchool ? targetSchool.nama_sekolah : newTask.sekolahId;
-    addActivityLog('add_task', `Menambahkan tugas '${newTask.title}' di sekolah ${schoolName}`);
+    const updatedLogs = addActivityLog('add_task', `Menambahkan tugas '${newTask.title}' di sekolah ${schoolName}`, null, false);
+    
     const updated = [...tasks, newTask];
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
-    syncWithNewState({ tasks: updated });
+    syncWithNewState({ tasks: updated, activityLogs: updatedLogs });
   };
 
   const handleUpdateTaskStatus = (taskId, status) => {
+    let updatedLogs = null;
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
       const targetSchool = schools.find((s) => s.npsn === task.sekolahId);
       const schoolName = targetSchool ? targetSchool.nama_sekolah : task.sekolahId;
       const statusMap = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' };
       const statusIndo = statusMap[status] || status;
-      addActivityLog('update_task', `Mengubah status tugas '${task.title}' menjadi '${statusIndo}' di sekolah ${schoolName}`);
+      updatedLogs = addActivityLog('update_task', `Mengubah status tugas '${task.title}' menjadi '${statusIndo}' di sekolah ${schoolName}`, null, false);
     }
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, status } : t));
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
-    syncWithNewState({ tasks: updated });
+    
+    const syncState = { tasks: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState);
   };
 
   const handleDeleteTask = (taskId) => {
+    let updatedLogs = null;
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
       const targetSchool = schools.find((s) => s.npsn === task.sekolahId);
       const schoolName = targetSchool ? targetSchool.nama_sekolah : task.sekolahId;
-      addActivityLog('delete_task', `Menghapus tugas '${task.title}' di sekolah ${schoolName}`);
+      updatedLogs = addActivityLog('delete_task', `Menghapus tugas '${task.title}' di sekolah ${schoolName}`, null, false);
     }
     const updated = tasks.filter((t) => t.id !== taskId);
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
-    syncWithNewState({ tasks: updated });
+    
+    const syncState = { tasks: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState);
   };
+
+  // Phase 5: Kendala Actions
+  const handleAddKendala = (newKendala, files) => {
+    const targetSchool = schools.find((s) => s.npsn === newKendala.schoolId);
+    const schoolName = targetSchool ? targetSchool.nama_sekolah : newKendala.schoolId;
+    const updatedLogs = addActivityLog('add_kendala', `Melaporkan kendala di sekolah ${schoolName}`, null, false);
+    
+    const updatedKendala = [...kendala, newKendala];
+    setKendala(updatedKendala);
+    localStorage.setItem('revit_kendala', JSON.stringify(updatedKendala));
+
+    // Handle files upload
+    const newDocs = files.map(file => ({
+      id: `kdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      kendalaId: newKendala.id,
+      fileName: file.name,
+      fileSize: file.size,
+      fileData: file.data, // Base64 data
+      uploadedBy: activeUser ? activeUser.nama : 'Guest',
+      uploadedAt: new Date().toISOString()
+    }));
+
+    const updatedKendalaDocs = [...kendalaDocs, ...newDocs];
+    setKendalaDocs(updatedKendalaDocs);
+    localStorage.setItem('revit_kendala_docs', JSON.stringify(updatedKendalaDocs));
+
+    // Warning generation
+    const targetUsers = users.filter(u => 
+      (u.jabatanTim === 'Koordinator' && u.id === activeUser.coordinatorId) ||
+      u.jabatanTim === 'Ketua Tim' ||
+      u.jabatanTim === 'Super Admin'
+    );
+
+    const newWarnings = targetUsers.map(u => ({
+      id: `warn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      userId: u.id,
+      message: `Fasilitator ${activeUser.nama} melaporkan kendala baru di ${schoolName}: "${newKendala.isi.replace(/<[^>]*>/g, '').substring(0, 50)}..."`,
+      schoolId: newKendala.schoolId,
+      kendalaId: newKendala.id,
+      createdAt: new Date().toISOString(),
+      dismissed: false
+    }));
+
+    const updatedWarnings = [...warnings, ...newWarnings];
+    setWarnings(updatedWarnings);
+    localStorage.setItem('revit_warnings', JSON.stringify(updatedWarnings));
+
+    syncWithNewState({ 
+      kendala: updatedKendala, 
+      kendalaDocs: updatedKendalaDocs, 
+      warnings: updatedWarnings,
+      activityLogs: updatedLogs
+    }, true);
+  };
+
+  const handleDeleteKendala = (kendalaId) => {
+    let updatedLogs = null;
+    const item = kendala.find(k => k.id === kendalaId);
+    if (item) {
+      const targetSchool = schools.find((s) => s.npsn === item.schoolId);
+      const schoolName = targetSchool ? targetSchool.nama_sekolah : item.schoolId;
+      updatedLogs = addActivityLog('delete_kendala', `Menghapus laporan kendala di sekolah ${schoolName}`, null, false);
+    }
+
+    const updatedKendala = kendala.filter(k => k.id !== kendalaId);
+    const updatedKendalaDocs = kendalaDocs.filter(d => d.kendalaId !== kendalaId);
+    const updatedComments = kendalaComments.filter(c => c.kendalaId !== kendalaId);
+    const updatedWarnings = warnings.filter(w => w.kendalaId !== kendalaId);
+
+    setKendala(updatedKendala);
+    setKendalaDocs(updatedKendalaDocs);
+    setKendalaComments(updatedComments);
+    setWarnings(updatedWarnings);
+
+    localStorage.setItem('revit_kendala', JSON.stringify(updatedKendala));
+    localStorage.setItem('revit_kendala_docs', JSON.stringify(updatedKendalaDocs));
+    localStorage.setItem('revit_kendala_comments', JSON.stringify(updatedComments));
+    localStorage.setItem('revit_warnings', JSON.stringify(updatedWarnings));
+
+    const syncState = { 
+      kendala: updatedKendala, 
+      kendalaDocs: updatedKendalaDocs, 
+      kendalaComments: updatedComments, 
+      warnings: updatedWarnings 
+    };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+
+    syncWithNewState(syncState, true);
+  };
+
+  const handleAddKendalaComment = (newComment) => {
+    const targetKendala = kendala.find(k => k.id === newComment.kendalaId);
+    if (!targetKendala) return;
+
+    const targetSchool = schools.find((s) => s.npsn === targetKendala.schoolId);
+    const schoolName = targetSchool ? targetSchool.nama_sekolah : targetKendala.schoolId;
+    const updatedLogs = addActivityLog('add_kendala_comment', `Memberikan komentar balasan kendala di sekolah ${schoolName}`, null, false);
+
+    const updatedComments = [...kendalaComments, newComment];
+    setKendalaComments(updatedComments);
+    localStorage.setItem('revit_kendala_comments', JSON.stringify(updatedComments));
+
+    // Warn others
+    const warningTargets = users.filter(u => {
+      // Don't warn the commenter themselves
+      if (u.id === activeUser.id) return false;
+
+      // Warn:
+      // 1. The reporter (Fasilitator who owns the report)
+      if (u.id === targetKendala.userId) return true;
+      // 2. The coordinator supervising the reporter
+      const reporter = users.find(x => x.id === targetKendala.userId);
+      if (u.jabatanTim === 'Koordinator' && reporter && reporter.coordinatorId === u.id) return true;
+      // 3. Ketua Tim
+      if (u.jabatanTim === 'Ketua Tim') return true;
+      // 4. Super Admin
+      if (u.jabatanTim === 'Super Admin') return true;
+
+      return false;
+    });
+
+    const newWarnings = warningTargets.map(u => ({
+      id: `warn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      userId: u.id,
+      message: `Komentar baru dari ${activeUser.nama} (${activeUser.jabatanTim}) pada laporan kendala di ${schoolName}: "${newComment.isi.substring(0, 50)}..."`,
+      schoolId: targetKendala.schoolId,
+      kendalaId: targetKendala.id,
+      createdAt: new Date().toISOString(),
+      dismissed: false
+    }));
+
+    const updatedWarnings = [...warnings, ...newWarnings];
+    setWarnings(updatedWarnings);
+    localStorage.setItem('revit_warnings', JSON.stringify(updatedWarnings));
+
+    syncWithNewState({ 
+      kendalaComments: updatedComments, 
+      warnings: updatedWarnings,
+      activityLogs: updatedLogs
+    }, true);
+  };
+
+  const handleDeleteKendalaComment = (commentId) => {
+    const updatedLogs = addActivityLog('delete_kendala_comment', `Menghapus komentar kendala`, null, false);
+    const updatedComments = kendalaComments.filter(c => c.id !== commentId);
+    setKendalaComments(updatedComments);
+    localStorage.setItem('revit_kendala_comments', JSON.stringify(updatedComments));
+    syncWithNewState({ 
+      kendalaComments: updatedComments,
+      activityLogs: updatedLogs
+    }, true);
+  };
+
+  const handleDeleteKendalaDoc = (docId) => {
+    const updated = kendalaDocs.filter(d => d.id !== docId);
+    setKendalaDocs(updated);
+    localStorage.setItem('revit_kendala_docs', JSON.stringify(updated));
+    syncWithNewState({ kendalaDocs: updated }, true);
+  };
+
+  const syncWarningsDebounced = (latestWarnings) => {
+    // Mark warnings state and table as dirty immediately to avoid loss of state on reload
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
+    const dirty = getLocalDirtyTables();
+    dirty['warnings'] = true;
+    setLocalDirtyTables(dirty);
+
+    if (dismissTimeoutRef.current) {
+      clearTimeout(dismissTimeoutRef.current);
+    }
+
+    dismissTimeoutRef.current = setTimeout(() => {
+      const currentLatest = latestStateRef.current ? latestStateRef.current.warnings : latestWarnings;
+      syncWithNewState({ warnings: currentLatest });
+    }, 10000); // 10 detik
+  };
+
+  const handleDismissWarning = (warningId) => {
+    const updated = warnings.map(w => w.id === warningId ? { ...w, dismissed: true } : w);
+    setWarnings(updated);
+    localStorage.setItem('revit_warnings', JSON.stringify(updated));
+    syncWarningsDebounced(updated);
+  };
+
+  // 9b. Generate warnings for trips missing photo documentation
+  const generateTripPhotoWarnings = (currentTrips, currentTripDocs, currentWarnings, currentUsers, currentSettings) => {
+    const todayStr = currentSettings?.simulatedToday || (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    })();
+
+    // Find trips where tanggalSelesai has passed and no foto_dokumentasi uploaded
+    const tripsNeedingPhotos = (currentTrips || []).filter(trip => {
+      if (!trip.tanggalSelesai) return false;
+      if (trip.tanggalSelesai >= todayStr) return false; // Not past yet
+      if (trip.statusPersetujuan === 'rejected') return false;
+      const hasPhoto = (currentTripDocs || []).some(d =>
+        d.tripId === trip.id && d.category === 'foto_dokumentasi'
+      );
+      return !hasPhoto;
+    });
+
+    // Deduplicate currentWarnings by type + unique identifiers to clean up database bloating
+    const uniqueWarnings = [];
+    const seen = new Set();
+    
+    (currentWarnings || []).forEach(w => {
+      if (!w) return;
+      let key = w.id;
+      
+      // Normalize missing fields for old warnings in sheet
+      const isTripPhotoWarn = w.type === 'missing_trip_photos' || (w.id && w.id.startsWith('warn-photo-'));
+      
+      if (isTripPhotoWarn) {
+        // Use message + userId as the deduplication key to handle older warnings that lack type/tripId on the sheet
+        key = `trip-${w.userId}-${w.message}`;
+        if (!w.type) w.type = 'missing_trip_photos';
+      } else if (w.kendalaId) {
+        key = `kendala-${w.kendalaId}-${w.userId}`;
+      }
+      
+      if (seen.has(key)) {
+        // Prefer keeping the dismissed version if we find a duplicate that is dismissed
+        const existingIdx = uniqueWarnings.findIndex(x => {
+          if (isTripPhotoWarn) {
+            const isXTripPhotoWarn = x.type === 'missing_trip_photos' || (x.id && x.id.startsWith('warn-photo-'));
+            return isXTripPhotoWarn && x.userId === w.userId && x.message === w.message;
+          } else if (w.kendalaId) {
+            return x.kendalaId === w.kendalaId && x.userId === w.userId;
+          }
+          return false;
+        });
+        if (existingIdx !== -1 && w.dismissed && !uniqueWarnings[existingIdx].dismissed) {
+          uniqueWarnings[existingIdx] = { ...uniqueWarnings[existingIdx], ...w, dismissed: true };
+        }
+        return;
+      }
+      seen.add(key);
+      uniqueWarnings.push(w);
+    });
+
+    // Filter out existing missing_trip_photos warnings if their trips no longer need photos (e.g. photo uploaded or trip deleted)
+    const cleanedExistingWarnings = uniqueWarnings.filter(w => {
+      const isTripPhotoWarn = w.type === 'missing_trip_photos' || (w.id && w.id.startsWith('warn-photo-'));
+      if (!isTripPhotoWarn) return true;
+      
+      return tripsNeedingPhotos.some(trip => {
+        if (w.tripId && trip.id === w.tripId) return true;
+        // Fallback: match by message
+        const fasUser = (currentUsers || []).find(u => u.id === trip.userId);
+        if (!fasUser) return false;
+        const expectedMessage = `Foto dokumentasi perjalanan dinas Fasilitator ${fasUser.nama} (Kunjungan ke-${trip.kunjunganKe}, selesai ${trip.tanggalSelesai}) belum diupload. Segera lengkapi bukti dokumentasi.`;
+        return w.message === expectedMessage;
+      });
+    });
+
+    const newWarnings = [];
+
+    tripsNeedingPhotos.forEach(trip => {
+      const fasUser = (currentUsers || []).find(u => u.id === trip.userId);
+      if (!fasUser) return;
+
+      // Determine who to warn: Koordinator supervising this fasilitator, Ketua Tim, Super Admin
+      const warningTargetUsers = (currentUsers || []).filter(u => {
+        if (u.id === trip.userId) return false; // Don't warn fasilitator themselves here
+        if (u.jabatanTim === 'Koordinator' && fasUser.coordinatorId === u.id) return true;
+        if (u.jabatanTim === 'Ketua Tim') return true;
+        if (u.jabatanTim === 'Super Admin' || u.role === 'admin') return true;
+        return false;
+      });
+
+      warningTargetUsers.forEach(targetUser => {
+        const expectedMessage = `Foto dokumentasi perjalanan dinas Fasilitator ${fasUser.nama} (Kunjungan ke-${trip.kunjunganKe}, selesai ${trip.tanggalSelesai}) belum diupload. Segera lengkapi bukti dokumentasi.`;
+        
+        // Check if a warning for this trip+user already exists (whether dismissed or active)
+        const alreadyWarned = cleanedExistingWarnings.some(w =>
+          w.userId === targetUser.id &&
+          (w.message === expectedMessage || (w.type === 'missing_trip_photos' && w.tripId === trip.id))
+        );
+        if (alreadyWarned) return;
+
+        newWarnings.push({
+          id: `warn-photo-${trip.id}-${targetUser.id}-${Date.now()}-${Math.random().toString(36).substr(2,6)}`,
+          type: 'missing_trip_photos',
+          userId: targetUser.id,
+          tripId: trip.id,
+          facilitatorId: trip.userId,
+          facilitatorName: fasUser.nama,
+          message: expectedMessage,
+          createdAt: new Date().toISOString(),
+          dismissed: false
+        });
+      });
+    });
+
+    return [...cleanedExistingWarnings, ...newWarnings];
+  };
+
+  // Run trip photo warning generation whenever trips, tripDocs, or warnings change
+  useEffect(() => {
+    if (trips.length === 0) return;
+    const updatedWarnings = generateTripPhotoWarnings(trips, tripDocs, warnings, users, settings);
+    
+    // Deep comparison to check if warnings array changed (including dismissed status)
+    const hasChanged = updatedWarnings.length !== warnings.length ||
+      updatedWarnings.some((w, idx) => 
+        w.id !== warnings[idx]?.id || 
+        w.dismissed !== warnings[idx]?.dismissed
+      );
+
+    if (hasChanged) {
+      setWarnings(updatedWarnings);
+      localStorage.setItem('revit_warnings', JSON.stringify(updatedWarnings));
+      syncWarningsDebounced(updatedWarnings);
+    }
+  }, [trips, tripDocs, warnings, users, settings]);
 
   // 10. Trip Actions (Fase 3 & 4)
   const handleAddTrip = (newTrip) => {
     const tripsArr = Array.isArray(newTrip) ? newTrip : [newTrip];
+    let updatedLogs = null;
     tripsArr.forEach(t => {
       const targetSchool = schools.find(s => s.npsn === t.sekolahId);
       const schoolName = targetSchool ? targetSchool.nama_sekolah : t.sekolahId;
-      addActivityLog('add_trip', `Merencanakan perjalanan dinas ke ${schoolName} tanggal ${t.tanggalMulai}`);
+      updatedLogs = addActivityLog('add_trip', `Merencanakan perjalanan dinas ke ${schoolName} tanggal ${t.tanggalMulai}`, null, false);
     });
     const updated = Array.isArray(newTrip) ? [...trips, ...newTrip] : [...trips, newTrip];
     setTrips(updated);
     localStorage.setItem('revit_trips', JSON.stringify(updated));
-    syncWithNewState({ trips: updated });
+    
+    const syncState = { trips: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState);
   };
 
   const handlePayTrip = (tripId, newExpense) => {
@@ -1550,24 +2158,26 @@ export default function App() {
     syncWithNewState({ trips: updatedTrips, expenses: updatedExpenses });
   };
 
-  const handleApproveTrip = (tripId, adminName) => {
+  const handleApproveTrip = (tripId, adminName, note = '') => {
     const updatedTrips = trips.map((t) => (t.id === tripId ? { 
       ...t, 
       statusPersetujuan: 'approved',
       approvedBySuperAdmin: true,
       approvedAt: new Date().toISOString(),
-      approvedBy: adminName
+      approvedBy: adminName,
+      catatanPersetujuan: note
     } : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
     syncWithNewState({ trips: updatedTrips });
   };
 
-  const handleRejectTrip = (tripId) => {
+  const handleRejectTrip = (tripId, note = '') => {
     const updatedTrips = trips.map((t) => (t.id === tripId ? { 
       ...t, 
       statusPersetujuan: 'rejected',
-      approvedBySuperAdmin: false
+      approvedBySuperAdmin: false,
+      catatanPersetujuan: note
     } : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
@@ -1575,14 +2185,15 @@ export default function App() {
   };
 
   // Batch approve/reject untuk Super Admin (menyetujui/menolak sekaligus dalam satu batch)
-  const handleApproveTripsBatch = (tripIds, approverName) => {
+  const handleApproveTripsBatch = (tripIds, approverName, note = '') => {
     const updatedTrips = trips.map((t) =>
       tripIds.includes(t.id) ? {
         ...t,
         statusPersetujuan: 'approved',
         approvedBySuperAdmin: true,
         approvedAt: new Date().toISOString(),
-        approvedBy: approverName
+        approvedBy: approverName,
+        catatanPersetujuan: note
       } : t
     );
     setTrips(updatedTrips);
@@ -1590,12 +2201,13 @@ export default function App() {
     syncWithNewState({ trips: updatedTrips });
   };
 
-  const handleRejectTripsBatch = (tripIds) => {
+  const handleRejectTripsBatch = (tripIds, note = '') => {
     const updatedTrips = trips.map((t) =>
       tripIds.includes(t.id) ? {
         ...t,
         statusPersetujuan: 'rejected',
-        approvedBySuperAdmin: false
+        approvedBySuperAdmin: false,
+        catatanPersetujuan: note
       } : t
     );
     setTrips(updatedTrips);
@@ -1604,36 +2216,36 @@ export default function App() {
   };
 
   const handleUpdateTrip = (updatedTrip) => {
+    const updatedLogs = addActivityLog('update_trip', `Mengubah ajuan perjalanan dinas untuk ${updatedTrip.sekolahId}`, null, false);
     const updatedTrips = trips.map((t) => (t.id === updatedTrip.id ? updatedTrip : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
-    addActivityLog('update_trip', `Mengubah ajuan perjalanan dinas untuk ${updatedTrip.sekolahId}`);
+    syncWithNewState({ trips: updatedTrips, activityLogs: updatedLogs });
   };
 
   const handleUpdateTripsBatch = (updatedTripsList) => {
+    const updatedLogs = addActivityLog('update_trip_batch', `Mengubah ajuan perjalanan dinas kolektif.`, null, false);
     const updatedTripsMap = new Map(updatedTripsList.map(t => [t.id, t]));
     const newTrips = trips.map(t => updatedTripsMap.has(t.id) ? updatedTripsMap.get(t.id) : t);
     setTrips(newTrips);
     localStorage.setItem('revit_trips', JSON.stringify(newTrips));
-    syncWithNewState({ trips: newTrips });
-    addActivityLog('update_trip_batch', `Mengubah ajuan perjalanan dinas kolektif.`);
+    syncWithNewState({ trips: newTrips, activityLogs: updatedLogs });
   };
 
   const handleDeleteTrip = (tripId) => {
+    const updatedLogs = addActivityLog('delete_trip', `Membatalkan ajuan perjalanan dinas.`, null, false);
     const updatedTrips = trips.filter((t) => t.id !== tripId);
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
-    addActivityLog('delete_trip', `Membatalkan ajuan perjalanan dinas.`);
+    syncWithNewState({ trips: updatedTrips, activityLogs: updatedLogs });
   };
 
   const handleDeleteTripsBatch = (tripIds) => {
+    const updatedLogs = addActivityLog('delete_trip_batch', `Membatalkan ajuan perjalanan dinas kolektif.`, null, false);
     const updatedTrips = trips.filter((t) => !tripIds.includes(t.id));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
-    addActivityLog('delete_trip_batch', `Membatalkan ajuan perjalanan dinas kolektif.`);
+    syncWithNewState({ trips: updatedTrips, activityLogs: updatedLogs });
   };
 
   const handleAddTripDoc = (doc) => {
@@ -1725,37 +2337,48 @@ export default function App() {
 
   // 12. Monthly Reports PDF Actions (Fase 4)
   const handleAddReport = (newReport, shouldSync = false) => {
-    addActivityLog('upload_monthly_report', `Mengunggah laporan bulanan ke-${newReport.bulanKe}: ${newReport.fileName}`, {
+    const updatedLogs = addActivityLog('upload_monthly_report', `Mengunggah laporan bulanan ke-${newReport.bulanKe}: ${newReport.fileName}`, {
       id: newReport.id,
       type: 'report',
       fileName: newReport.fileName
-    }, shouldSync);
+    }, false);
     // Overwrite if same month exists
     const updated = reports.filter(r => !(r.userId === newReport.userId && r.bulanKe === newReport.bulanKe));
     updated.push(newReport);
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
     if (shouldSync) {
-      syncWithNewState({ reports: updated });
+      syncWithNewState({ reports: updated, activityLogs: updatedLogs }, true);
     } else {
       localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
+      const dirty = getLocalDirtyTables();
+      dirty.reports = true;
+      setLocalDirtyTables(dirty);
+      pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, reports: updated };
     }
   };
 
   const handleDeleteReport = (reportId, shouldSync = false) => {
+    let updatedLogs = null;
     const rep = reports.find(r => r.id === reportId);
     if (rep) {
-      addActivityLog('delete_monthly_report', `Menghapus laporan bulanan ke-${rep.bulanKe}: ${rep.fileName}`, null, shouldSync);
+      updatedLogs = addActivityLog('delete_monthly_report', `Menghapus laporan bulanan ke-${rep.bulanKe}: ${rep.fileName}`, null, false);
     }
     const updated = reports.filter(r => r.id !== reportId);
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
     if (shouldSync) {
-      syncWithNewState({ reports: updated });
+      const syncState = { reports: updated };
+      if (updatedLogs) syncState.activityLogs = updatedLogs;
+      syncWithNewState(syncState, true);
     } else {
       localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
+      const dirty = getLocalDirtyTables();
+      dirty.reports = true;
+      setLocalDirtyTables(dirty);
+      pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, reports: updated };
     }
   };
 
@@ -1765,11 +2388,11 @@ export default function App() {
 
     const actionLabel = status === 'approved' ? 'menyetujui' : 'mengembalikan';
     const reportUser = users.find(u => u.id === rep.userId) || { nama: 'Anggota' };
-    addActivityLog('review_monthly_report', `${activeUser.nama} (${activeUser.jabatanTim}) ${actionLabel} laporan bulanan ke-${rep.bulanKe} dari ${reportUser.nama}.${note ? ' Catatan: ' + note : ''}`, {
+    const updatedLogs = addActivityLog('review_monthly_report', `${activeUser.nama} (${activeUser.jabatanTim}) ${actionLabel} laporan bulanan ke-${rep.bulanKe} dari ${reportUser.nama}.${note ? ' Catatan: ' + note : ''}`, {
       id: reportId,
       type: 'report',
       fileName: rep.fileName
-    }, shouldSync);
+    }, false);
 
     const updated = reports.map(r => {
       if (r.id === reportId) {
@@ -1787,10 +2410,14 @@ export default function App() {
     setReports(updated);
     localStorage.setItem('revit_reports', JSON.stringify(updated));
     if (shouldSync) {
-      syncWithNewState({ reports: updated });
+      syncWithNewState({ reports: updated, activityLogs: updatedLogs }, true);
     } else {
       localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
+      const dirty = getLocalDirtyTables();
+      dirty.reports = true;
+      setLocalDirtyTables(dirty);
+      pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, reports: updated };
     }
   };
 
@@ -1854,7 +2481,7 @@ export default function App() {
   const handleAddSchoolDoc = (newDoc) => {
     const targetSchool = schools.find(s => s.npsn === newDoc.sekolahId);
     const schoolName = targetSchool ? targetSchool.nama_sekolah : newDoc.sekolahId;
-    addActivityLog('upload_school_doc', `Mengunggah dokumen sekolah ${schoolName}: ${newDoc.fileName}`, {
+    const updatedLogs = addActivityLog('upload_school_doc', `Mengunggah dokumen sekolah ${schoolName}: ${newDoc.fileName}`, {
       id: newDoc.id,
       type: 'school_doc',
       fileName: newDoc.fileName
@@ -1862,24 +2489,30 @@ export default function App() {
     const updated = [...schoolDocs, newDoc];
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    syncWithNewState({ schoolDocs: updated });
+    syncWithNewState({ schoolDocs: updated, activityLogs: updatedLogs });
   };
 
   const handleDeleteSchoolDoc = (docId) => {
+    let updatedLogs = null;
     const doc = schoolDocs.find(d => d.id === docId);
     if (doc) {
       const targetSchool = schools.find(s => s.npsn === doc.sekolahId);
       const schoolName = targetSchool ? targetSchool.nama_sekolah : doc.sekolahId;
-      addActivityLog('delete_school_doc', `Menghapus dokumen sekolah ${schoolName}: ${doc.fileName}`, null, false);
+      updatedLogs = addActivityLog('delete_school_doc', `Menghapus dokumen sekolah ${schoolName}: ${doc.fileName}`, null, false);
     }
     const updated = schoolDocs.filter(d => d.id !== docId);
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    syncWithNewState({ schoolDocs: updated });
+    
+    const syncState = { schoolDocs: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState);
   };
 
   const handleAddPersonnelDoc = (newDoc) => {
-    addActivityLog('upload_personnel_doc', `Mengunggah dokumen personil: dokumen ${newDoc.type} ${newDoc.fileName}`, {
+    const updatedLogs = addActivityLog('upload_personnel_doc', `Mengunggah dokumen personil: dokumen ${newDoc.type} ${newDoc.fileName}`, {
       id: newDoc.id,
       type: 'personnel',
       fileName: newDoc.fileName
@@ -1887,18 +2520,24 @@ export default function App() {
     const updated = [...personnelDocs, newDoc];
     setPersonnelDocs(updated);
     localStorage.setItem('revit_personnel_docs', JSON.stringify(updated));
-    syncWithNewState({ personnelDocs: updated });
+    syncWithNewState({ personnelDocs: updated, activityLogs: updatedLogs });
   };
 
   const handleDeletePersonnelDoc = (docId) => {
+    let updatedLogs = null;
     const doc = personnelDocs.find(d => d.id === docId);
     if (doc) {
-      addActivityLog('delete_personnel_doc', `Menghapus dokumen personil: dokumen ${doc.type} ${doc.fileName}`, null, false);
+      updatedLogs = addActivityLog('delete_personnel_doc', `Menghapus dokumen personil: dokumen ${doc.type} ${doc.fileName}`, null, false);
     }
     const updated = personnelDocs.filter(d => d.id !== docId);
     setPersonnelDocs(updated);
     localStorage.setItem('revit_personnel_docs', JSON.stringify(updated));
-    syncWithNewState({ personnelDocs: updated });
+    
+    const syncState = { personnelDocs: updated };
+    if (updatedLogs) {
+      syncState.activityLogs = updatedLogs;
+    }
+    syncWithNewState(syncState);
   };
 
   const handleAddMeeting = (newMeeting, documents = []) => {
@@ -2024,7 +2663,7 @@ export default function App() {
   };
 
   const addActivityLog = (actionType, description, fileRef = null, shouldSync = true) => {
-    if (!activeUser) return;
+    if (!activeUser) return null;
 
     const newLog = {
       id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -2035,23 +2674,36 @@ export default function App() {
       fileRef
     };
 
-    setActivityLogs((prev) => {
-      const updated = [newLog, ...prev].slice(0, 50);
-      
-      // Defer localStorage changes and state synchronizations out of render cycle
-      setTimeout(() => {
-        localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
-        if (shouldSync) {
-          syncWithNewState({ activityLogs: updated });
-        } else {
-          localStorage.setItem('revit_is_dirty', 'true');
-          setIsDirty(true);
-          pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, activityLogs: updated };
-        }
-      }, 0);
+    let currentLogs = [];
+    const stored = localStorage.getItem('revit_activity_logs');
+    if (stored) {
+      try {
+        currentLogs = JSON.parse(stored).filter(Boolean);
+      } catch (e) {
+        currentLogs = [];
+      }
+    }
+    const updated = [newLog, ...currentLogs].slice(0, 50);
+    
+    setActivityLogs(updated);
+    localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
 
-      return updated;
-    });
+    if (shouldSync) {
+      setTimeout(() => {
+        syncWithNewState({ activityLogs: updated });
+      }, 0);
+    } else {
+      localStorage.setItem('revit_is_dirty', 'true');
+      setIsDirty(true);
+      
+      const dirty = getLocalDirtyTables();
+      dirty.activity_logs = true;
+      setLocalDirtyTables(dirty);
+      
+      pendingSyncUpdatesRef.current = { ...pendingSyncUpdatesRef.current, activityLogs: updated };
+    }
+
+    return updated;
   };
 
   const handleAddManualActivityLog = (description, fileRef = null) => {
@@ -2188,7 +2840,8 @@ export default function App() {
                 {activeView === 'kontak' && 'Manajemen Kontak Mitra Lapangan'}
                 {activeView === 'dinas' && 'Jadwal Perjalanan Dinas'}
                 {activeView === 'tanggung-jawab' && 'Pelaporan Tanggung Jawab Saya'}
-                {activeView === 'laporan-bulanan' && 'Laporan Bulanan PDF'}
+                {activeView === 'laporan-bulanan' && 'Laporan Bulanan Saya'}
+                {activeView === 'pantau-laporan-tim' && 'Pantau Laporan Tim'}
                 {activeView === 'rapat' && (activeUser?.jabatanTim === 'Super Admin' ? 'Kelola Rapat Swakelola' : 'Agenda Rapat Swakelola')}
                 {activeView === 'pantau-tanggung-jawab' && 'Pantau Tugas Tim'}
                 {activeView === 'pantau-honor' && 'Pantau & Bayar Honorarium'}
@@ -2297,8 +2950,9 @@ export default function App() {
               onRejectTrip={handleRejectTrip}
               onApproveTripsBatch={handleApproveTripsBatch}
               onRejectTripsBatch={handleRejectTripsBatch}
-              onSelectSchool={(npsn) => {
-                setSelectedSchoolNpsn(npsn);
+              onSelectSchool={(npsn, tab = 'profile') => {
+                setSelectedSchoolNpsn(npsn ? String(npsn).trim() : null);
+                setActiveSchoolTab(tab);
               }}
               onViewChange={handleViewChange}
               onUpdateSchool={handleUpdateSchool}
@@ -2306,6 +2960,8 @@ export default function App() {
               payments={payments}
               onDeleteLog={handleDeleteLog}
               onEditLog={handleEditLog}
+              warnings={warnings}
+              onDismissWarning={handleDismissWarning}
             />
           )}
 
@@ -2316,8 +2972,9 @@ export default function App() {
               activeUser={activeUser}
               onClaimSchool={handleClaimSchool}
               onAddSchool={handleAddSchool}
-              onSelectSchool={(npsn) => {
-                setSelectedSchoolNpsn(npsn);
+              onSelectSchool={(npsn, tab = 'profile') => {
+                setSelectedSchoolNpsn(npsn ? String(npsn).trim() : null);
+                setActiveSchoolTab(tab);
               }}
               onUpdateSchool={handleUpdateSchool}
               tasks={tasks}
@@ -2380,8 +3037,11 @@ export default function App() {
                   onAddTripDoc={handleAddTripDoc}
                   onDeleteTripDoc={handleDeleteTripDoc}
                   onCloseDocsModal={() => triggerSync()}
+                  warnings={warnings}
+                  onDismissWarning={handleDismissWarning}
                 />
               )}
+
 
               {activeView === 'laporan-bulanan' && (
                 <MonthlyPdfReports
@@ -2391,6 +3051,19 @@ export default function App() {
                   onAddReport={(newReport) => handleAddReport(newReport, true)}
                   onDeleteReport={(reportId) => handleDeleteReport(reportId, true)}
                   onUpdateReportStatus={(reportId, status, note) => handleUpdateReportStatus(reportId, status, note, true)}
+                  onlyMy={true}
+                />
+              )}
+
+              {activeView === 'pantau-laporan-tim' && (
+                <MonthlyPdfReports
+                  reports={reports}
+                  users={users}
+                  activeUser={activeUser}
+                  onAddReport={(newReport) => handleAddReport(newReport, true)}
+                  onDeleteReport={(reportId) => handleDeleteReport(reportId, true)}
+                  onUpdateReportStatus={(reportId, status, note) => handleUpdateReportStatus(reportId, status, note, true)}
+                  onlyReview={true}
                 />
               )}
 
@@ -2535,7 +3208,7 @@ export default function App() {
 
       {/* Custom Global Dialog Modal */}
       {dialog && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in select-none">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in select-none">
           <div className="absolute inset-0" onClick={() => dialog.type === 'alert' && handleDialogConfirm()} />
           <div className="relative w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-center items-center backdrop-blur-md">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
@@ -2600,9 +3273,19 @@ export default function App() {
               onUpdateTaskStatus={handleUpdateTaskStatus}
               onDeleteTask={handleDeleteTask}
               onAddContact={handleAddContact}
+              onUpdateContact={handleUpdateContact}
               schoolDocs={schoolDocs}
               onAddSchoolDoc={handleAddSchoolDoc}
               onDeleteSchoolDoc={handleDeleteSchoolDoc}
+              kendala={kendala}
+              kendalaComments={kendalaComments}
+              kendalaDocs={kendalaDocs}
+              onAddKendala={handleAddKendala}
+              onDeleteKendala={handleDeleteKendala}
+              onAddKendalaComment={handleAddKendalaComment}
+              onDeleteKendalaComment={handleDeleteKendalaComment}
+              onDeleteKendalaDoc={handleDeleteKendalaDoc}
+              initialTab={activeSchoolTab}
             />
           </div>
         </div>

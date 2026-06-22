@@ -39,15 +39,16 @@ export const syncService = {
   /**
    * Mengirim data lokal ke Google Sheets dan memicu upload file ke Drive
    */
-  async pushData(state) {
+  async pushData(state, dirtyTables = {}) {
     const { url, token } = this.getApiConfig();
     if (!url) throw new Error('API URL belum dikonfigurasi di Pengaturan.');
 
-    // Petakan state lokal ke format tabel Google Sheet
+    // Petakan state lokal ke format tabel Google Sheet jika ditandai kotor (atau jika tidak ada tracking kotor)
     const payload = {
       token: token,
+      dirtyTables: dirtyTables,
       state: {
-        settings: {
+        settings: (dirtyTables && dirtyTables.settings === false) ? null : {
           projectStartDate: state.settings.projectStartDate,
           projectEndDate: state.settings.projectEndDate,
           googleAppsScriptUrl: state.settings.googleAppsScriptUrl || '',
@@ -65,19 +66,21 @@ export const syncService = {
           danaTahap3Diterima: state.settings.danaTahap3Diterima || false,
           simulatedToday: state.settings.simulatedToday || ''
         },
-        users: state.users,
-        schools: (state.schools || []).map(s => ({
+        users: (dirtyTables && dirtyTables.users === false) ? null : state.users,
+        schools: (dirtyTables && dirtyTables.schools === false) ? null : (state.schools || []).map(s => ({
           ...s,
           nama: s.nama_sekolah || s.nama || '',
-          kepalaSekolah: s.kepala_sekolah || s.kepalaSekolah || ''
+          kepalaSekolah: s.kepala_sekolah || s.kepalaSekolah || '',
+          // Strip Base64 foto_banner jika sudah berupa URL Drive (mengurangi ukuran payload)
+          foto_banner: (s.foto_banner && s.foto_banner.startsWith('http')) ? s.foto_banner : (s.foto_banner || '')
         })),
-        contacts: state.contacts,
-        tasks: (state.tasks || []).map(t => ({
+        contacts: (dirtyTables && dirtyTables.contacts === false) ? null : state.contacts,
+        tasks: (dirtyTables && dirtyTables.tasks === false) ? null : (state.tasks || []).map(t => ({
           ...t,
           sekolahId: t.sekolahId || t.schoolId || '',
           schoolId: t.sekolahId || t.schoolId || ''
         })),
-        trips: (state.trips || []).map(t => ({
+        trips: (dirtyTables && dirtyTables.trips === false) ? null : (state.trips || []).map(t => ({
           ...t,
           schoolId: t.sekolahId || t.schoolId || '',
           date: t.tanggalMulai || t.date || '',
@@ -95,42 +98,42 @@ export const syncService = {
             return 'planned';
           })()
         })),
-        logs: (state.logs || []).map(l => ({
+        logs: (dirtyTables && dirtyTables.logs === false) ? null : (state.logs || []).map(l => ({
           ...l,
           // Strip Base64 foto jika sudah berupa URL Drive (mengurangi ukuran payload)
           foto: (l.foto && l.foto.startsWith('http')) ? l.foto : (l.foto || '')
         })),
-        reports: (state.reports || []).map(r => ({
+        reports: (dirtyTables && dirtyTables.reports === false) ? null : (state.reports || []).map(r => ({
           ...r,
           // Strip Base64 fileData jika sudah berupa URL Drive
           fileData: (r.fileData && r.fileData.startsWith('http')) ? r.fileData : (r.fileData || '')
         })),
-        duty_reports: state.dutyReports || [],
-        expenses: state.expenses,
-        payments: state.payments,
-        school_docs: (state.schoolDocs || []).map(d => ({
+        duty_reports: (dirtyTables && dirtyTables.duty_reports === false) ? null : (state.dutyReports || []),
+        expenses: (dirtyTables && dirtyTables.expenses === false) ? null : state.expenses,
+        payments: (dirtyTables && dirtyTables.payments === false) ? null : state.payments,
+        school_docs: (dirtyTables && dirtyTables.school_docs === false) ? null : (state.schoolDocs || []).map(d => ({
           ...d,
           fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
         })),
-        personnel_docs: (state.personnelDocs || []).map(d => ({
+        personnel_docs: (dirtyTables && dirtyTables.personnel_docs === false) ? null : (state.personnelDocs || []).map(d => ({
           ...d,
           fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
         })),
-        meeting_docs: (state.meetingDocs || []).map(d => ({
+        meeting_docs: (dirtyTables && dirtyTables.meeting_docs === false) ? null : (state.meetingDocs || []).map(d => ({
           ...d,
           fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
         })),
-        trip_docs: (state.tripDocs || []).map(d => ({
+        trip_docs: (dirtyTables && dirtyTables.trip_docs === false) ? null : (state.tripDocs || []).map(d => ({
           ...d,
           fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
         })),
-        meetings: (state.meetings || []).map(m => ({
+        meetings: (dirtyTables && dirtyTables.meetings === false) ? null : (state.meetings || []).map(m => ({
           ...m,
           pesertaIds: Array.isArray(m.pesertaIds) ? m.pesertaIds.join(',') : (m.pesertaIds || ''),
           // Strip Base64 fotoKegiatan jika sudah berupa URL Drive
           fotoKegiatan: (m.fotoKegiatan && m.fotoKegiatan.startsWith('http')) ? m.fotoKegiatan : (m.fotoKegiatan || '')
         })),
-        activity_logs: (state.activityLogs || []).map(l => ({
+        activity_logs: (dirtyTables && dirtyTables.activity_logs === false) ? null : (state.activityLogs || []).map(l => ({
           id: l.id,
           userId: l.userId,
           timestamp: l.timestamp,
@@ -141,6 +144,16 @@ export const syncService = {
           fileRef_fileName: l.fileRef ? l.fileRef.fileName : '',
           fileRef_fileData: (l.fileRef && l.fileRef.fileData && l.fileRef.fileData.startsWith('http'))
             ? l.fileRef.fileData : (l.fileRef ? (l.fileRef.fileData || '') : '')
+        })),
+        kendala: (dirtyTables && dirtyTables.kendala === false) ? null : (state.kendala || []),
+        kendala_comments: (dirtyTables && dirtyTables.kendala_comments === false) ? null : (state.kendalaComments || []),
+        kendala_docs: (dirtyTables && dirtyTables.kendala_docs === false) ? null : (state.kendalaDocs || []).map(d => ({
+          ...d,
+          fileData: (d.fileData && d.fileData.startsWith('http')) ? d.fileData : (d.fileData || '')
+        })),
+        warnings: (dirtyTables && dirtyTables.warnings === false) ? null : (state.warnings || []).map(w => ({
+          ...w,
+          dismissed: w.dismissed ? 'true' : 'false'
         }))
       }
     };

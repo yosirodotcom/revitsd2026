@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2 } from 'lucide-react';
+import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2, Pencil } from 'lucide-react';
 
 export default function MonthlyPdfReports({ 
   reports, 
@@ -7,19 +7,23 @@ export default function MonthlyPdfReports({
   activeUser, 
   onAddReport,
   onDeleteReport,
-  onUpdateReportStatus
+  onUpdateReportStatus,
+  onlyMy = false,
+  onlyReview = false
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [rejectingReportId, setRejectingReportId] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [approvingReportId, setApprovingReportId] = useState(null);
+  const [approveNote, setApproveNote] = useState('');
   const uploadedMonths = reports.filter(r => r.userId === activeUser.id).map(r => r.bulanKe);
   const [selectedMonthFilter, setSelectedMonthFilter] = useState('Semua');
   const [selectedFasilitatorFilter, setSelectedFasilitatorFilter] = useState('Semua');
   
   // Dual-mode toggle for roles that can upload AND review (e.g. Koordinator, Ketua Tim)
-  const canUpload = ['Ketua Tim', 'Koordinator', 'Fasilitator'].includes(activeUser.jabatanTim);
-  const canReview = ['Koordinator', 'Super Admin', 'Ketua Tim'].includes(activeUser.jabatanTim);
-  const [subTab, setSubTab] = useState(canUpload ? 'my' : 'all');
+  const canUpload = !onlyReview && ['Ketua Tim', 'Koordinator', 'Fasilitator'].includes(activeUser.jabatanTim);
+  const canReview = !onlyMy && ['Koordinator', 'Super Admin', 'Ketua Tim'].includes(activeUser.jabatanTim);
+  const [subTab, setSubTab] = useState(onlyReview ? 'all' : 'my');
 
   // Hierarchical visibility helper
   const getVisibleUsersForReview = () => {
@@ -115,6 +119,41 @@ export default function MonthlyPdfReports({
     }, 150);
   };
 
+  const handleEditReportFileChange = (reportId, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      e.target.value = '';
+      return window.showAlert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      e.target.value = '';
+      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 10MB.');
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const rep = reports.find(r => r.id === reportId);
+      if (!rep) return;
+
+      const updatedReport = {
+        ...rep,
+        fileName: file.name,
+        fileData: event.target.result,
+        submittedAt: new Date().toISOString(),
+        status: 'pending',
+        note: ''
+      };
+
+      onAddReport(updatedReport);
+      e.target.value = '';
+      window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil diperbarui.`);
+    };
+  };
+
   // Safe PDF opener from Base64 Data URL (converts to Blob first to avoid browser security blockages)
   const openPdf = (base64Data, filename) => {
     try {
@@ -175,10 +214,12 @@ export default function MonthlyPdfReports({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <h2 className="text-xl md:text-2xl font-semibold text-slate-100 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-400" /> Laporan Bulanan Periodik (PDF)
+            <FileText className="w-6 h-6 text-indigo-400" /> {onlyReview ? 'Pantau & Reviu Laporan Tim (PDF)' : 'Laporan Bulanan Saya (PDF)'}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Kirim atau pantau berkas PDF laporan bulanan (Bulan 1 s/d 6) untuk verifikasi pembayaran honorarium.
+            {onlyReview 
+              ? 'Reviu berkas PDF laporan bulanan dari fasilitator di bawah supervisi Anda untuk verifikasi pembayaran honorarium.' 
+              : 'Kirim berkas PDF laporan bulanan Anda (Bulan 1 s/d 6) untuk verifikasi pembayaran honorarium.'}
           </p>
         </div>
 
@@ -414,11 +455,9 @@ export default function MonthlyPdfReports({
                         <>
                           {rep.status !== 'approved' && (
                             <button
-                              onClick={async () => {
-                                if (await window.showConfirm(`Setujui laporan bulanan Ke-${rep.bulanKe} dari ${getUserName(rep.userId)}?`)) {
-                                  onUpdateReportStatus(rep.id, 'approved', '');
-                                  window.showAlert('Laporan berhasil disetujui.');
-                                }
+                              onClick={() => {
+                                setApprovingReportId(rep.id);
+                                setApproveNote('');
                               }}
                               className="p-2 rounded-xl bg-slate-950 hover:bg-emerald-950/40 border border-slate-850 hover:border-emerald-500/30 text-emerald-400 transition-all cursor-pointer"
                               title="Setujui Laporan"
@@ -442,18 +481,37 @@ export default function MonthlyPdfReports({
                       )}
 
                       {((subTab === 'my' && rep.userId === activeUser.id) || (!canReview && rep.userId === activeUser.id)) && (
-                        <button
-                          onClick={async () => {
-                            if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe}?`)) {
-                              onDeleteReport(rep.id);
-                              window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
-                            }
-                          }}
-                          className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 transition-all cursor-pointer"
-                          title="Hapus Laporan"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {(rep.status === 'rejected' || rep.status === 'pending' || !rep.status) && (
+                            <label
+                              className="p-2 rounded-xl bg-slate-950 hover:bg-indigo-950/40 border border-slate-855 hover:border-indigo-500/30 text-indigo-400 transition-all cursor-pointer inline-flex items-center justify-center"
+                              title="Edit / Unggah Ulang PDF Laporan"
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                className="hidden"
+                                onChange={(e) => handleEditReportFileChange(rep.id, e)}
+                              />
+                            </label>
+                          )}
+
+                          {rep.status === 'rejected' && (
+                            <button
+                              onClick={async () => {
+                                if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe} yang ditolak ini?`)) {
+                                  onDeleteReport(rep.id);
+                                  window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
+                                }
+                              }}
+                              className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 transition-all cursor-pointer"
+                              title="Hapus Laporan"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </td>
@@ -514,6 +572,50 @@ export default function MonthlyPdfReports({
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all cursor-pointer shadow-lg shadow-rose-650/10"
               >
                 Kembalikan Laporan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Input Catatan Persetujuan (Opsional) */}
+      {approvingReportId && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl relative select-none animate-scale-in">
+            <h3 className="text-base font-extrabold text-white mb-2">
+              Setujui Laporan Bulanan
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Anda dapat memberikan catatan atau pesan apresiasi (opsional) sebelum menyetujui laporan ini.
+            </p>
+            
+            <textarea
+              value={approveNote}
+              onChange={(e) => setApproveNote(e.target.value)}
+              placeholder="Tulis catatan opsional atau pesan apresiasi..."
+              className="w-full h-28 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 resize-none font-['Outfit',sans-serif]"
+            />
+            
+            <div className="flex gap-2.5 w-full mt-4 justify-end">
+              <button
+                onClick={() => {
+                  setApprovingReportId(null);
+                  setApproveNote('');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-slate-200 transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  onUpdateReportStatus(approvingReportId, 'approved', approveNote);
+                  setApprovingReportId(null);
+                  setApproveNote('');
+                  window.showAlert('Laporan berhasil disetujui.');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer shadow-lg shadow-emerald-650/10"
+              >
+                Setujui Laporan
               </button>
             </div>
           </div>

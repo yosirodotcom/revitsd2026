@@ -136,6 +136,7 @@ Setiap kali terjadi perubahan kode (terutama pada state, schema, atau penambahan
 2. **Evaluasi Dampak Backend**: Tentukan apakah perubahan kode tersebut memerlukan penyesuaian pada skema tabel Google Sheets atau penanganan berkas Google Drive.
 3. **Perbarui Walkthrough**: Jika backend memerlukan perubahan struktur, perbarui berkas panduan setup [walkthrough.md](file:///C:/Users/Kerja%20Sama%20Polnep/.gemini/antigravity-ide/brain/c7484b94-d046-4809-bd51-1ffcaf7df6d6/walkthrough.md) (khususnya skema `SCHEMAS` dan kode `Code.gs` di dalamnya) agar tetap sinkron.
 4. **Instruksi Pengguna**: Tampilkan saran instruksi yang jelas kepada pengguna di akhir giliran untuk segera memperbarui kode Apps Script di Google Sheets secara manual agar sinkronisasi data tetap berjalan lancar.
+5. **Acuan Apps Script Terakhir (Sangat Penting)**: Jika Anda memodifikasi atau merujuk kode Apps Script (Google Sheets Backend), pastikan untuk selalu merujuk dan memperbarui file [codegsterakhir.gs](file:///d:/repos/revitsd2026/codegsterakhir.gs) sebagai satu-satunya *source of truth*, agar variabel baru atau struktur yang telah disesuaikan tidak hilang atau kembali ke versi lama.
 
 ---
 

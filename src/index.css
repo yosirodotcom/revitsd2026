@@ -515,3 +515,61 @@ input[type="date"] {
   100% { background-position: 200% center; }
 }
 
+/* Custom Rich Text Editor Styles for Kendala */
+.kendala-rich-text {
+  color: #151c27;
+}
+.kendala-rich-text ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  display: block !important;
+}
+.kendala-rich-text ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  display: block !important;
+}
+.kendala-rich-text li {
+  display: list-item !important;
+  margin-bottom: 0.25rem !important;
+  color: inherit;
+}
+.kendala-rich-text p {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+.kendala-rich-text h1 {
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  color: #151c27 !important;
+  display: block !important;
+}
+.kendala-rich-text h2 {
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  color: #151c27 !important;
+  display: block !important;
+}
+.kendala-rich-text h3 {
+  font-size: 1.0rem !important;
+  font-weight: 700 !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+  color: #151c27 !important;
+  display: block !important;
+}
+/* Placeholder support for contenteditable */
+[contenteditable]:empty:before {
+  content: attr(placeholder);
+  color: #747878 !important;
+  cursor: text;
+}
+

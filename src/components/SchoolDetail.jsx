@@ -3,8 +3,178 @@ import {
   ArrowLeft, Edit2, Check, X, ShieldAlert, Award, FileCheck, 
   CheckCircle2, AlertTriangle, ListTodo, Plus, Trash2, Calendar, 
   ChevronRight, Play, CheckCircle, AlertCircle, Phone, User, Pencil,
-  Download, FileText, Sparkles
+  Download, FileText, Sparkles, Bold, Italic, List, ListOrdered, AlignLeft, 
+  AlignCenter, AlignRight, AlignJustify, Paperclip, MessageSquare, Send
 } from 'lucide-react';
+
+// Rich Text Editor kustom
+function RichTextEditor({ value, onChange, placeholder = "Tulis isi laporan kendala..." }) {
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const executeCommand = (command, value = null) => {
+    document.execCommand(command, false, value);
+    handleInput();
+  };
+
+  return (
+    <div className="border border-slate-300 rounded-xl overflow-hidden bg-white">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border-b border-slate-200 p-2 select-none">
+        {/* Group 1: Basic styling */}
+        <button
+          type="button"
+          onClick={() => executeCommand('bold')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Tebal (Bold)"
+        >
+          <Bold className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => executeCommand('italic')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Miring (Italic)"
+        >
+          <Italic className="w-3.5 h-3.5" />
+        </button>
+        <div className="w-px h-4 bg-slate-300 mx-0.5"></div>
+
+        {/* Group 2: Heading & Font Size */}
+        <select
+          onChange={(e) => {
+            executeCommand('formatBlock', e.target.value);
+            e.target.value = "";
+          }}
+          className="bg-white border border-slate-300 text-slate-700 text-[10px] sm:text-xs px-1.5 py-0.5 rounded outline-none cursor-pointer font-medium h-7"
+          defaultValue=""
+          title="Format Heading"
+        >
+          <option value="" disabled>Heading</option>
+          <option value="<p>">Normal</option>
+          <option value="<h1>">Heading 1</option>
+          <option value="<h2>">Heading 2</option>
+          <option value="<h3>">Heading 3</option>
+        </select>
+
+        <select
+          onChange={(e) => executeCommand('fontSize', e.target.value)}
+          className="bg-white border border-slate-300 text-slate-700 text-[10px] sm:text-xs px-1.5 py-0.5 rounded outline-none cursor-pointer font-medium h-7"
+          defaultValue=""
+          title="Ukuran Font"
+        >
+          <option value="" disabled>Ukuran</option>
+          <option value="1">Sangat Kecil</option>
+          <option value="2">Kecil</option>
+          <option value="3">Normal</option>
+          <option value="4">Sedang</option>
+          <option value="5">Besar</option>
+          <option value="6">Sangat Besar</option>
+          <option value="7">Maksimal</option>
+        </select>
+        <div className="w-px h-4 bg-slate-300 mx-0.5"></div>
+
+        {/* Group 3: Colors */}
+        <div className="flex items-center gap-1 bg-white border border-slate-300 px-1.5 py-0.5 rounded h-7">
+          <span className="text-[9px] uppercase font-bold text-slate-500">Teks</span>
+          <input
+            type="color"
+            onChange={(e) => executeCommand('foreColor', e.target.value)}
+            className="w-4 h-4 p-0 border-0 cursor-pointer bg-transparent rounded"
+            defaultValue="#151c27"
+            title="Pilih Warna Teks"
+          />
+        </div>
+
+        <div className="flex items-center gap-1 bg-white border border-slate-300 px-1.5 py-0.5 rounded h-7">
+          <span className="text-[9px] uppercase font-bold text-slate-500">Stabilo</span>
+          <input
+            type="color"
+            onChange={(e) => executeCommand('hiliteColor', e.target.value)}
+            className="w-4 h-4 p-0 border-0 cursor-pointer bg-transparent rounded"
+            defaultValue="#ffffff"
+            title="Pilih Warna Highlight"
+          />
+        </div>
+        <div className="w-px h-4 bg-slate-300 mx-0.5"></div>
+
+        {/* Group 4: Lists */}
+        <button
+          type="button"
+          onClick={() => executeCommand('insertUnorderedList')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Daftar Simbol (Bullet List)"
+        >
+          <List className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => executeCommand('insertOrderedList')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Daftar Nomor (Numbered List)"
+        >
+          <ListOrdered className="w-3.5 h-3.5" />
+        </button>
+        <div className="w-px h-4 bg-slate-300 mx-0.5"></div>
+
+        {/* Group 5: Alignment */}
+        <button
+          type="button"
+          onClick={() => executeCommand('justifyLeft')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Rata Kiri"
+        >
+          <AlignLeft className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => executeCommand('justifyCenter')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Rata Tengah"
+        >
+          <AlignCenter className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => executeCommand('justifyRight')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Rata Kanan"
+        >
+          <AlignRight className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => executeCommand('justifyFull')}
+          className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+          title="Rata Kanan Kiri (Justify)"
+        >
+          <AlignJustify className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Editor Content Area */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        className="p-3 min-h-[140px] focus:outline-none text-xs text-slate-100 kendala-rich-text bg-white"
+        placeholder={placeholder}
+        style={{ outline: 'none' }}
+      ></div>
+    </div>
+  );
+}
 
 export default function SchoolDetail({ 
   school, 
@@ -18,13 +188,37 @@ export default function SchoolDetail({
   onUpdateTaskStatus, 
   onDeleteTask,
   onAddContact,
+  onUpdateContact,
   schoolDocs = [],
   onAddSchoolDoc,
-  onDeleteSchoolDoc
+  onDeleteSchoolDoc,
+  kendala = [],
+  kendalaComments = [],
+  kendalaDocs = [],
+  onAddKendala,
+  onDeleteKendala,
+  onAddKendalaComment,
+  onDeleteKendalaComment,
+  onDeleteKendalaDoc,
+  initialTab = 'profile'
 }) {
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'documents'
+  const [activeTab, setActiveTab] = useState(initialTab || 'profile');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [progresInput, setProgresInput] = useState(school?.progres_fisik || 0);
   const [uploadingState, setUploadingState] = useState({});
+
+  // Phase 5 Kendala states
+  const [isReporting, setIsReporting] = useState(false);
+  const [kendalaTanggal, setKendalaTanggal] = useState(new Date().toISOString().split('T')[0]);
+  const [kendalaContent, setKendalaContent] = useState('');
+  const [kendalaTempFiles, setKendalaTempFiles] = useState([]);
+  const [commentInputs, setCommentInputs] = useState({});
+  const [expandedKendala, setExpandedKendala] = useState({});
 
   // Inline edit state: which field is being edited and its temp value
   const [inlineField, setInlineField] = useState(null); // 'kecamatan' | 'desa' | 'kepala_sekolah' | 'hp_kepala_sekolah' | 'perencanaId' | 'pengawasId' | 'fasilitatorId'
@@ -147,7 +341,19 @@ export default function SchoolDetail({
   // Save an inline text field
   const saveInlineField = () => {
     if (inlineField) {
-      onUpdateSchool({ ...school, [inlineField]: inlineValue });
+      if (inlineField === 'perencanaHp' && school.perencanaId) {
+        const contactObj = contacts.find((c) => c.id === school.perencanaId);
+        if (contactObj && onUpdateContact) {
+          onUpdateContact({ ...contactObj, hp: inlineValue });
+        }
+      } else if (inlineField === 'pengawasHp' && school.pengawasId) {
+        const contactObj = contacts.find((c) => c.id === school.pengawasId);
+        if (contactObj && onUpdateContact) {
+          onUpdateContact({ ...contactObj, hp: inlineValue });
+        }
+      } else {
+        onUpdateSchool({ ...school, [inlineField]: inlineValue });
+      }
       setInlineField(null);
       setInlineValue('');
     }
@@ -261,6 +467,31 @@ export default function SchoolDetail({
   const getFacilitatorName = (id) => {
     const user = users.find((u) => u.id === id);
     return user ? user.nama : 'Belum Ditugaskan';
+  };
+
+  const getDirectImageUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    
+    if (url.includes('drive.google.com') || url.includes('docs.google.com') || url.includes('googleusercontent.com')) {
+      let fileId = null;
+      // Extract from uc?id=...
+      const idMatch = url.match(/id=([^&]+)/);
+      if (idMatch && idMatch[1]) {
+        fileId = idMatch[1];
+      } else {
+        // Extract from /file/d/...
+        const dMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (dMatch && dMatch[1]) {
+          fileId = dMatch[1];
+        }
+      }
+      
+      if (fileId) {
+        return `https://lh3.googleusercontent.com/d/${fileId}?authuser=0`;
+      }
+    }
+    return url;
   };
 
   const isMySchool = activeUser ? school.fasilitatorId === activeUser.id : false;
@@ -459,6 +690,51 @@ export default function SchoolDetail({
     };
   };
 
+  const handleSaveKendalaSubmit = (e) => {
+    e.preventDefault();
+    if (!kendalaTanggal) return window.showAlert('Tanggal laporan wajib diisi');
+    if (!kendalaContent.trim()) return window.showAlert('Isi laporan kendala wajib diisi');
+
+    const newReport = {
+      id: `kendala-${Date.now()}`,
+      schoolId: school.npsn,
+      userId: activeUser ? activeUser.id : 'guest',
+      userName: activeUser ? activeUser.nama : 'Guest',
+      tanggal: kendalaTanggal,
+      isi: kendalaContent,
+      createdAt: new Date().toISOString()
+    };
+
+    onAddKendala(newReport, kendalaTempFiles);
+    
+    // Reset form
+    setKendalaContent('');
+    setKendalaTempFiles([]);
+    setKendalaTanggal(new Date().toISOString().split('T')[0]);
+    setIsReporting(false);
+    window.showAlert('Laporan kendala berhasil ditambahkan!');
+  };
+
+  const handleCommentSubmit = (e, kendalaId) => {
+    e.preventDefault();
+    const txt = commentInputs[kendalaId] || '';
+    if (!txt.trim()) return;
+
+    const newComment = {
+      id: `kcomment-${Date.now()}`,
+      kendalaId,
+      userId: activeUser ? activeUser.id : 'guest',
+      userName: activeUser ? activeUser.nama : 'Guest',
+      userRole: activeUser ? activeUser.jabatanTim : 'Guest',
+      tanggal: new Date().toISOString().split('T')[0],
+      isi: txt,
+      createdAt: new Date().toISOString()
+    };
+
+    onAddKendalaComment(newComment);
+    setCommentInputs(prev => ({ ...prev, [kendalaId]: '' }));
+  };
+
   return (
     <div className="space-y-6 animate-fade-in p-6">
       
@@ -476,8 +752,9 @@ export default function SchoolDetail({
       <div className="relative group h-48 md:h-64 rounded-3xl overflow-hidden border border-slate-800 bg-slate-950/60 select-none">
         {school.foto_banner ? (
           <img
-            src={school.foto_banner}
+            src={getDirectImageUrl(school.foto_banner)}
             alt={school.nama_sekolah}
+            crossOrigin={school.foto_banner && school.foto_banner.startsWith('data:') ? undefined : "anonymous"}
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
           />
         ) : (
@@ -579,6 +856,16 @@ export default function SchoolDetail({
           }`}
         >
           <FileText className="w-4 h-4" /> Upload Laporan ({reportDocs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('kendala')}
+          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'kendala'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <AlertCircle className="w-4 h-4" /> Laporkan Kendala ({kendala.filter(k => k.schoolId === school.npsn).length})
         </button>
       </div>
 
@@ -978,8 +1265,8 @@ export default function SchoolDetail({
                                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                               />
                               <div className="flex gap-1.5 justify-end pt-1">
-                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">Batal</button>
-                                <button onClick={() => saveNewContact('perencanaId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">Simpan</button>
+                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 active:scale-[0.95] transition-all cursor-pointer">Batal</button>
+                                <button onClick={() => saveNewContact('perencanaId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm active:scale-[0.95] transition-all duration-150 select-none cursor-pointer">Simpan</button>
                               </div>
                             </div>
                           ) : (
@@ -1028,17 +1315,54 @@ export default function SchoolDetail({
                       )}
                     </div>
 
-                    {/* HP Perencana (read-only, from contact) */}
+                    {/* HP Perencana (inline-editable, from contact) */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Perencana</span>
-                      <span className="text-sm font-medium text-slate-200 mt-0.5 block">
-                        {school.perencanaId ? (
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-slate-500" />
-                            {perencana.hp}
-                          </span>
-                        ) : <span className="text-slate-600 italic">-</span>}
-                      </span>
+                      {inlineField === 'perencanaHp' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value.replace(/[^0-9+-]/g, ''))}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="08xxxxxxxxxx"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.perencanaId ? (
+                            <>
+                              <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5 text-slate-500" />
+                                {perencana.hp || <span className="text-slate-550 italic">Belum diisi</span>}
+                              </span>
+                              {isAuthorizedToEdit && (
+                                <button
+                                  onClick={() => {
+                                    setInlineField('perencanaHp');
+                                    setInlineValue(perencana.hp || '');
+                                  }}
+                                  className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!perencana.hp ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-650'}`}
+                                  title="Edit HP Perencana"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-650 italic">-</span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Pengawas (inline-editable dropdown) */}
@@ -1070,8 +1394,8 @@ export default function SchoolDetail({
                                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                               />
                               <div className="flex gap-1.5 justify-end pt-1">
-                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">Batal</button>
-                                <button onClick={() => saveNewContact('pengawasId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">Simpan</button>
+                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 active:scale-[0.95] transition-all cursor-pointer">Batal</button>
+                                <button onClick={() => saveNewContact('pengawasId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm active:scale-[0.95] transition-all duration-150 select-none cursor-pointer">Simpan</button>
                               </div>
                             </div>
                           ) : (
@@ -1120,17 +1444,54 @@ export default function SchoolDetail({
                       )}
                     </div>
 
-                    {/* HP Pengawas (read-only, from contact) */}
+                    {/* HP Pengawas (inline-editable, from contact) */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Pengawas</span>
-                      <span className="text-sm font-medium text-slate-200 mt-0.5 block">
-                        {school.pengawasId ? (
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-slate-500" />
-                            {pengawas.hp}
-                          </span>
-                        ) : <span className="text-slate-600 italic">-</span>}
-                      </span>
+                      {inlineField === 'pengawasHp' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value.replace(/[^0-9+-]/g, ''))}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="08xxxxxxxxxx"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.pengawasId ? (
+                            <>
+                              <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5 text-slate-500" />
+                                {pengawas.hp || <span className="text-slate-550 italic">Belum diisi</span>}
+                              </span>
+                              {isAuthorizedToEdit && (
+                                <button
+                                  onClick={() => {
+                                    setInlineField('pengawasHp');
+                                    setInlineValue(pengawas.hp || '');
+                                  }}
+                                  className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!pengawas.hp ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-650'}`}
+                                  title="Edit HP Pengawas"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-650 italic">-</span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -1184,7 +1545,7 @@ export default function SchoolDetail({
                       </div>
                       <button
                         onClick={handleQuickProgressSave}
-                        className="w-full py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-[0.98] active:translate-y-[0.5px] transition-all duration-150 select-none cursor-pointer"
                       >
                         Simpan Progres Fisik
                       </button>
@@ -1566,6 +1927,323 @@ export default function SchoolDetail({
               </div>
             </div>
           )}
+
+          {/* Tab 4: Laporkan Kendala */}
+          {activeTab === 'kendala' && (() => {
+            const canReportKendala = activeUser ? (activeUser.jabatanTim === 'Fasilitator' && school.fasilitatorId === activeUser.id) || activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin' : false;
+            const schoolKendalas = (kendala || []).filter(k => k.schoolId === school.npsn).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            const handleFileChange = (e) => {
+              const files = Array.from(e.target.files);
+              files.forEach(file => {
+                if (file.size > 10 * 1024 * 1024) {
+                  window.showAlert('Ukuran berkas maksimal 10MB');
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  setKendalaTempFiles(prev => [...prev, {
+                    name: file.name,
+                    size: (file.size / 1024).toFixed(1) + ' KB',
+                    data: event.target.result // Base64
+                  }]);
+                };
+                reader.readAsDataURL(file);
+              });
+              e.target.value = '';
+            };
+
+            const handleRemoveTempFile = (idx) => {
+              setKendalaTempFiles(prev => prev.filter((_, i) => i !== idx));
+            };
+
+            return (
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-800 select-none">
+                  <div>
+                    <h3 className="font-semibold text-slate-200 text-sm">Laporan Kendala Lapangan</h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Laporkan kendala pendampingan di lapangan untuk ditanggapi oleh tim koordinasi.</p>
+                  </div>
+                  {canReportKendala && !isReporting && (
+                    <button
+                      onClick={() => setIsReporting(true)}
+                      className="px-3 py-1.5 text-xs font-bold btn-orange-glow rounded-xl cursor-pointer flex items-center gap-1.5 select-none shadow-md border-0"
+                    >
+                      <Plus className="w-4 h-4 text-white" /> Laporkan Kendala
+                    </button>
+                  )}
+                </div>
+
+                {/* Form Pelaporan Kendala */}
+                {isReporting && (
+                  <form onSubmit={handleSaveKendalaSubmit} className="bg-slate-900/20 border border-slate-855 rounded-2xl p-5 space-y-4 animate-scale-in">
+                    <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider pb-2 border-b border-slate-800/60">Formulir Laporan Kendala Baru</h4>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Tanggal Laporan / Kejadian</label>
+                        <input
+                          type="date"
+                          value={kendalaTanggal}
+                          onChange={(e) => setKendalaTanggal(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Isi Laporan Kendala</label>
+                      <RichTextEditor
+                        value={kendalaContent}
+                        onChange={(val) => setKendalaContent(val)}
+                        placeholder="Deskripsikan kendala yang terjadi secara rinci..."
+                      />
+                    </div>
+
+                    {/* File Attachment Input */}
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5 flex items-center gap-1">
+                        <Paperclip className="w-3.5 h-3.5" /> Berkas Pendukung (Opsional)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="px-3 py-1.5 text-[10px] font-bold bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-slate-200 rounded-xl cursor-pointer transition-colors flex items-center gap-1.5 select-none">
+                          <Plus className="w-3.5 h-3.5" /> Pilih Berkas
+                          <input
+                            type="file"
+                            multiple
+                            onChange={handleFileChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <span className="text-[10px] text-slate-500">{kendalaTempFiles.length} berkas dipilih</span>
+                      </div>
+
+                      {/* Temp Files List */}
+                      {kendalaTempFiles.length > 0 && (
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {kendalaTempFiles.map((f, i) => (
+                            <div key={i} className="bg-slate-950/40 border border-slate-850 rounded-xl p-2.5 flex justify-between items-center gap-2">
+                              <span className="text-xs text-slate-350 truncate font-semibold" title={f.name}>{f.name}</span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[9px] text-slate-500 font-medium">{f.size}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTempFile(i)}
+                                  className="p-1 rounded text-slate-550 hover:text-rose-450 hover:bg-rose-500/10 cursor-pointer border-0"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-2 border-t border-slate-800/60 select-none">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsReporting(false);
+                          setKendalaContent('');
+                          setKendalaTempFiles([]);
+                        }}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-slate-200 cursor-pointer border-0"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg cursor-pointer border-0"
+                      >
+                        Simpan Laporan
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Kendala Reports List */}
+                <div className="space-y-4">
+                  {schoolKendalas.map(item => {
+                    const reporter = users.find(u => u.id === item.userId);
+                    const reporterRole = reporter ? reporter.jabatanTim : 'Fasilitator';
+                    const docs = kendalaDocs.filter(d => d.kendalaId === item.id);
+                    const comments = kendalaComments.filter(c => c.kendalaId === item.id).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                    const isExpanded = expandedKendala[item.id] !== false;
+
+                    const canDelete = activeUser && (item.userId === activeUser.id || activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin');
+
+                    return (
+                      <div key={item.id} className="bg-slate-900/20 border border-slate-855 rounded-2xl p-5 space-y-4">
+                        {/* Card Header */}
+                        <div className="flex justify-between items-start gap-3 pb-3 border-b border-slate-800/60">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
+                              <AlertCircle className="w-5 h-5 text-indigo-400" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-slate-200 text-sm">{item.userName}</h4>
+                                <span className="text-[10px] font-bold bg-indigo-600/10 text-indigo-400 border border-indigo-650/20 px-2 py-0.5 rounded-lg">{reporterRole}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-medium">Melaporkan pada: {new Date(item.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                            </div>
+                          </div>
+
+                          {canDelete && (
+                            <button
+                              onClick={async () => {
+                                if (await window.showConfirm('Apakah Anda yakin ingin menghapus laporan kendala ini beserta seluruh berkas dan komentar terkait?')) {
+                                  onDeleteKendala(item.id);
+                                }
+                              }}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-450 hover:bg-rose-500/10 cursor-pointer border-0"
+                              title="Hapus Laporan Kendala"
+                            >
+                              <Trash2 className="w-4 h-4 text-slate-500" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Card Body */}
+                        <div 
+                          className="kendala-rich-text text-xs text-slate-100 bg-white border border-slate-200 p-4 rounded-xl leading-relaxed whitespace-pre-line"
+                          dangerouslySetInnerHTML={{ __html: item.isi }}
+                        />
+
+                        {/* Files list */}
+                        {docs.length > 0 && (
+                          <div className="space-y-2">
+                            <span className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider">Berkas Pendukung ({docs.length})</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {docs.map(file => (
+                                <div key={file.id} className="bg-slate-950/60 border border-slate-855 rounded-xl p-3 flex justify-between items-center gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <span
+                                      onClick={() => handleOpenFile(file)}
+                                      className="font-semibold text-slate-350 text-xs truncate block cursor-pointer hover:text-indigo-400 hover:underline"
+                                      title="Klik untuk membuka dokumen"
+                                    >
+                                      {file.fileName}
+                                    </span>
+                                    <div className="text-[9px] text-slate-500 mt-0.5">Oleh: {file.uploadedBy} • {file.fileSize}</div>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => handleDownloadFile(file)}
+                                      className="p-1 rounded bg-slate-900 text-indigo-400 hover:text-indigo-300 cursor-pointer border-0"
+                                      title="Download File"
+                                    >
+                                      <Download className="w-3.5 h-3.5 text-indigo-400" />
+                                    </button>
+                                    {(activeUser && (file.uploadedBy === activeUser.nama || activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin')) && (
+                                      <button
+                                        onClick={async () => {
+                                          if (await window.showConfirm(`Hapus berkas "${file.fileName}"?`)) {
+                                            onDeleteKendalaDoc(file.id);
+                                          }
+                                        }}
+                                        className="p-1 rounded bg-slate-900 text-slate-550 hover:text-rose-455 cursor-pointer border-0"
+                                        title="Hapus Berkas"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 text-slate-500" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Comments Utas (Accordion) */}
+                        <div className="pt-2 border-t border-slate-200">
+                          <button
+                            onClick={() => setExpandedKendala(prev => ({ ...prev, [item.id]: !isExpanded }))}
+                            className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-bold select-none cursor-pointer border-0 bg-transparent"
+                          >
+                            <MessageSquare className="w-4 h-4 text-indigo-400" />
+                            <span>Komentar & Diskusi ({comments.length})</span>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-4 space-y-3.5 pl-2 sm:pl-4 border-l border-slate-300 animate-fade-in">
+                              {/* List of comments */}
+                              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                                {comments.map(c => {
+                                  const canDeleteComment = activeUser && (c.userId === activeUser.id || activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin');
+
+                                  return (
+                                    <div key={c.id} className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-1.5 relative group">
+                                      <div className="flex justify-between items-start gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-bold text-xs text-slate-700">{c.userName}</span>
+                                          <span className="text-[9px] font-bold bg-slate-200 border border-slate-300 text-slate-500 px-1.5 py-0.5 rounded">{c.userRole}</span>
+                                          <span className="text-[9px] text-slate-500">{new Date(c.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                        {canDeleteComment && (
+                                          <button
+                                            onClick={async () => {
+                                              if (await window.showConfirm('Hapus komentar ini?')) {
+                                                onDeleteKendalaComment(c.id);
+                                              }
+                                            }}
+                                            className="p-1 rounded text-slate-500 hover:text-rose-455 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-0 bg-transparent"
+                                            title="Hapus Komentar"
+                                          >
+                                            <X className="w-3.5 h-3.5 text-slate-550" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-slate-600 leading-relaxed font-medium whitespace-pre-line">{c.isi}</p>
+                                    </div>
+                                  );
+                                })}
+
+                                {comments.length === 0 && (
+                                  <div className="text-[10px] text-slate-500 italic select-none py-2">Belum ada komentar balasan. Koordinator atau Ketua Tim dapat memberikan tanggapan di sini.</div>
+                                )}
+                              </div>
+
+                              {/* Comment Form */}
+                              {activeUser && (
+                                <form onSubmit={(e) => handleCommentSubmit(e, item.id)} className="flex gap-2 items-center pt-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Tulis tanggapan atau solusi..."
+                                    value={commentInputs[item.id] || ''}
+                                    onChange={(e) => setCommentInputs(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                    className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
+                                    required
+                                  />
+                                  <button
+                                    type="submit"
+                                    className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all cursor-pointer border-0 shadow shrink-0"
+                                    title="Kirim Komentar"
+                                  >
+                                    <Send className="w-4 h-4 text-white" />
+                                  </button>
+                                </form>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {schoolKendalas.length === 0 && !isReporting && (
+                    <div className="text-center py-10 bg-slate-900/10 border border-dashed border-slate-850 rounded-2xl select-none">
+                      <AlertCircle className="w-8 h-8 text-slate-500 mx-auto mb-2.5" />
+                      <h4 className="font-bold text-slate-400 text-xs">Belum ada laporan kendala</h4>
+                      <p className="text-[10px] text-slate-550 mt-1">Sekolah ini saat ini tidak memiliki laporan kendala atau hambatan pekerjaan lapangan.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
       </div>
     </div>
   );

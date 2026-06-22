@@ -58,6 +58,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   
   // Modals state
   const [isAddingMaster, setIsAddingMaster] = useState(false);
+  const [tempProgress, setTempProgress] = useState({});
   
   // Form state
   const [newSchoolData, setNewSchoolData] = useState({
@@ -478,23 +479,23 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
                       {/* Progress */}
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-3 max-w-[220px]">
+                        <div className="flex items-center gap-3 max-w-[260px]">
                           <div className="flex-1">
                             {isAuthorizedToEdit && !hasTasks ? (
                               <input
                                 type="range"
                                 min="0"
                                 max="100"
-                                value={school.progres_fisik || 0}
+                                value={tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}
                                 onChange={(e) => {
-                                  onUpdateSchool({
-                                    ...school,
-                                    progres_fisik: Number(e.target.value)
+                                  setTempProgress({
+                                    ...tempProgress,
+                                    [school.npsn]: Number(e.target.value)
                                   });
                                 }}
                                 className="w-full accent-emerald-500 h-1.5 rounded-lg appearance-none cursor-pointer focus:outline-none"
                                 style={{
-                                  background: `linear-gradient(to right, #2e7d32 0%, #2e7d32 ${school.progres_fisik || 0}%, #e2e8f8 ${school.progres_fisik || 0}%, #e2e8f8 100%)`
+                                  background: `linear-gradient(to right, #2e7d32 0%, #2e7d32 ${tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}%, #e2e8f8 ${tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}%, #e2e8f8 100%)`
                                 }}
                                 title="Geser untuk mengubah progres fisik"
                               />
@@ -510,7 +511,29 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                               </div>
                             )}
                           </div>
-                          <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">{school.progres_fisik}%</span>
+                          <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">
+                            {tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}%
+                          </span>
+                          
+                          {/* Save Button for modified progress */}
+                          {tempProgress[school.npsn] !== undefined && tempProgress[school.npsn] !== school.progres_fisik && (
+                            <button
+                              onClick={() => {
+                                onUpdateSchool({
+                                  ...school,
+                                  progres_fisik: tempProgress[school.npsn]
+                                });
+                                // Clear temp progress for this school
+                                const next = { ...tempProgress };
+                                delete next[school.npsn];
+                                setTempProgress(next);
+                              }}
+                              className="p-1 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors cursor-pointer border-0 shadow flex items-center justify-center shrink-0"
+                              title="Simpan Progres Baru"
+                            >
+                              <Check className="w-3.5 h-3.5 text-white" />
+                            </button>
+                          )}
                         </div>
                       </td>
 

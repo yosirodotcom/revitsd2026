@@ -39,7 +39,7 @@ const getDirectImageUrl = (url) => {
       }
     }
     if (fileId) {
-      return `https://lh3.googleusercontent.com/d/${fileId}`;
+      return `https://lh3.googleusercontent.com/d/${fileId}?authuser=0`;
     }
   }
   return url;
@@ -1195,7 +1195,7 @@ export default function MeetingManagement({
                         <img 
                           src={getDirectImageUrl(selectedMeetingDetail.fotoKegiatan)} 
                           alt="Dokumentasi Rapat" 
-                          crossOrigin="anonymous"
+                          crossOrigin={selectedMeetingDetail.fotoKegiatan && selectedMeetingDetail.fotoKegiatan.startsWith('data:') ? undefined : "anonymous"}
                           className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300" 
                         />
                       </div>

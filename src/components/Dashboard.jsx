@@ -24,7 +24,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  Download
+  Download,
+  AlertTriangle
 } from 'lucide-react';
 
 function TripMultiMap({ schools, batchList }) {
@@ -197,7 +198,9 @@ export default function Dashboard({
   payments = [],
   meetings = [],
   onDeleteLog,
-  onEditLog
+  onEditLog,
+  warnings = [],
+  onDismissWarning
 }) {
   const [dates, setDates] = useState({
     projectStartDate: settings.projectStartDate || '2026-06-12',
@@ -248,7 +251,7 @@ export default function Dashboard({
         }
       }
       if (fileId) {
-        return `https://lh3.googleusercontent.com/d/${fileId}`;
+        return `https://lh3.googleusercontent.com/d/${fileId}?authuser=0`;
       }
     }
     return url;
@@ -1646,14 +1649,25 @@ export default function Dashboard({
 
                       const totalParts = (pctPart1 > 0 ? 1 : 0) + (pctPart2 > 0 ? 1 : 0) + (pctPart3 > 0 ? 1 : 0);
                       const paidParts = (part1Paid ? 1 : 0) + (part2Paid ? 1 : 0) + (part3Paid ? 1 : 0);
-                      const eligibleUnpaidParts = (((reportFinished && isTimeReached) && !part1Paid) ? 1 : 0) + 
-                                                   (((part2Eligible && isTimeReached) && !part2Paid) ? 1 : 0) + 
-                                                   (((part3Eligible && isTimeReached) && !part3Paid) ? 1 : 0);
+                      const eligibleParts = ((reportFinished && isTimeReached) ? 1 : 0) + 
+                                            ((part2Eligible && isTimeReached) ? 1 : 0) + 
+                                            ((part3Eligible && isTimeReached) ? 1 : 0);
 
-                      if (paidParts === totalParts) return 'all-paid';
-                      if (paidParts > 0) return 'part-paid';
-                      if (eligibleUnpaidParts > 0) return 'ready';
-                      return 'waiting';
+                      let status = 'waiting';
+                      if (paidParts === totalParts) {
+                        status = 'all-paid';
+                      } else if (paidParts > 0) {
+                        status = 'part-paid';
+                      } else if (eligibleParts > 0) {
+                        status = 'ready';
+                      }
+
+                      return {
+                        status,
+                        totalParts,
+                        paidParts,
+                        eligibleParts
+                      };
                     };
 
                     const userBaseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings.honorAdministrasi : settings[`honor${user.jabatanTim.replace(' ', '')}`]) || {
@@ -1669,26 +1683,52 @@ export default function Dashboard({
                         <td className="px-4 py-3 font-medium text-slate-400">{user.jabatanTim}</td>
                         <td className="px-4 py-3 font-semibold text-indigo-400">Rp {userBaseMonthly.toLocaleString('id-ID')}</td>
                         {[1,2,3,4,5,6].map(m => {
-                          const status = helper(m);
+                          const { status, totalParts, paidParts, eligibleParts } = helper(m);
+                          const progressPct = totalParts > 0 ? Math.round((eligibleParts / totalParts) * 100) : 0;
+
+                          let bgStyle = {};
+                          let textClass = 'text-slate-500';
+                          let borderClass = 'border-slate-850';
+                          let label = 'Belum';
+
+                          if (status === 'all-paid') {
+                            label = 'Lunas';
+                            textClass = 'text-sky-950';
+                            borderClass = 'border-sky-500/20';
+                            bgStyle = { background: 'linear-gradient(90deg, rgba(14, 165, 233, 0.45) 100%, rgba(6, 78, 59, 0.75) 100%)' };
+                          } else if (status === 'part-paid') {
+                            label = totalParts > 1 ? `Cicil (${paidParts}/${totalParts})` : 'Cicil';
+                            textClass = 'text-sky-950';
+                            borderClass = 'border-sky-500/20';
+                            bgStyle = { background: `linear-gradient(90deg, rgba(14, 165, 233, 0.45) ${progressPct}%, rgba(6, 78, 59, 0.75) ${progressPct}%)` };
+                          } else if (status === 'ready') {
+                            if (progressPct === 100) {
+                              label = 'Layak';
+                              textClass = 'text-sky-950';
+                              borderClass = 'border-sky-500/20';
+                              bgStyle = { background: 'linear-gradient(90deg, rgba(14, 165, 233, 0.45) 100%, rgba(6, 78, 59, 0.75) 100%)' };
+                            } else {
+                              label = totalParts > 1 ? `Layak (${eligibleParts}/${totalParts})` : 'Layak';
+                              textClass = 'text-sky-950';
+                              borderClass = 'border-sky-500/20';
+                              bgStyle = { background: `linear-gradient(90deg, rgba(14, 165, 233, 0.45) ${progressPct}%, rgba(6, 78, 59, 0.75) ${progressPct}%)` };
+                            }
+                          } else {
+                            label = 'Belum';
+                            textClass = 'text-emerald-700/80';
+                            borderClass = 'border-emerald-950/20';
+                            bgStyle = { background: 'rgba(6, 78, 59, 0.4)' };
+                          }
+
                           return (
                             <td key={m} className="px-4 py-3 text-center">
                               <span 
                                 onClick={() => setPayrollDetailModal({ user, month: m })}
-                                className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-bold border cursor-pointer hover:scale-105 transition-all select-none ${
-                                status === 'all-paid'
-                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
-                                  : status === 'part-paid'
-                                  ? 'bg-sky-500/10 border-sky-500/20 text-sky-400 hover:bg-sky-500/20'
-                                  : status === 'ready'
-                                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
-                                  : 'bg-slate-900 border-slate-850 text-slate-500 hover:bg-slate-805'
-                              }`}
-                                title="Klik untuk memantau detail persyaratan kelayakan honor"
+                                className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border cursor-pointer hover:scale-105 transition-all select-none w-20 ${textClass} ${borderClass}`}
+                                style={bgStyle}
+                                title={`Klik untuk memantau detail persyaratan kelayakan honor (${eligibleParts}/${totalParts} bagian layak)`}
                               >
-                                {status === 'all-paid' && 'Lunas'}
-                                {status === 'part-paid' && 'Cicil'}
-                                {status === 'ready' && 'Layak'}
-                                {status === 'waiting' && 'Belum'}
+                                {label}
                               </span>
                             </td>
                           );
@@ -1721,6 +1761,71 @@ export default function Dashboard({
           </p>
         </div>
       </div>
+
+      {/* Active Obstacles & Comments Warning/Notifications */}
+      {activeUser && (() => {
+        const activeWarnings = (warnings || []).filter(w => w.userId === activeUser.id && !w.dismissed);
+        if (activeWarnings.length === 0) return null;
+
+        return (
+          <div className="bg-slate-900/45 border border-amber-500/20 rounded-3xl p-6 shadow-xl space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+                <h3 className="font-bold text-white text-sm uppercase tracking-wide flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500" />
+                  Notifikasi Kendala & Komentar Baru ({activeWarnings.length})
+                </h3>
+              </div>
+              <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                Peringatan Aktif
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+              {activeWarnings.map((w) => (
+                <div key={w.id} className="bg-slate-50 border border-slate-200 hover:border-slate-350 p-4 rounded-2xl flex flex-col justify-between space-y-3 shadow-sm transition-all duration-300 relative group overflow-hidden">
+                  <div className="relative z-10 space-y-2 flex-1 flex flex-col justify-between">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
+                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-750 font-semibold leading-relaxed">
+                          {w.message}
+                        </p>
+                        <span className="block text-[9px] text-slate-500 mt-1">
+                          Waktu: {new Date(w.createdAt).toLocaleDateString('id-ID', {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 justify-end pt-2 border-t border-slate-200 select-none">
+                      <button
+                        onClick={() => onDismissWarning(w.id)}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-200 border border-slate-300 hover:bg-slate-300 text-slate-650 transition-all cursor-pointer border-0"
+                      >
+                        Dismiss
+                      </button>
+                      <button
+                        onClick={() => onSelectSchool(w.schoolId, 'kendala')}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all cursor-pointer border-0"
+                      >
+                        Buka Laporan
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Super Admin Travel Approval Notifications */}
       {activeUser?.jabatanTim === 'Super Admin' && (() => {
@@ -1853,6 +1958,207 @@ export default function Dashboard({
                   );
                 });
               })()}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Coordinator Report Approval Warning/Notification */}
+      {activeUser?.jabatanTim === 'Koordinator' && (() => {
+        const supervisedUserIds = users
+          .filter(u => u.jabatanTim === 'Fasilitator' && u.coordinatorId === activeUser.id)
+          .map(u => u.id);
+          
+        const pendingReports = reports.filter(r => 
+          supervisedUserIds.includes(r.userId) && 
+          (r.status === 'pending' || !r.status)
+        );
+
+        if (pendingReports.length === 0) return null;
+
+        return (
+          <div className="bg-slate-900/40 border border-amber-500/20 rounded-3xl p-6 shadow-xl space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+                <h3 className="font-bold text-white text-sm uppercase tracking-wide flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  Laporan Bulanan Perlu Direviu ({pendingReports.length})
+                </h3>
+              </div>
+              <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                Peringatan Koordinator
+              </span>
+            </div>
+
+            <p className="text-slate-300 text-xs font-medium leading-relaxed">
+              Ada <strong className="text-amber-400">{pendingReports.length} laporan bulanan</strong> dari fasilitator di bawah supervisi Anda yang berstatus <strong className="text-amber-400">Pending</strong> dan memerlukan peninjauan serta persetujuan Anda agar payroll honorarium mereka dapat diproses.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+              {pendingReports.map((rep) => {
+                const sender = users.find(u => u.id === rep.userId);
+                return (
+                  <div key={rep.id} className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/85 hover:border-slate-700 p-4 rounded-2xl flex flex-col justify-between space-y-3 shadow-md transition-all duration-300 relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none transition-all duration-500 group-hover:bg-amber-500/10"></div>
+                    
+                    <div className="relative z-10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-amber-400 bg-amber-500/5 px-2.5 py-1 rounded-lg border border-amber-500/10">
+                          Bulan Ke-{rep.bulanKe}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono truncate max-w-[150px]" title={rep.fileName}>
+                          {rep.fileName}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-slate-200 text-sm tracking-tight">
+                            {sender ? sender.nama : 'Fasilitator'}
+                          </h4>
+                          <p className="text-[10px] text-slate-400">
+                            {sender ? sender.jabatanTim : 'Fasilitator'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="text-[10px] text-slate-450 flex items-center gap-1.5 pt-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                        <span>
+                          Dikirim: {new Date(rep.submittedAt).toLocaleDateString('id-ID', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => {
+                  if (onViewChange) onViewChange('pantau-laporan-tim');
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-550 hover:to-amber-450 text-slate-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer border-0 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 active:scale-95"
+              >
+                <FileText className="w-4 h-4" /> Reviu Laporan Bulanan Tim <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Facilitator/User Report Revision Warning/Notification */}
+      {activeUser && (() => {
+        const reportsWithNotes = reports.filter(r => 
+          r.userId === activeUser.id && 
+          r.note && 
+          r.note.trim() !== ''
+        );
+
+        if (reportsWithNotes.length === 0) return null;
+
+        const hasRejected = reportsWithNotes.some(r => r.status === 'rejected');
+        const cardTitle = hasRejected ? 'Umpan Balik Laporan Bulanan (Perlu Perbaikan)' : 'Catatan Peninjauan Laporan Bulanan';
+        const cardHeaderBorder = hasRejected ? 'border-rose-500/20' : 'border-slate-800';
+
+        return (
+          <div className={`bg-slate-900/40 border ${cardHeaderBorder} rounded-3xl p-6 shadow-xl space-y-4 animate-fade-in`}>
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${hasRejected ? 'bg-rose-400' : 'bg-indigo-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${hasRejected ? 'bg-rose-500' : 'bg-indigo-500'}`}></span>
+                </span>
+                <h3 className="font-bold text-white text-sm uppercase tracking-wide flex items-center gap-2">
+                  <AlertCircle className={`w-4 h-4 ${hasRejected ? 'text-rose-450' : 'text-indigo-400'}`} />
+                  {cardTitle} ({reportsWithNotes.length})
+                </h3>
+              </div>
+              <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${hasRejected ? 'text-rose-300 bg-rose-500/10 border-rose-500/20' : 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20'}`}>
+                {hasRejected ? 'Peringatan Revisi' : 'Informasi Peninjau'}
+              </span>
+            </div>
+
+            <p className="text-slate-300 text-xs font-medium leading-relaxed">
+              {hasRejected 
+                ? 'Laporan bulanan Anda dikembalikan oleh peninjau untuk dilakukan perbaikan. Silakan periksa catatan di bawah ini dan unggah kembali laporan yang telah diperbaiki.'
+                : 'Umpan balik atau catatan dari peninjau/koordinator mengenai laporan bulanan yang telah disetujui.'}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+              {reportsWithNotes.map((rep) => {
+                const reviewer = users.find(u => u.id === rep.reviewedBy);
+                const isRejected = rep.status === 'rejected';
+                
+                const cardBorder = isRejected ? 'border-rose-500/20 hover:border-rose-500/40' : 'border-emerald-500/20 hover:border-emerald-500/40';
+                const badgeColor = isRejected ? 'text-rose-400 bg-rose-500/5 border-rose-500/10' : 'text-emerald-400 bg-emerald-500/5 border-emerald-500/10';
+                const quoteBg = isRejected ? 'bg-rose-950/15 border-rose-500/10' : 'bg-emerald-950/15 border-emerald-500/10';
+                const quoteText = isRejected ? 'text-rose-300' : 'text-emerald-300';
+                const headerText = isRejected ? 'Catatan Revisi' : 'Catatan Peninjau';
+                const labelStatus = isRejected ? 'Perlu Perbaikan' : 'Disetujui';
+
+                return (
+                  <div key={rep.id} className={`bg-gradient-to-br from-slate-900 to-slate-950 border ${cardBorder} p-4 rounded-2xl flex flex-col justify-between space-y-3 shadow-md transition-all duration-300 relative group overflow-hidden`}>
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none transition-all duration-500 group-hover:bg-indigo-500/10"></div>
+                    
+                    <div className="relative z-10 space-y-2 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-bold ${badgeColor} px-2.5 py-1 rounded-lg border`}>
+                            Bulan Ke-{rep.bulanKe} ({labelStatus})
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[120px]" title={rep.fileName}>
+                            {rep.fileName}
+                          </span>
+                        </div>
+                        
+                        <div className={`${quoteBg} border rounded-xl p-3 mt-3`}>
+                          <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider block mb-1">
+                            {headerText} dari {reviewer ? reviewer.nama : 'Peninjau'}:
+                          </span>
+                          <p className={`${quoteText} text-xs italic font-medium leading-relaxed`}>
+                            "{rep.note}"
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="text-[10px] text-slate-450 flex items-center gap-1.5 pt-2 mt-auto">
+                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                        <span>
+                          Direviu: {rep.reviewedAt ? new Date(rep.reviewedAt).toLocaleDateString('id-ID', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          }) : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => {
+                  if (onViewChange) onViewChange('laporan-bulanan');
+                }}
+                className={`px-4 py-2 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer border-0 shadow-lg active:scale-95 ${
+                  hasRejected 
+                    ? 'bg-gradient-to-r from-rose-600 to-rose-550 hover:from-rose-550 hover:to-rose-500 shadow-rose-500/10 hover:shadow-rose-500/25' 
+                    : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-550 hover:to-indigo-500 shadow-indigo-500/10 hover:shadow-indigo-500/25'
+                }`}
+              >
+                <FileText className="w-4 h-4" /> Kelola Laporan Bulanan Saya <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         );
@@ -3067,6 +3373,14 @@ export default function Dashboard({
                                 {ap.label}{trip.approvedBy ? ` oleh ${trip.approvedBy}` : ''}
                               </div>
                             )}
+                            {trip.catatanPersetujuan && (
+                              <div className="mt-2 text-[10px] text-slate-400 bg-slate-950/60 border border-slate-850 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="leading-relaxed text-slate-350">
+                                  <strong className="text-amber-500 font-bold">Catatan Reviewer:</strong> {trip.catatanPersetujuan}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         );
                       })
@@ -3369,9 +3683,9 @@ export default function Dashboard({
                         <div>
                           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-2">Dokumentasi Rapat</span>
                           <img 
-                            src={getDirectImageUrl(meet.fotoKegiatan)} 
+                            src={typeof getDirectImageUrl === 'function' ? getDirectImageUrl(meet.fotoKegiatan) : meet.fotoKegiatan} 
                             alt="Dokumentasi Rapat" 
-                            crossOrigin="anonymous"
+                            crossOrigin={meet.fotoKegiatan && meet.fotoKegiatan.startsWith('data:') ? undefined : "anonymous"}
                             className="w-full max-h-48 object-cover rounded-xl border border-slate-800 cursor-pointer"
                             onClick={() => window.open(meet.fotoKegiatan, '_blank')}
                           />
@@ -3477,6 +3791,15 @@ export default function Dashboard({
                           </div>
                         )}
                       </div>
+
+                      {trip.catatanPersetujuan && (
+                        <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-2xl flex items-start gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                          <span className="text-[10px] leading-relaxed text-slate-350">
+                            <strong className="text-amber-500 font-bold">Catatan Reviewer:</strong> {trip.catatanPersetujuan}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Schools List */}
                       <div>

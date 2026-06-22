@@ -6,6 +6,7 @@ import {
   Contact, 
   FileCheck, 
   FileText, 
+  FileSearch,
   CalendarClock, 
   Calendar,
   CircleDollarSign, 
@@ -42,8 +43,10 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['*'] },
     { id: 'sekolah', name: 'Kelola Sekolah', icon: School, roles: ['*'] },
+    { id: 'kontak', name: 'Database Kontak', icon: Contact, roles: ['Super Admin', 'Ketua Tim', 'Koordinator', 'Tenaga Administrasi'] },
     { id: 'tanggung-jawab', name: 'Tanggung Jawab Saya', icon: FileCheck, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator', 'Tenaga Administrasi'] },
-    { id: 'laporan-bulanan', name: 'Laporan Bulanan', icon: FileText, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator'] },
+    { id: 'laporan-bulanan', name: 'Laporan Bulanan Saya', icon: FileText, roles: ['Ketua Tim', 'Koordinator', 'Fasilitator'] },
+    { id: 'pantau-laporan-tim', name: 'Pantau Laporan Tim', icon: FileSearch, roles: ['Super Admin', 'Ketua Tim', 'Koordinator'] },
     { id: 'dinas', name: 'Jadwal Perjalanan Dinas', icon: CalendarClock, roles: ['Fasilitator', 'Koordinator', 'Super Admin'] },
     { id: 'rapat', name: activeUser.jabatanTim === 'Super Admin' ? 'Kelola Rapat' : 'Agenda Rapat', icon: Calendar, roles: ['*'] },
     { id: 'logs-harian', name: 'Log Harian Lapangan', icon: FileText, roles: ['*'] },
@@ -61,7 +64,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
 
   const filteredMenu = menuItems.filter(item => {
     if (activeUser?.jabatanTim === 'Tenaga Administrasi') {
-      return ['dashboard', 'logs-harian', 'settings-anggaran', 'batch-honor'].includes(item.id);
+      return ['dashboard', 'logs-harian', 'settings-anggaran', 'batch-honor', 'kontak'].includes(item.id);
     }
     if (item.roles.includes('*')) return true;
     if (activeUser.role === 'admin' && (item.roles.includes('Super Admin') || item.id === 'pantau-honor')) return true;

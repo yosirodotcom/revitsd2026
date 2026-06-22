@@ -51,7 +51,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
       }
       
       if (fileId) {
-        return `https://lh3.googleusercontent.com/d/${fileId}`;
+        return `https://lh3.googleusercontent.com/d/${fileId}?authuser=0`;
       }
     }
     return url;
@@ -427,7 +427,7 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                                 </span>
                                 {editingLogFoto ? (
                                   <div className="relative border border-slate-800 rounded-xl overflow-hidden aspect-video bg-slate-950 flex items-center justify-center">
-                                    <img src={getDirectImageUrl(editingLogFoto)} alt="Preview edit" crossOrigin="anonymous" className="w-full h-full object-cover" />
+                                    <img src={getDirectImageUrl(editingLogFoto)} alt="Preview edit" crossOrigin={editingLogFoto && editingLogFoto.startsWith('data:') ? undefined : "anonymous"} className="w-full h-full object-cover" />
                                     <button
                                       type="button"
                                       onClick={() => setEditingLogFoto('')}
@@ -482,17 +482,26 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                       </div>
                     </div>
 
-                    {/* Attachment Link */}
+                    {/* Attachment Image Preview */}
                     {log.foto && editingLogId !== log.id && (
-                      <div className="w-full sm:w-auto shrink-0 select-none mt-4 sm:mt-0">
-                        <button
-                          onClick={() => window.open(log.foto)}
-                          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-400 rounded-xl transition-all cursor-pointer"
-                          title="Buka lampiran di tab baru"
+                      <div className="w-full sm:w-48 shrink-0 select-none mt-4 sm:mt-0">
+                        <div 
+                          onClick={() => window.open(log.foto, '_blank')}
+                          className="relative border border-slate-800 rounded-xl overflow-hidden aspect-video bg-slate-950 flex items-center justify-center cursor-pointer group/img shadow-md hover:border-indigo-500/50 transition-all duration-300"
+                          title="Klik untuk membuka foto asli"
                         >
-                          <Paperclip className="w-4 h-4" />
-                          <span>Buka Lampiran</span>
-                        </button>
+                          <img 
+                            src={getDirectImageUrl(log.foto)} 
+                            alt="Bukti kegiatan" 
+                            crossOrigin={log.foto && log.foto.startsWith('data:') ? undefined : "anonymous"} 
+                            className="w-full h-full object-cover group-hover/img:scale-[1.04] transition-transform duration-500" 
+                          />
+                          <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity duration-300">
+                            <span className="text-[10px] font-bold text-white bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800 flex items-center gap-1">
+                              <Paperclip className="w-3 h-3" /> Lihat Asli
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
