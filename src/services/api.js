@@ -3,12 +3,13 @@
  */
 export const syncService = {
   getApiConfig() {
-    const settings = localStorage.getItem('revit_settings');
+    const prefix = localStorage.getItem('active_program_prefix') || 'revit';
+    const settings = localStorage.getItem(`${prefix}_settings`);
     if (settings) {
       const parsed = JSON.parse(settings);
       return {
         url: parsed.googleAppsScriptUrl || '',
-        token: parsed.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN'
+        token: parsed.googleAppsScriptToken || (prefix === 'revitpaud' ? 'REVITPAUD2026_SECURE_TOKEN' : 'REVITSD2026_SECURE_TOKEN')
       };
     }
     return { url: '', token: '' };

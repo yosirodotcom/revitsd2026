@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, Info, RefreshCw, LogIn, Activity, X, Check } from 'lucide-react';
 import { initialUsers } from './data/initialData';
 import { initialSchools } from './data/initialSchools';
+import { initialPaudSchools } from './data/initialPaudSchools';
 import UserSelect from './components/UserSelect';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -23,6 +24,38 @@ import MeetingManagement from './components/MeetingManagement';
 import RightActivitySidebar from './components/RightActivitySidebar';
 import HonorBatchSettings from './components/HonorBatchSettings';
 import { syncService } from './services/api';
+import ProgramPortal from './components/ProgramPortal';
+
+// Shadowing helper to dynamically prefix localStorage operations for multi-program isolation
+const storageHelper = {
+  getItem: (key) => {
+    if (key.startsWith('revit_')) {
+      const baseKey = key.substring(6);
+      const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
+      return window.localStorage.getItem(`${prefix}_${baseKey}`);
+    }
+    return window.localStorage.getItem(key);
+  },
+  setItem: (key, value) => {
+    if (key.startsWith('revit_')) {
+      const baseKey = key.substring(6);
+      const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
+      return window.localStorage.setItem(`${prefix}_${baseKey}`, value);
+    }
+    return window.localStorage.setItem(key, value);
+  },
+  removeItem: (key) => {
+    if (key.startsWith('revit_')) {
+      const baseKey = key.substring(6);
+      const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
+      return window.localStorage.removeItem(`${prefix}_${baseKey}`);
+    }
+    return window.localStorage.removeItem(key);
+  },
+  key: (index) => window.localStorage.key(index),
+  clear: () => window.localStorage.clear()
+};
+const localStorage = storageHelper;
 
 const isValidId = (val) => val !== undefined && val !== null && String(val).trim() !== '';
 
@@ -127,7 +160,38 @@ export default function App() {
   const [activeSchoolTab, setActiveSchoolTab] = useState('profile');
 
   // Session & Nav States
+  const [globalActiveUser, setGlobalActiveUser] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('global_active_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [activeProgram, setActiveProgram] = useState(() => {
+    const programId = window.localStorage.getItem('active_program_id');
+    const programPrefix = window.localStorage.getItem('active_program_prefix');
+    if (programId && programPrefix) {
+      return { 
+        id: programId, 
+        prefix: programPrefix,
+        name: programId === 'revitsd2026' ? 'Revitalisasi Sekolah Dasar 2026' : 'Revitalisasi PAUD 2026'
+      };
+    }
+    return null;
+  });
+
   const [activeUser, setActiveUser] = useState(null);
+
+  useEffect(() => {
+    if (activeProgram) {
+      document.title = `Monitoring ${activeProgram.name}`;
+    } else {
+      document.title = "Portal Monitoring Revitalisasi";
+    }
+  }, [activeProgram]);
+
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedSchoolNpsn, setSelectedSchoolNpsn] = useState(null);
   const [schoolDetailReferrer, setSchoolDetailReferrer] = useState(null);
@@ -282,6 +346,21 @@ export default function App() {
   // (activity log + daily log) secara bersamaan, sehingga useEffect tersebut tidak diperlukan.
 
   useEffect(() => {
+    if (!activeProgram) return;
+    const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
+    const referenceUsers = activePrefix === 'revitpaud' ? [
+      {
+        id: "yosi-ronadi",
+        nama: "Yosi Ronadi",
+        jabatanKepegawaian: "Super Admin",
+        jabatanTim: "Super Admin",
+        pendidikan: "Strata 2",
+        statusPegawai: "PNS",
+        role: "admin",
+        password: "4051"
+      }
+    ] : initialUsers;
+
     // Users
     const storedUsers = localStorage.getItem('revit_users');
     if (storedUsers) {
@@ -289,21 +368,21 @@ export default function App() {
         const parsedUsers = JSON.parse(storedUsers);
         const cleanUsers = Array.isArray(parsedUsers) ? parsedUsers.filter(u => u && isValidId(u.id)) : [];
         if (cleanUsers.length === 0) {
-          setUsers(initialUsers);
-          localStorage.setItem('revit_users', JSON.stringify(initialUsers));
+          setUsers(referenceUsers);
+          localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
         } else {
           let migrated = false;
           const updatedUsers = cleanUsers.map(u => {
             let updated = { ...u };
-            if (updated.id === 'yosi-ronadi' && updated.password === undefined) {
+            if (updated.id === 'yosi-ronadi' && (updated.password === undefined || updated.password === '')) {
               updated.password = '4051';
               migrated = true;
             }
-            if (updated.id === 'etty-rabihati' && updated.password === undefined) {
+            if (updated.id === 'etty-rabihati' && (updated.password === undefined || updated.password === '')) {
               updated.password = 'sipil';
               migrated = true;
             }
-            if (updated.id === 'chandra-bayu' && updated.password === undefined) {
+            if (updated.id === 'chandra-bayu' && (updated.password === undefined || updated.password === '')) {
               updated.password = 'arsitektur';
               migrated = true;
             }
@@ -334,14 +413,16 @@ export default function App() {
           }
         }
       } catch (e) {
-        console.error("Failed to parse stored users, resetting to initialUsers:", e);
-        setUsers(initialUsers);
-        localStorage.setItem('revit_users', JSON.stringify(initialUsers));
+        console.error("Failed to parse stored users, resetting to referenceUsers:", e);
+        setUsers(referenceUsers);
+        localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
       }
     } else {
-      setUsers(initialUsers);
-      localStorage.setItem('revit_users', JSON.stringify(initialUsers));
+      setUsers(referenceUsers);
+      localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
     }
+
+    const referenceSchools = activePrefix === 'revitpaud' ? initialPaudSchools : initialSchools;
 
     // Schools
     const storedSchools = localStorage.getItem('revit_schools');
@@ -350,12 +431,12 @@ export default function App() {
         const parsed = JSON.parse(storedSchools);
         const cleanSchools = Array.isArray(parsed) ? parsed.filter(s => s && isValidId(s.npsn)).map(s => ({ ...s, npsn: String(s.npsn).trim() })) : [];
         if (cleanSchools.length === 0) {
-          setSchools(initialSchools);
-          localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
+          setSchools(referenceSchools);
+          localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
         } else {
           let isUpdated = false;
           const migrated = cleanSchools.map((s) => {
-            const init = initialSchools.find((x) => String(x.npsn) === s.npsn);
+            const init = referenceSchools.find((x) => String(x.npsn) === s.npsn);
             let updated = { ...s };
             
             if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, s.npsn) && !isInvalidSchoolName(updated.nama, s.npsn)) {
@@ -395,13 +476,13 @@ export default function App() {
           }
         }
       } catch (e) {
-        console.error("Failed to parse stored schools, resetting to initialSchools:", e);
-        setSchools(initialSchools);
-        localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
+        console.error("Failed to parse stored schools, resetting to referenceSchools:", e);
+        setSchools(referenceSchools);
+        localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
       }
     } else {
-      setSchools(initialSchools);
-      localStorage.setItem('revit_schools', JSON.stringify(initialSchools));
+      setSchools(referenceSchools);
+      localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
     }
 
     // Contacts
@@ -665,8 +746,9 @@ export default function App() {
 
         // Deteksi jika VITE_GOOGLE_APPS_SCRIPT_URL/Token di .env berubah, kita timpa data di localStorage
         // agar developer tidak terjebak dengan cache URL/token lama di localStorage saat memodifikasi file .env.
-        const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
-        const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+        // Pengecualian untuk PAUD yang tidak ditimpa oleh VITE_GOOGLE_APPS_SCRIPT_URL dari SD.
+        const envUrl = activePrefix === 'revitpaud' ? '' : (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '');
+        const envToken = activePrefix === 'revitpaud' ? 'REVITPAUD2026_SECURE_TOKEN' : (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN');
 
         let finalUrl = parsed.googleAppsScriptUrl || envUrl;
         let finalToken = parsed.googleAppsScriptToken || envToken;
@@ -700,25 +782,33 @@ export default function App() {
           localStorage.setItem('revit_settings', JSON.stringify(parsed));
         }
 
+        const defaultContract = activePrefix === 'revitpaud' ? 800000000 : 1500000000;
+        const defaultHonorKetuaTim = activePrefix === 'revitpaud' ? 6000000 : 7000000;
+        const defaultHonorKoor = activePrefix === 'revitpaud' ? 5000000 : 6000000;
+        const defaultHonorFas = activePrefix === 'revitpaud' ? 4000000 : 5000000;
+        const defaultHonorAdm = activePrefix === 'revitpaud' ? 4000000 : 5000000;
+        const defaultTax = activePrefix === 'revitpaud' ? 10 : 15;
+        const defaultLembaga = activePrefix === 'revitpaud' ? 5 : 10;
+
         setSettings(prev => ({ 
           projectStartDate: '2026-06-12',
           projectEndDate: '2026-12-12',
           googleAppsScriptUrl: finalUrl,
           googleAppsScriptToken: finalToken,
-          totalProjectContract: 1500000000,
-          honorKetuaTim: 7000000,
-          honorKoordinator: 6000000,
-          honorFasilitator: 5000000,
-          honorAdministrasi: 5000000,
-          deductionTaxPct: 15,
-          deductionLembagaPct: 10,
+          totalProjectContract: defaultContract,
+          honorKetuaTim: defaultHonorKetuaTim,
+          honorKoordinator: defaultHonorKoor,
+          honorFasilitator: defaultHonorFas,
+          honorAdministrasi: defaultHonorAdm,
+          deductionTaxPct: defaultTax,
+          deductionLembagaPct: defaultLembaga,
           biayaOperasional: 0,
           ...parsed 
         }));
       } catch (e) {
         console.error("Failed to parse settings:", e);
-        const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
-        const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+        const envUrl = activePrefix === 'revitpaud' ? '' : (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '');
+        const envToken = activePrefix === 'revitpaud' ? 'REVITPAUD2026_SECURE_TOKEN' : (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN');
         localStorage.setItem('revit_last_env_url', envUrl);
         localStorage.setItem('revit_last_env_token', envToken);
         localStorage.setItem('revit_settings', JSON.stringify({
@@ -726,19 +816,19 @@ export default function App() {
           projectEndDate: '2026-12-12',
           googleAppsScriptUrl: envUrl,
           googleAppsScriptToken: envToken,
-          totalProjectContract: 1500000000,
-          honorKetuaTim: 7000000,
-          honorKoordinator: 6000000,
-          honorFasilitator: 5000000,
-          honorAdministrasi: 5000000,
-          deductionTaxPct: 15,
-          deductionLembagaPct: 10,
+          totalProjectContract: activePrefix === 'revitpaud' ? 800000000 : 1500000000,
+          honorKetuaTim: activePrefix === 'revitpaud' ? 6000000 : 7000000,
+          honorKoordinator: activePrefix === 'revitpaud' ? 5000000 : 6000000,
+          honorFasilitator: activePrefix === 'revitpaud' ? 4000000 : 5000000,
+          honorAdministrasi: activePrefix === 'revitpaud' ? 4000000 : 5000000,
+          deductionTaxPct: activePrefix === 'revitpaud' ? 10 : 15,
+          deductionLembagaPct: activePrefix === 'revitpaud' ? 5 : 10,
           biayaOperasional: 0
         }));
       }
     } else {
-      const envUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '';
-      const envToken = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+      const envUrl = activePrefix === 'revitpaud' ? '' : (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || '');
+      const envToken = activePrefix === 'revitpaud' ? 'REVITPAUD2026_SECURE_TOKEN' : (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN');
       localStorage.setItem('revit_last_env_url', envUrl);
       localStorage.setItem('revit_last_env_token', envToken);
       localStorage.setItem('revit_settings', JSON.stringify({
@@ -746,13 +836,13 @@ export default function App() {
         projectEndDate: '2026-12-12',
         googleAppsScriptUrl: envUrl,
         googleAppsScriptToken: envToken,
-        totalProjectContract: 1500000000,
-        honorKetuaTim: 7000000,
-        honorKoordinator: 6000000,
-        honorFasilitator: 5000000,
-        honorAdministrasi: 5000000,
-        deductionTaxPct: 15,
-        deductionLembagaPct: 10,
+        totalProjectContract: activePrefix === 'revitpaud' ? 800000000 : 1500000000,
+        honorKetuaTim: activePrefix === 'revitpaud' ? 6000000 : 7000000,
+        honorKoordinator: activePrefix === 'revitpaud' ? 5000000 : 6000000,
+        honorFasilitator: activePrefix === 'revitpaud' ? 4000000 : 5000000,
+        honorAdministrasi: activePrefix === 'revitpaud' ? 4000000 : 5000000,
+        deductionTaxPct: activePrefix === 'revitpaud' ? 10 : 15,
+        deductionLembagaPct: activePrefix === 'revitpaud' ? 5 : 10,
         biayaOperasional: 0
       }));
     }
@@ -1097,6 +1187,7 @@ export default function App() {
 
   // Periodic background sync every 60 seconds (only if configured)
   useEffect(() => {
+    if (!activeProgram) return;
     if (!syncService.isConfigured()) return;
 
     const interval = setInterval(() => {
@@ -1129,9 +1220,29 @@ export default function App() {
     localStorage.setItem('revit_active_user', JSON.stringify(user));
   };
 
+  const handleSwitchProgram = () => {
+    window.localStorage.removeItem('active_program_id');
+    window.localStorage.removeItem('active_program_prefix');
+    window.location.reload();
+  };
+
   const handleLogout = () => {
     setActiveUser(null);
-    localStorage.clear();
+    setGlobalActiveUser(null);
+    const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
+    // Hapus hanya key yang diawali prefiks aktif
+    const keysToRemove = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith(`${prefix}_`)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => window.localStorage.removeItem(key));
+
+    window.localStorage.removeItem('global_active_user');
+    window.localStorage.removeItem('active_program_id');
+    window.localStorage.removeItem('active_program_prefix');
     window.location.reload();
   };
 
@@ -1559,6 +1670,7 @@ export default function App() {
 
   // Auto-seed welcome log on Facilitator login
   useEffect(() => {
+    if (!activeProgram) return;
     if (activeUser && activeUser.jabatanTim === 'Fasilitator') {
       const stored = localStorage.getItem('revit_activity_logs');
       let currentLogs = [];
@@ -1576,7 +1688,7 @@ export default function App() {
           userId: activeUser.id,
           timestamp: new Date().toISOString(),
           actionType: 'system',
-          description: `Masuk ke dalam Sistem Informasi Revitalisasi SD 2026 sebagai ${activeUser.nama}`,
+          description: `Masuk ke dalam Sistem Informasi ${activeProgram.name} sebagai ${activeUser.nama}`,
           fileRef: null
         };
         const updated = [welcomeLog, ...currentLogs];
@@ -1585,7 +1697,7 @@ export default function App() {
         syncWithNewState({ activityLogs: updated });
       }
     }
-  }, [activeUser]);
+  }, [activeUser, activeProgram]);
 
   // 4. Update Settings (Super Admin)
   const handleUpdateSettings = (newSettings) => {
@@ -2110,6 +2222,7 @@ export default function App() {
 
   // Run trip photo warning generation whenever trips, tripDocs, or warnings change
   useEffect(() => {
+    if (!activeProgram) return;
     if (trips.length === 0) return;
     const updatedWarnings = generateTripPhotoWarnings(trips, tripDocs, warnings, users, settings);
     
@@ -2808,6 +2921,138 @@ export default function App() {
   };
 
   // RENDER: Main Dashboard Layout
+  if (!globalActiveUser || !activeProgram) {
+    let sdUsersList = [];
+    try {
+      const stored = window.localStorage.getItem('revit_users');
+      sdUsersList = stored ? JSON.parse(stored) : initialUsers;
+    } catch (e) {
+      sdUsersList = initialUsers;
+    }
+    if (Array.isArray(sdUsersList)) {
+      sdUsersList = sdUsersList.map(u => {
+        if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
+        if (u.id === 'etty-rabihati' && u.password !== 'sipil') return { ...u, password: 'sipil' };
+        if (u.id === 'chandra-bayu' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
+        return u;
+      });
+    }
+
+    let paudUsersList = [];
+    try {
+      const stored = window.localStorage.getItem('revitpaud_users');
+      paudUsersList = stored ? JSON.parse(stored) : [
+        {
+          id: "yosi-ronadi",
+          nama: "Yosi Ronadi",
+          jabatanKepegawaian: "Super Admin",
+          jabatanTim: "Super Admin",
+          pendidikan: "Strata 2",
+          statusPegawai: "PNS",
+          role: "admin",
+          password: "4051"
+        }
+      ];
+    } catch (e) {
+      paudUsersList = [
+        {
+          id: "yosi-ronadi",
+          nama: "Yosi Ronadi",
+          jabatanKepegawaian: "Super Admin",
+          jabatanTim: "Super Admin",
+          pendidikan: "Strata 2",
+          statusPegawai: "PNS",
+          role: "admin",
+          password: "4051"
+        }
+      ];
+    }
+    if (Array.isArray(paudUsersList)) {
+      paudUsersList = paudUsersList.map(u => {
+        if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
+        return u;
+      });
+    }
+
+    let sdCount = 41;
+    try {
+      const stored = window.localStorage.getItem('revit_schools');
+      if (stored) sdCount = JSON.parse(stored).length;
+    } catch (e) {}
+
+    let paudCount = 55;
+    try {
+      const stored = window.localStorage.getItem('revitpaud_schools');
+      if (stored) paudCount = JSON.parse(stored).length;
+    } catch (e) {}
+
+    return (
+      <ProgramPortal
+        sdUsers={sdUsersList}
+        paudUsers={paudUsersList}
+        sdSchoolsCount={sdCount}
+        paudSchoolsCount={paudCount}
+        loggedInUser={globalActiveUser}
+        onLogin={(user) => {
+          window.localStorage.setItem('global_active_user', JSON.stringify(user));
+          setGlobalActiveUser(user);
+        }}
+        onLogout={() => {
+          window.localStorage.removeItem('global_active_user');
+          window.localStorage.removeItem('active_program_id');
+          window.localStorage.removeItem('active_program_prefix');
+          setGlobalActiveUser(null);
+          setActiveProgram(null);
+        }}
+        onSelectProgram={(prog) => {
+          window.localStorage.setItem('active_program_id', prog.id);
+          window.localStorage.setItem('active_program_prefix', prog.prefix);
+          
+          const prefix = prog.prefix;
+          const stored = window.localStorage.getItem(`${prefix}_users`);
+          let programUsers = [];
+          if (stored) {
+            try {
+              programUsers = JSON.parse(stored);
+            } catch (e) {}
+          } else {
+            programUsers = prefix === 'revitpaud' ? [
+              {
+                id: "yosi-ronadi",
+                nama: "Yosi Ronadi",
+                jabatanKepegawaian: "Super Admin",
+                jabatanTim: "Super Admin",
+                pendidikan: "Strata 2",
+                statusPegawai: "PNS",
+                role: "admin",
+                password: "4051"
+              }
+            ] : initialUsers;
+          }
+
+          const matchingUser = programUsers.find(u => u.id === globalActiveUser.id) || programUsers.find(u => u.nama === globalActiveUser.nama);
+          if (matchingUser) {
+            window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
+          } else if (globalActiveUser.jabatanTim === 'Super Admin' || globalActiveUser.role === 'admin') {
+            const adminUser = {
+              id: "yosi-ronadi",
+              nama: "Yosi Ronadi",
+              jabatanKepegawaian: "Super Admin",
+              jabatanTim: "Super Admin",
+              pendidikan: "Strata 2",
+              statusPegawai: "PNS",
+              role: "admin",
+              password: "4051"
+            };
+            window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(adminUser));
+          }
+
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   return (
     <>
       <div className="flex bg-slate-950 min-h-screen text-slate-100 font-['Outfit',sans-serif]">
@@ -2820,6 +3065,8 @@ export default function App() {
             onEditProfile={() => setIsEditingProfile(true)}
             onManageDocuments={() => setPersonnelDocsUser(activeUser)}
             onLogout={handleLogout}
+            onSwitchProgram={handleSwitchProgram}
+            activeProgramName={activeProgram?.name}
           />
         )}
 
@@ -2831,7 +3078,7 @@ export default function App() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-900 pb-5 select-none">
             <div>
               <span className="text-[10px] tracking-wider uppercase font-semibold text-indigo-400">
-                Sistem Informasi Revitalisasi SD 2026
+                Sistem Informasi {activeProgram?.name || 'Revitalisasi Sekolah Dasar 2026'}
               </span>
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-0.5">
                 {activeView === 'dashboard' && 'Dashboard Utama'}

@@ -16,10 +16,11 @@ import {
   Settings,
   BadgeCheck,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 
-export default function Sidebar({ activeUser, activeView, onViewChange, onEditProfile, onManageDocuments, onLogout }) {
+export default function Sidebar({ activeUser, activeView, onViewChange, onEditProfile, onManageDocuments, onLogout, onSwitchProgram, activeProgramName }) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const cached = localStorage.getItem('revit_sidebar_collapsed');
     return cached === null ? true : cached === 'true';
@@ -232,6 +233,25 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
 
       {/* Footer / Logout */}
       <div className={`p-4 border-t border-slate-800/80 ${isCollapsed ? 'flex flex-col items-center px-2' : ''}`}>
+        {/* Ganti Program Button */}
+        <button
+          onClick={onSwitchProgram}
+          className={`mb-2 transition-all duration-200 cursor-pointer ${
+            isCollapsed 
+              ? 'w-10 h-10 flex items-center justify-center rounded-xl border border-slate-800 hover:border-indigo-900/30 bg-slate-950/20 hover:bg-indigo-950/10 text-slate-400 hover:text-indigo-400 group relative' 
+              : 'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-800 hover:border-indigo-900/30 bg-slate-950/20 hover:bg-indigo-950/10 text-slate-400 hover:text-indigo-400'
+          }`}
+          title="Kembali ke Portal Pilihan Program"
+        >
+          <Layers className="w-4 h-4 shrink-0" />
+          {!isCollapsed && <span>Ganti Program</span>}
+          {isCollapsed && (
+            <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900 text-slate-100 text-xs rounded-lg shadow-lg border border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 pointer-events-none">
+              Ganti Program
+            </div>
+          )}
+        </button>
+
         <button
           onClick={onLogout}
           className={`transition-all duration-200 cursor-pointer ${
@@ -250,7 +270,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
         </button>
         {!isCollapsed && (
           <div className="text-center text-[9px] text-slate-600 mt-3">
-            Revitalisasi Sekolah Dasar © 2026
+            {activeProgramName || 'Revitalisasi Sekolah Dasar'} © 2026
           </div>
         )}
       </div>
