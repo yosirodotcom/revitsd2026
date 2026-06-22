@@ -1230,19 +1230,13 @@ export default function App() {
     setActiveUser(null);
     setGlobalActiveUser(null);
     const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
-    // Hapus hanya key yang diawali prefiks aktif
-    const keysToRemove = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key && key.startsWith(`${prefix}_`)) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => window.localStorage.removeItem(key));
-
+    
+    // Hapus hanya key sesi aktif, BUKAN database lokal program
+    window.localStorage.removeItem(`${prefix}_active_user`);
     window.localStorage.removeItem('global_active_user');
     window.localStorage.removeItem('active_program_id');
     window.localStorage.removeItem('active_program_prefix');
+    
     window.location.reload();
   };
 
