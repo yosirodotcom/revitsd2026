@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, Info, RefreshCw, LogIn, Activity, X, Check } from 'lucide-react';
-import { initialUsers } from './data/initialData';
+import { initialUsers, initialPaudUsers } from './data/initialData';
 import { initialSchools } from './data/initialSchools';
 import { initialPaudSchools } from './data/initialPaudSchools';
 import UserSelect from './components/UserSelect';
@@ -31,9 +31,6 @@ const storageHelper = {
   getItem: (key) => {
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
-      if (baseKey === 'users') {
-        return window.localStorage.getItem('revit_users');
-      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.getItem(`${prefix}_${baseKey}`);
     }
@@ -42,9 +39,6 @@ const storageHelper = {
   setItem: (key, value) => {
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
-      if (baseKey === 'users') {
-        return window.localStorage.setItem('revit_users', value);
-      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.setItem(`${prefix}_${baseKey}`, value);
     }
@@ -53,9 +47,6 @@ const storageHelper = {
   removeItem: (key) => {
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
-      if (baseKey === 'users') {
-        return window.localStorage.removeItem('revit_users');
-      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.removeItem(`${prefix}_${baseKey}`);
     }
@@ -398,7 +389,7 @@ export default function App() {
   useEffect(() => {
     if (!activeProgram) return;
     const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
-    const referenceUsers = initialUsers;
+    const referenceUsers = activePrefix === 'revitpaud' ? initialPaudUsers : initialUsers;
 
     // Users
     const storedUsers = localStorage.getItem('revit_users');
@@ -1766,7 +1757,7 @@ export default function App() {
     if (!confirm2) return;
 
     const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
-    const referenceUsers = initialUsers;
+    const referenceUsers = activePrefix === 'revitpaud' ? initialPaudUsers : initialUsers;
     const referenceSchools = activePrefix === 'revitpaud' ? initialPaudSchools : initialSchools;
 
     // Reset settings
@@ -3088,7 +3079,23 @@ export default function App() {
       });
     }
 
-    let paudUsersList = sdUsersList;
+    let paudUsersList = [];
+    try {
+      const stored = window.localStorage.getItem('revitpaud_users');
+      paudUsersList = stored ? JSON.parse(stored) : initialPaudUsers;
+    } catch (e) {
+      paudUsersList = initialPaudUsers;
+    }
+    if (Array.isArray(paudUsersList)) {
+      paudUsersList = paudUsersList.map(u => {
+        if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
+        if (u.id === 'qalbi-hafiyyan' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
+        if (['faddylah-aldino', 'barra-asy-syawali', 'rizaldi', 'muhammad-faiq-khalilurrahman', 'wida-arindya-sari'].includes(u.id) && (u.password === undefined || u.password === '' || u.password === '2026')) {
+          return { ...u, password: '2026' };
+        }
+        return u;
+      });
+    }
 
     let sdCount = 41;
     try {
@@ -3125,14 +3132,14 @@ export default function App() {
           window.localStorage.setItem('active_program_prefix', prog.prefix);
           
           const prefix = prog.prefix;
-          const stored = window.localStorage.getItem('revit_users');
+          const stored = window.localStorage.getItem(`${prefix}_users`);
           let programUsers = [];
           if (stored) {
             try {
               programUsers = JSON.parse(stored);
             } catch (e) {}
           } else {
-            programUsers = initialUsers;
+            programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
           }
 
           const matchingUser = programUsers.find(u => u.id === globalActiveUser.id) || programUsers.find(u => u.nama === globalActiveUser.nama);

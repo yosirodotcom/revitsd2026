@@ -140,3 +140,83 @@ export const roleDuties = {
     "Mengelola rekapitulasi anggaran dan memantau kelayakan pembayaran honorarium anggota tim pelaksana swakelola."
   ]
 };
+
+// Data awal anggota tim pelaksana swakelola program revitalisasi PAUD 2026
+export const initialPaudUsers = [
+  {
+    id: "yosi-ronadi",
+    nama: "Yosi Ronadi",
+    jabatanKepegawaian: "Super Admin",
+    jabatanTim: "Super Admin",
+    pendidikan: "Strata 2",
+    statusPegawai: "PNS",
+    role: "admin",
+    password: "4051"
+  },
+  {
+    id: "qalbi-hafiyyan",
+    nama: "Qalbi Hafiyyan",
+    jabatanKepegawaian: "Koordinator Program Studi D4 Teknologi Rekayasa Konstruksi Jalan dan Jembatan",
+    jabatanTim: "Koordinator",
+    pendidikan: "Strata 2",
+    statusPegawai: "PNS",
+    role: "user",
+    password: "arsitektur"
+  },
+  {
+    id: "faddylah-aldino",
+    nama: "Faddylah Aldino",
+    jabatanKepegawaian: "Teknisi Laboratorium Perancangan Kawasan dan Kota Jurusan Teknik Arsitektur",
+    jabatanTim: "Fasilitator",
+    coordinatorId: "qalbi-hafiyyan",
+    pendidikan: "Strata 2",
+    statusPegawai: "Alumni",
+    role: "user",
+    password: "2026"
+  },
+  {
+    id: "barra-asy-syawali",
+    nama: "Barra Asy Syawali",
+    jabatanKepegawaian: "-",
+    jabatanTim: "Fasilitator",
+    coordinatorId: "qalbi-hafiyyan",
+    pendidikan: "Strata 1",
+    statusPegawai: "Alumni",
+    role: "user",
+    password: "2026"
+  },
+  {
+    id: "rizaldi",
+    nama: "Rizaldi",
+    jabatanKepegawaian: "-",
+    jabatanTim: "Fasilitator",
+    coordinatorId: "qalbi-hafiyyan",
+    pendidikan: "Strata 1",
+    statusPegawai: "Alumni",
+    role: "user",
+    password: "2026"
+  },
+  {
+    id: "muhammad-faiq-khalilurrahman",
+    nama: "Muhammad Faiq Khalilurrahman",
+    jabatanKepegawaian: "-",
+    jabatanTim: "Fasilitator",
+    coordinatorId: "qalbi-hafiyyan",
+    pendidikan: "Strata 1",
+    statusPegawai: "Alumni",
+    role: "user",
+    password: "2026"
+  },
+  {
+    id: "wida-arindya-sari",
+    nama: "Wida Arindya Sari",
+    jabatanKepegawaian: "Dosen Akuntansi",
+    jabatanTim: "Tenaga Administrasi",
+    pendidikan: "Strata 2",
+    statusPegawai: "PNS",
+    role: "user",
+    password: "2026"
+  }
+];
+
+
