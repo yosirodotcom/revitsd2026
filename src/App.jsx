@@ -225,6 +225,24 @@ export default function App() {
 
   const [activeUser, setActiveUser] = useState(null);
 
+  const [portalSdUsers, setPortalSdUsers] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revit_users');
+      return stored ? JSON.parse(stored) : initialUsers;
+    } catch (e) {
+      return initialUsers;
+    }
+  });
+
+  const [portalPaudUsers, setPortalPaudUsers] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revitpaud_users');
+      return stored ? JSON.parse(stored) : initialPaudUsers;
+    } catch (e) {
+      return initialPaudUsers;
+    }
+  });
+
   useEffect(() => {
     if (activeProgram) {
       document.title = `Monitoring ${activeProgram.name}`;
@@ -232,6 +250,79 @@ export default function App() {
       document.title = "Portal Monitoring Revitalisasi";
     }
   }, [activeProgram]);
+
+  // Background fetch users on login portal mount to sync passwords with Google Sheets
+  useEffect(() => {
+    if (globalActiveUser && activeProgram) return;
+
+    const fetchPortalUsers = async () => {
+      // 1. Fetch SD Users
+      try {
+        const storedSettings = window.localStorage.getItem('revit_settings');
+        let url = '';
+        let token = 'REVITSD2026_SECURE_TOKEN';
+        if (storedSettings) {
+          const parsed = JSON.parse(storedSettings);
+          url = parsed.googleAppsScriptUrl;
+          token = parsed.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN';
+        }
+        if (!url) {
+          url = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
+          token = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
+        }
+        if (url) {
+          const fetchUrl = `${url}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
+          const response = await fetch(fetchUrl, { cache: 'no-store' });
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.users) {
+              const clean = data.users.filter(u => u && u.id).map(u => ({
+                ...u,
+                taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
+              }));
+              if (clean.length > 0) {
+                window.localStorage.setItem('revit_users', JSON.stringify(clean));
+                setPortalSdUsers(clean);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Portal Sync] Gagal memuat user SD dari Google Sheet:', err);
+      }
+
+      // 2. Fetch PAUD Users
+      try {
+        const storedSettings = window.localStorage.getItem('revitpaud_settings');
+        if (storedSettings) {
+          const parsed = JSON.parse(storedSettings);
+          const url = parsed.googleAppsScriptUrl;
+          const token = parsed.googleAppsScriptToken || 'REVITPAUD2026_SECURE_TOKEN';
+          if (url) {
+            const fetchUrl = `${url}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
+            const response = await fetch(fetchUrl, { cache: 'no-store' });
+            if (response.ok) {
+              const data = await response.json();
+              if (data && data.users) {
+                const clean = data.users.filter(u => u && u.id).map(u => ({
+                  ...u,
+                  taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
+                }));
+                if (clean.length > 0) {
+                  window.localStorage.setItem('revitpaud_users', JSON.stringify(clean));
+                  setPortalPaudUsers(clean);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Portal Sync] Gagal memuat user PAUD dari Google Sheet:', err);
+      }
+    };
+
+    fetchPortalUsers();
+  }, [globalActiveUser, activeProgram]);
 
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedSchoolNpsn, setSelectedSchoolNpsn] = useState(null);
@@ -3063,42 +3154,24 @@ export default function App() {
 
   // RENDER: Main Dashboard Layout
   if (!globalActiveUser || !activeProgram) {
-    let sdUsersList = [];
-    try {
-      const stored = window.localStorage.getItem('revit_users');
-      sdUsersList = stored ? JSON.parse(stored) : initialUsers;
-    } catch (e) {
-      sdUsersList = initialUsers;
-    }
-    if (Array.isArray(sdUsersList)) {
-      sdUsersList = sdUsersList.map(u => {
-        if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
-        if (u.id === 'etty-rabihati' && u.password !== 'sipil') return { ...u, password: 'sipil' };
-        if (u.id === 'chandra-bayu' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
-        if (u.id === 'wida-arindya-sari' && (u.password === undefined || u.password === '' || u.password === '2026')) {
-          return { ...u, password: '2026' };
-        }
-        return u;
-      });
-    }
+    const sdUsersList = (portalSdUsers || []).map(u => {
+      if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
+      if (u.id === 'etty-rabihati' && u.password !== 'sipil') return { ...u, password: 'sipil' };
+      if (u.id === 'chandra-bayu' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
+      if (u.id === 'wida-arindya-sari' && (u.password === undefined || u.password === '' || u.password === '2026')) {
+        return { ...u, password: '2026' };
+      }
+      return u;
+    });
 
-    let paudUsersList = [];
-    try {
-      const stored = window.localStorage.getItem('revitpaud_users');
-      paudUsersList = stored ? JSON.parse(stored) : initialPaudUsers;
-    } catch (e) {
-      paudUsersList = initialPaudUsers;
-    }
-    if (Array.isArray(paudUsersList)) {
-      paudUsersList = paudUsersList.map(u => {
-        if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
-        if (u.id === 'qalbi-hafiyyan' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
-        if (['faddylah-aldino', 'barra-asy-syawali', 'rizaldi', 'muhammad-faiq-khalilurrahman', 'wida-arindya-sari'].includes(u.id) && (u.password === undefined || u.password === '' || u.password === '2026')) {
-          return { ...u, password: '2026' };
-        }
-        return u;
-      });
-    }
+    const paudUsersList = (portalPaudUsers || []).map(u => {
+      if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
+      if (u.id === 'qalbi-hafiyyan' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
+      if (['faddylah-aldino', 'barra-asy-syawali', 'rizaldi', 'muhammad-faiq-khalilurrahman', 'wida-arindya-sari'].includes(u.id) && (u.password === undefined || u.password === '' || u.password === '2026')) {
+        return { ...u, password: '2026' };
+      }
+      return u;
+    });
 
     let sdCount = 41;
     try {
