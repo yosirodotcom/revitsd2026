@@ -26,12 +26,14 @@ export default function HonorBatchSettings({
 
   // 1. DEDUCTION & ELIGIBILITY CALCULATOR
   const getMemberStatusForPart = (user, month, partId) => {
+    const activePrefix = localStorage.getItem('active_program_prefix') || 'revit';
+    const isPaud = activePrefix === 'revitpaud';
     const baseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings.honorAdministrasi : settings[`honor${user.jabatanTim.replace(' ', '')}`]) || {
-      'Ketua Tim': 7000000,
-      'Koordinator': 6000000,
-      'Fasilitator': 5000000,
-      'Tenaga Administrasi': 5000000
-    }[user.jabatanTim] || 5000000;
+      'Ketua Tim': isPaud ? 6000000 : 7000000,
+      'Koordinator': isPaud ? 5000000 : 6000000,
+      'Fasilitator': isPaud ? 4000000 : 5000000,
+      'Tenaga Administrasi': isPaud ? 4000000 : 5000000
+    }[user.jabatanTim] || (isPaud ? 4000000 : 5000000);
 
     let pctPart1 = 0, pctPart2 = 0, pctPart3 = 0;
     if (user.jabatanTim === 'Ketua Tim' || user.jabatanTim === 'Koordinator') {

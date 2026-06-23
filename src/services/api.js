@@ -49,24 +49,38 @@ export const syncService = {
       token: token,
       dirtyTables: dirtyTables,
       state: {
-        settings: (dirtyTables && dirtyTables.settings === false) ? null : {
-          projectStartDate: state.settings.projectStartDate,
-          projectEndDate: state.settings.projectEndDate,
-          googleAppsScriptUrl: state.settings.googleAppsScriptUrl || '',
-          googleAppsScriptToken: state.settings.googleAppsScriptToken || '',
-          totalProjectContract: state.settings.totalProjectContract || 1500000000,
-          honorKetuaTim: state.settings.honorKetuaTim || 7000000,
-          honorKoordinator: state.settings.honorKoordinator || 6000000,
-          honorFasilitator: state.settings.honorFasilitator || 5000000,
-          honorAdministrasi: state.settings.honorAdministrasi || 5000000,
-          deductionTaxPct: state.settings.deductionTaxPct || 15,
-          deductionLembagaPct: state.settings.deductionLembagaPct || 10,
-          biayaOperasional: state.settings.biayaOperasional || 0,
-          danaTahap1Diterima: state.settings.danaTahap1Diterima || false,
-          danaTahap2Diterima: state.settings.danaTahap2Diterima || false,
-          danaTahap3Diterima: state.settings.danaTahap3Diterima || false,
-          simulatedToday: state.settings.simulatedToday || ''
-        },
+        settings: (dirtyTables && dirtyTables.settings === false) ? null : (() => {
+          const prefix = localStorage.getItem('active_program_prefix') || 'revit';
+          const isPaud = prefix === 'revitpaud';
+          const fallbackContract = isPaud ? 800000000 : 1500000000;
+          const fallbackHonorKetuaTim = isPaud ? 6000000 : 7000000;
+          const fallbackHonorKoordinator = isPaud ? 5000000 : 6000000;
+          const fallbackHonorFasilitator = isPaud ? 4000000 : 5000000;
+          const fallbackHonorAdministrasi = isPaud ? 4000000 : 5000000;
+          const fallbackTax = isPaud ? 10 : 15;
+          const fallbackLembaga = isPaud ? 5 : 10;
+
+          const hasVal = (val) => val !== undefined && val !== null && val !== '';
+
+          return {
+            projectStartDate: state.settings.projectStartDate,
+            projectEndDate: state.settings.projectEndDate,
+            googleAppsScriptUrl: state.settings.googleAppsScriptUrl || '',
+            googleAppsScriptToken: state.settings.googleAppsScriptToken || '',
+            totalProjectContract: hasVal(state.settings.totalProjectContract) ? state.settings.totalProjectContract : fallbackContract,
+            honorKetuaTim: hasVal(state.settings.honorKetuaTim) ? state.settings.honorKetuaTim : fallbackHonorKetuaTim,
+            honorKoordinator: hasVal(state.settings.honorKoordinator) ? state.settings.honorKoordinator : fallbackHonorKoordinator,
+            honorFasilitator: hasVal(state.settings.honorFasilitator) ? state.settings.honorFasilitator : fallbackHonorFasilitator,
+            honorAdministrasi: hasVal(state.settings.honorAdministrasi) ? state.settings.honorAdministrasi : fallbackHonorAdministrasi,
+            deductionTaxPct: hasVal(state.settings.deductionTaxPct) ? state.settings.deductionTaxPct : fallbackTax,
+            deductionLembagaPct: hasVal(state.settings.deductionLembagaPct) ? state.settings.deductionLembagaPct : fallbackLembaga,
+            biayaOperasional: hasVal(state.settings.biayaOperasional) ? state.settings.biayaOperasional : 0,
+            danaTahap1Diterima: state.settings.danaTahap1Diterima || false,
+            danaTahap2Diterima: state.settings.danaTahap2Diterima || false,
+            danaTahap3Diterima: state.settings.danaTahap3Diterima || false,
+            simulatedToday: state.settings.simulatedToday || ''
+          };
+        })(),
         users: (dirtyTables && dirtyTables.users === false) ? null : state.users,
         schools: (dirtyTables && dirtyTables.schools === false) ? null : (state.schools || []).map(s => ({
           ...s,

@@ -38,27 +38,39 @@ export default function FinancialDashboard({
     }
   }, [users]);
 
+  const activePrefix = localStorage.getItem('active_program_prefix') || 'revit';
+  const isPaud = activePrefix === 'revitpaud';
+  const fallbackContract = isPaud ? 800000000 : 1500000000;
+  const fallbackHonorKetuaTim = isPaud ? 6000000 : 7000000;
+  const fallbackHonorKoordinator = isPaud ? 5000000 : 6000000;
+  const fallbackHonorFasilitator = isPaud ? 4000000 : 5000000;
+  const fallbackHonorAdministrasi = isPaud ? 4000000 : 5000000;
+  const fallbackTax = isPaud ? 10 : 15;
+  const fallbackLembaga = isPaud ? 5 : 10;
+
+  const hasVal = (val) => val !== undefined && val !== null && val !== '';
+
   const [financialSettings, setFinancialSettings] = useState({
-    totalProjectContract: settings?.totalProjectContract || 1500000000,
-    honorKetuaTim: settings?.honorKetuaTim || 7000000,
-    honorKoordinator: settings?.honorKoordinator || 6000000,
-    honorFasilitator: settings?.honorFasilitator || 5000000,
-    honorAdministrasi: settings?.honorAdministrasi || 5000000,
-    deductionTaxPct: settings?.deductionTaxPct || 15,
-    deductionLembagaPct: settings?.deductionLembagaPct || 10,
-    biayaOperasional: settings?.biayaOperasional || 0
+    totalProjectContract: hasVal(settings?.totalProjectContract) ? settings.totalProjectContract : fallbackContract,
+    honorKetuaTim: hasVal(settings?.honorKetuaTim) ? settings.honorKetuaTim : fallbackHonorKetuaTim,
+    honorKoordinator: hasVal(settings?.honorKoordinator) ? settings.honorKoordinator : fallbackHonorKoordinator,
+    honorFasilitator: hasVal(settings?.honorFasilitator) ? settings.honorFasilitator : fallbackHonorFasilitator,
+    honorAdministrasi: hasVal(settings?.honorAdministrasi) ? settings.honorAdministrasi : fallbackHonorAdministrasi,
+    deductionTaxPct: hasVal(settings?.deductionTaxPct) ? settings.deductionTaxPct : fallbackTax,
+    deductionLembagaPct: hasVal(settings?.deductionLembagaPct) ? settings.deductionLembagaPct : fallbackLembaga,
+    biayaOperasional: hasVal(settings?.biayaOperasional) ? settings.biayaOperasional : 0
   });
 
   useEffect(() => {
     setFinancialSettings({
-      totalProjectContract: settings?.totalProjectContract || 1500000000,
-      honorKetuaTim: settings?.honorKetuaTim || 7000000,
-      honorKoordinator: settings?.honorKoordinator || 6000000,
-      honorFasilitator: settings?.honorFasilitator || 5000000,
-      honorAdministrasi: settings?.honorAdministrasi || 5000000,
-      deductionTaxPct: settings?.deductionTaxPct || 15,
-      deductionLembagaPct: settings?.deductionLembagaPct || 10,
-      biayaOperasional: settings?.biayaOperasional || 0
+      totalProjectContract: hasVal(settings?.totalProjectContract) ? settings.totalProjectContract : fallbackContract,
+      honorKetuaTim: hasVal(settings?.honorKetuaTim) ? settings.honorKetuaTim : fallbackHonorKetuaTim,
+      honorKoordinator: hasVal(settings?.honorKoordinator) ? settings.honorKoordinator : fallbackHonorKoordinator,
+      honorFasilitator: hasVal(settings?.honorFasilitator) ? settings.honorFasilitator : fallbackHonorFasilitator,
+      honorAdministrasi: hasVal(settings?.honorAdministrasi) ? settings.honorAdministrasi : fallbackHonorAdministrasi,
+      deductionTaxPct: hasVal(settings?.deductionTaxPct) ? settings.deductionTaxPct : fallbackTax,
+      deductionLembagaPct: hasVal(settings?.deductionLembagaPct) ? settings.deductionLembagaPct : fallbackLembaga,
+      biayaOperasional: hasVal(settings?.biayaOperasional) ? settings.biayaOperasional : 0
     });
   }, [settings]);
 
@@ -144,11 +156,11 @@ export default function FinancialDashboard({
     if (!user) return { baseMonthly: 0, parts: [] };
     const jabatanSafe = typeof user.jabatanTim === 'string' ? user.jabatanTim.replace(' ', '') : '';
     const baseMonthly = (user.jabatanTim === 'Tenaga Administrasi' ? settings?.honorAdministrasi : settings?.[`honor${jabatanSafe}`]) || {
-      'Ketua Tim': 7000000,
-      'Koordinator': 6000000,
-      'Fasilitator': 5000000,
-      'Tenaga Administrasi': 5000000
-    }[user.jabatanTim] || 5000000;
+      'Ketua Tim': isPaud ? 6000000 : 7000000,
+      'Koordinator': isPaud ? 5000000 : 6000000,
+      'Fasilitator': isPaud ? 4000000 : 5000000,
+      'Tenaga Administrasi': isPaud ? 4000000 : 5000000
+    }[user.jabatanTim] || (isPaud ? 4000000 : 5000000);
 
     const taxPct = user.taxPct !== undefined && user.taxPct !== null ? Number(user.taxPct) : Number(settings?.deductionTaxPct ?? 15);
     const lembagaPct = Number(settings?.deductionLembagaPct ?? 10);

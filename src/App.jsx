@@ -77,10 +77,51 @@ const parseSettings = (rawSettings) => {
     'deductionLembagaPct',
     'biayaOperasional'
   ];
-  const parsed = { ...rawSettings };
+  const parsed = {};
+  
+  // Only copy keys that have truthy or non-empty string values, ignoring uninitialized cells
+  Object.keys(rawSettings).forEach(key => {
+    const val = rawSettings[key];
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      parsed[key] = val;
+    }
+  });
+
+  // Helper to robustly parse currency strings or numbers from spreadsheet cells
+  const parseNumber = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    // Remove Currency indicator "Rp", spaces
+    let str = val.toString().replace(/[Rp\s]/gi, '');
+    // Replace dots with empty if multiple dots (thousands separator)
+    if ((str.match(/\./g) || []).length > 1) {
+      str = str.replace(/\./g, '');
+    } else if (str.includes('.') && str.includes(',')) {
+      str = str.replace(/\./g, '').replace(/,/g, '.');
+    } else if (str.includes(',')) {
+      if ((str.match(/,/g) || []).length > 1) {
+        str = str.replace(/,/g, '');
+      } else {
+        const parts = str.split(',');
+        if (parts[1].length <= 2) {
+          str = parts[0] + '.' + parts[1];
+        } else {
+          str = str.replace(/,/g, '');
+        }
+      }
+    } else if (str.includes('.')) {
+      const parts = str.split('.');
+      if (parts[1].length === 3) {
+        str = str.replace(/\./g, '');
+      }
+    }
+    const num = Number(str);
+    return isNaN(num) ? 0 : num;
+  };
+
   numFields.forEach(field => {
-    if (parsed[field] !== undefined && parsed[field] !== null && parsed[field] !== '') {
-      parsed[field] = Number(parsed[field]);
+    if (parsed[field] !== undefined) {
+      parsed[field] = parseNumber(parsed[field]);
     }
   });
   return parsed;
@@ -121,7 +162,7 @@ const getLocalDirtyTables = (initAllTrue = false) => {
   }
   const initial = {};
   Object.keys(DEFAULT_DIRTY_TABLES).forEach(key => {
-    initial[key] = initAllTrue || !stored;
+    initial[key] = initAllTrue;
   });
   return initial;
 };
@@ -741,8 +782,7 @@ export default function App() {
         const parsed = JSON.parse(storedSettings);
         if (parsed.projectStartDate === '2027-06-12') parsed.projectStartDate = '2026-06-12';
         if (parsed.projectEndDate === '2027-12-12') parsed.projectEndDate = '2026-12-12';
-        // Hapus simulatedToday dari settings ter-parse jika ada
-        delete parsed.simulatedToday;
+        // Keep simulatedToday from settings ter-parse if exists to allow simulated dates to persist
 
         // Deteksi jika VITE_GOOGLE_APPS_SCRIPT_URL/Token di .env berubah, kita timpa data di localStorage
         // agar developer tidak terjebak dengan cache URL/token lama di localStorage saat memodifikasi file .env.
@@ -1185,18 +1225,7 @@ export default function App() {
     };
   }, []);
 
-  // Periodic background sync every 60 seconds (only if configured)
-  useEffect(() => {
-    if (!activeProgram) return;
-    if (!syncService.isConfigured()) return;
 
-    const interval = setInterval(() => {
-      // Auto-sync in background silently
-      triggerSync();
-    }, 60000); // 60 detik sekali
-
-    return () => clearInterval(interval);
-  }, [settings.googleAppsScriptUrl]);
 
   const handleViewChange = (viewId) => {
     if (!activeUser && viewId !== 'dashboard' && viewId !== 'sekolah') {
@@ -1610,7 +1639,7 @@ export default function App() {
   };
 
 
-  const syncWithNewState = (updatedStateKeys, isManual = false) => {
+  const syncWithNewState = (updatedStateKeys, isManual = false, shouldSyncNow = false) => {
     localStorage.setItem('revit_is_dirty', 'true');
     setIsDirty(true);
     
@@ -1659,7 +1688,9 @@ export default function App() {
       settings,
       ...pendingSyncUpdatesRef.current
     };
-    triggerSync(nextState, isManual);
+    if (shouldSyncNow) {
+      triggerSync(nextState, isManual);
+    }
   };
 
   // Auto-seed welcome log on Facilitator login
@@ -1713,7 +1744,141 @@ export default function App() {
       setIsDirty(true);
     }
     
-    syncWithNewState({ settings: newSettings }, true);
+    syncWithNewState({ settings: newSettings }, true, true);
+  };
+
+  const handleResetDatabase = async () => {
+    if (!syncService.isConfigured()) {
+      window.showAlert('API URL belum dikonfigurasi di Pengaturan. Silakan konfigurasi terlebih dahulu.');
+      return;
+    }
+    const confirm1 = await window.showConfirm(
+      'PERINGATAN KRITIS: Apakah Anda yakin ingin MERESET ULANG seluruh database Google Sheets dan Local Storage Anda kembali ke data default bawaan? Semua data transaksi, log harian, pengeluaran, perjalanan dinas, rapat, dan file yang diunggah akan DIHAPUS!'
+    );
+    if (!confirm1) return;
+
+    const confirm2 = await window.showConfirm(
+      'APAKAH ANDA SANGAT YAKIN? Tindakan ini TIDAK DAPAT DIBATALKAN. Data di Google Sheets akan ditulis ulang secara total.'
+    );
+    if (!confirm2) return;
+
+    const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
+    const referenceUsers = activePrefix === 'revitpaud' ? [
+      {
+        id: "yosi-ronadi",
+        nama: "Yosi Ronadi",
+        jabatanKepegawaian: "Super Admin",
+        jabatanTim: "Super Admin",
+        pendidikan: "Strata 2",
+        statusPegawai: "PNS",
+        role: "admin",
+        password: "4051"
+      }
+    ] : initialUsers;
+    const referenceSchools = activePrefix === 'revitpaud' ? initialPaudSchools : initialSchools;
+
+    // Reset settings
+    const resetSettings = {
+      projectStartDate: '2026-06-12',
+      projectEndDate: '2026-12-12',
+      googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
+      googleAppsScriptToken: settings.googleAppsScriptToken || (activePrefix === 'revitpaud' ? 'REVITPAUD2026_SECURE_TOKEN' : 'REVITSD2026_SECURE_TOKEN'),
+      totalProjectContract: activePrefix === 'revitpaud' ? 800000000 : 1500000000,
+      honorKetuaTim: activePrefix === 'revitpaud' ? 6000000 : 7000000,
+      honorKoordinator: activePrefix === 'revitpaud' ? 5000000 : 6000000,
+      honorFasilitator: activePrefix === 'revitpaud' ? 4000000 : 5000000,
+      honorAdministrasi: activePrefix === 'revitpaud' ? 4000000 : 5000000,
+      deductionTaxPct: activePrefix === 'revitpaud' ? 10 : 15,
+      deductionLembagaPct: activePrefix === 'revitpaud' ? 5 : 10,
+      biayaOperasional: 0
+    };
+
+    // Update React State
+    setUsers(referenceUsers);
+    setSchools(referenceSchools);
+    setContacts([]);
+    setTasks([]);
+    setTrips([]);
+    setLogs([]);
+    setReports([]);
+    setDutyReports([]);
+    setExpenses([]);
+    setPayments([]);
+    setSchoolDocs([]);
+    setPersonnelDocs([]);
+    setMeetings([]);
+    setMeetingDocs([]);
+    setTripDocs([]);
+    setActivityLogs([]);
+    setKendala([]);
+    setKendalaComments([]);
+    setKendalaDocs([]);
+    setWarnings([]);
+    setSettings(resetSettings);
+
+    // Save to LocalStorage
+    localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
+    localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
+    localStorage.setItem('revit_contacts', JSON.stringify([]));
+    localStorage.setItem('revit_tasks', JSON.stringify([]));
+    localStorage.setItem('revit_trips', JSON.stringify([]));
+    localStorage.setItem('revit_logs', JSON.stringify([]));
+    localStorage.setItem('revit_reports', JSON.stringify([]));
+    localStorage.setItem('revit_duty_reports', JSON.stringify([]));
+    localStorage.setItem('revit_expenses', JSON.stringify([]));
+    localStorage.setItem('revit_payments', JSON.stringify([]));
+    localStorage.setItem('revit_school_docs', JSON.stringify([]));
+    localStorage.setItem('revit_personnel_docs', JSON.stringify([]));
+    localStorage.setItem('revit_meetings', JSON.stringify([]));
+    localStorage.setItem('revit_meeting_docs', JSON.stringify([]));
+    localStorage.setItem('revit_trip_docs', JSON.stringify([]));
+    localStorage.setItem('revit_activity_logs', JSON.stringify([]));
+    localStorage.setItem('revit_kendala', JSON.stringify([]));
+    localStorage.setItem('revit_kendala_comments', JSON.stringify([]));
+    localStorage.setItem('revit_kendala_docs', JSON.stringify([]));
+    localStorage.setItem('revit_warnings', JSON.stringify([]));
+    localStorage.setItem('revit_settings', JSON.stringify(resetSettings));
+
+    // Mark ALL tables as dirty
+    const allDirty = {};
+    Object.keys(DEFAULT_DIRTY_TABLES).forEach(key => {
+      allDirty[key] = true;
+    });
+    setLocalDirtyTables(allDirty);
+    localStorage.setItem('revit_is_dirty', 'true');
+    setIsDirty(true);
+
+    const nextState = {
+      users: referenceUsers,
+      schools: referenceSchools,
+      contacts: [],
+      tasks: [],
+      trips: [],
+      logs: [],
+      reports: [],
+      dutyReports: [],
+      expenses: [],
+      payments: [],
+      schoolDocs: [],
+      personnelDocs: [],
+      meetings: [],
+      meetingDocs: [],
+      tripDocs: [],
+      activityLogs: [],
+      kendala: [],
+      kendalaComments: [],
+      kendalaDocs: [],
+      warnings: [],
+      settings: resetSettings
+    };
+
+    window.showAlert('Data lokal berhasil direset. Memulai pengunggahan perubahan ke Google Sheets...');
+    try {
+      await triggerSync(nextState, true);
+      window.showAlert('Database Google Sheets dan penyimpanan lokal berhasil direset ke data awal default!');
+    } catch (e) {
+      window.showAlert('Gagal menyelaraskan reset dengan Google Sheets: ' + e.message);
+    }
   };
 
   // 5. CRUD Team Members (Super Admin)
@@ -1721,7 +1886,7 @@ export default function App() {
     const updated = [...users, newUser];
     setUsers(updated);
     localStorage.setItem('revit_users', JSON.stringify(updated));
-    syncWithNewState({ users: updated });
+    syncWithNewState({ users: updated }, true, true);
   };
 
   const handleUpdateUser = (updatedUser) => {
@@ -1734,13 +1899,13 @@ export default function App() {
       setActiveUser(updatedUser);
       localStorage.setItem('revit_active_user', JSON.stringify(updatedUser));
     }
-    syncWithNewState({ users: updated });
+    syncWithNewState({ users: updated }, true, true);
   };
 
   const handleUpdateUsers = (updatedUsers) => {
     setUsers(updatedUsers);
     localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
-    syncWithNewState({ users: updatedUsers });
+    syncWithNewState({ users: updatedUsers }, true, true);
   };
 
   const handleUpdateSettingsAndUsers = (newSettings, updatedUsers) => {
@@ -1748,7 +1913,7 @@ export default function App() {
     localStorage.setItem('revit_settings', JSON.stringify(newSettings));
     setUsers(updatedUsers);
     localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
-    syncWithNewState({ settings: newSettings, users: updatedUsers }, true);
+    syncWithNewState({ settings: newSettings, users: updatedUsers }, true, true);
   };
 
   const handleDeleteUser = (userId) => {
@@ -1793,7 +1958,7 @@ export default function App() {
     const updated = [...schools, newSchool];
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
-    syncWithNewState({ schools: updated }, true);
+    syncWithNewState({ schools: updated }, true, true);
   };
 
   const handleUpdateSchool = (updatedSchool) => {
@@ -1810,7 +1975,7 @@ export default function App() {
     if (updatedLogs) {
       syncState.activityLogs = updatedLogs;
     }
-    syncWithNewState(syncState, true);
+    syncWithNewState(syncState, true, true);
   };
 
   const handleClaimSchool = (npsn, fasilitatorId) => {
@@ -1827,7 +1992,7 @@ export default function App() {
     if (updatedLogs) {
       syncState.activityLogs = updatedLogs;
     }
-    syncWithNewState(syncState, true);
+    syncWithNewState(syncState, true, true);
   };
 
   // 8. Contact Actions (Fase 3)
@@ -1835,14 +2000,14 @@ export default function App() {
     const updated = [...contacts, newContact];
     setContacts(updated);
     localStorage.setItem('revit_contacts', JSON.stringify(updated));
-    syncWithNewState({ contacts: updated });
+    syncWithNewState({ contacts: updated }, true, true);
   };
 
   const handleUpdateContact = (updatedContact) => {
     const updated = contacts.map((c) => (c.id === updatedContact.id ? updatedContact : c));
     setContacts(updated);
     localStorage.setItem('revit_contacts', JSON.stringify(updated));
-    syncWithNewState({ contacts: updated });
+    syncWithNewState({ contacts: updated }, true, true);
   };
 
   const handleDeleteContact = (contactId) => {
@@ -1871,7 +2036,7 @@ export default function App() {
     const updated = [...tasks, newTask];
     setTasks(updated);
     localStorage.setItem('revit_tasks', JSON.stringify(updated));
-    syncWithNewState({ tasks: updated, activityLogs: updatedLogs });
+    syncWithNewState({ tasks: updated, activityLogs: updatedLogs }, true, true);
   };
 
   const handleUpdateTaskStatus = (taskId, status) => {
@@ -1965,7 +2130,7 @@ export default function App() {
       kendalaDocs: updatedKendalaDocs, 
       warnings: updatedWarnings,
       activityLogs: updatedLogs
-    }, true);
+    }, true, true);
   };
 
   const handleDeleteKendala = (kendalaId) => {
@@ -2054,7 +2219,7 @@ export default function App() {
       kendalaComments: updatedComments, 
       warnings: updatedWarnings,
       activityLogs: updatedLogs
-    }, true);
+    }, true, true);
   };
 
   const handleDeleteKendalaComment = (commentId) => {
@@ -2251,7 +2416,7 @@ export default function App() {
     if (updatedLogs) {
       syncState.activityLogs = updatedLogs;
     }
-    syncWithNewState(syncState);
+    syncWithNewState(syncState, true, true);
   };
 
   const handlePayTrip = (tripId, newExpense) => {
@@ -2262,7 +2427,7 @@ export default function App() {
     const updatedExpenses = [...expenses, newExpense];
     setExpenses(updatedExpenses);
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
-    syncWithNewState({ trips: updatedTrips, expenses: updatedExpenses });
+    syncWithNewState({ trips: updatedTrips, expenses: updatedExpenses }, true, true);
   };
 
   const handleApproveTrip = (tripId, adminName, note = '') => {
@@ -2276,7 +2441,7 @@ export default function App() {
     } : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
+    syncWithNewState({ trips: updatedTrips }, true, true);
   };
 
   const handleRejectTrip = (tripId, note = '') => {
@@ -2288,7 +2453,7 @@ export default function App() {
     } : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
+    syncWithNewState({ trips: updatedTrips }, true, true);
   };
 
   // Batch approve/reject untuk Super Admin (menyetujui/menolak sekaligus dalam satu batch)
@@ -2305,7 +2470,7 @@ export default function App() {
     );
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
+    syncWithNewState({ trips: updatedTrips }, true, true);
   };
 
   const handleRejectTripsBatch = (tripIds, note = '') => {
@@ -2319,7 +2484,7 @@ export default function App() {
     );
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips });
+    syncWithNewState({ trips: updatedTrips }, true, true);
   };
 
   const handleUpdateTrip = (updatedTrip) => {
@@ -2327,7 +2492,7 @@ export default function App() {
     const updatedTrips = trips.map((t) => (t.id === updatedTrip.id ? updatedTrip : t));
     setTrips(updatedTrips);
     localStorage.setItem('revit_trips', JSON.stringify(updatedTrips));
-    syncWithNewState({ trips: updatedTrips, activityLogs: updatedLogs });
+    syncWithNewState({ trips: updatedTrips, activityLogs: updatedLogs }, true, true);
   };
 
   const handleUpdateTripsBatch = (updatedTripsList) => {
@@ -2336,7 +2501,7 @@ export default function App() {
     const newTrips = trips.map(t => updatedTripsMap.has(t.id) ? updatedTripsMap.get(t.id) : t);
     setTrips(newTrips);
     localStorage.setItem('revit_trips', JSON.stringify(newTrips));
-    syncWithNewState({ trips: newTrips, activityLogs: updatedLogs });
+    syncWithNewState({ trips: newTrips, activityLogs: updatedLogs }, true, true);
   };
 
   const handleDeleteTrip = (tripId) => {
@@ -2402,7 +2567,7 @@ export default function App() {
     setActivityLogs(updatedActivityLogs);
     localStorage.setItem('revit_activity_logs', JSON.stringify(updatedActivityLogs));
 
-    syncWithNewState({ logs: updatedLogs, activityLogs: updatedActivityLogs });
+    syncWithNewState({ logs: updatedLogs, activityLogs: updatedActivityLogs }, true, true);
   };
 
   const handleDeleteLog = (logId) => {
@@ -2439,7 +2604,7 @@ export default function App() {
     setActivityLogs(updatedActivityLogs);
     localStorage.setItem('revit_activity_logs', JSON.stringify(updatedActivityLogs));
 
-    syncWithNewState({ logs: updatedLogs, activityLogs: updatedActivityLogs });
+    syncWithNewState({ logs: updatedLogs, activityLogs: updatedActivityLogs }, true, true);
   };
 
   // 12. Monthly Reports PDF Actions (Fase 4)
@@ -2534,7 +2699,7 @@ export default function App() {
     updated.push(newReport);
     setDutyReports(updated);
     localStorage.setItem('revit_duty_reports', JSON.stringify(updated));
-    syncWithNewState({ dutyReports: updated });
+    syncWithNewState({ dutyReports: updated }, true, true);
   };
 
   // 14. Expense Actions (Fase 4)
@@ -2542,7 +2707,7 @@ export default function App() {
     const updated = [...expenses, newExpense];
     setExpenses(updated);
     localStorage.setItem('revit_expenses', JSON.stringify(updated));
-    syncWithNewState({ expenses: updated });
+    syncWithNewState({ expenses: updated }, true, true);
   };
 
   const handleDeleteExpense = (expenseId) => {
@@ -2560,7 +2725,7 @@ export default function App() {
     const updatedExpenses = [...expenses, newExpense];
     setExpenses(updatedExpenses);
     localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
-    syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses });
+    syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses }, true, true);
   };
 
   const handleSetPaymentsStatus = (paymentUpdates, expenseAdditions = [], paymentIdsToRemove = []) => {
@@ -2582,7 +2747,7 @@ export default function App() {
       setExpenses(updatedExpenses);
       localStorage.setItem('revit_expenses', JSON.stringify(updatedExpenses));
     }
-    syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses });
+    syncWithNewState({ payments: updatedPayments, expenses: updatedExpenses }, true, true);
   };
 
   const handleAddSchoolDoc = (newDoc) => {
@@ -2683,7 +2848,7 @@ export default function App() {
       meetingDocs: updatedDocs,
       logs: updatedLogs, 
       activityLogs: updatedActivityLogs 
-    });
+    }, true, true);
   };
 
   const handleUpdateMeeting = (updatedMeeting, documents = []) => {
@@ -2727,7 +2892,7 @@ export default function App() {
       meetingDocs: updatedDocs,
       logs: updatedLogs, 
       activityLogs: updatedActivityLogs 
-    });
+    }, true, true);
   };
 
   const handleDeleteMeeting = (meetingId) => {
@@ -3178,6 +3343,7 @@ export default function App() {
               activeUser={activeUser}
               settings={settings}
               onUpdateSettings={handleUpdateSettings}
+              onResetDatabase={handleResetDatabase}
               schools={schools}
               tasks={tasks}
               reports={reports}

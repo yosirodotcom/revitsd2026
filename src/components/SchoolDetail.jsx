@@ -229,6 +229,14 @@ export default function SchoolDetail({
   const [newContactFor, setNewContactFor] = useState(null); // 'perencanaId' | 'pengawasId'
   const [newContactData, setNewContactData] = useState({ nama: '', hp: '' });
 
+  const [tempPerencanaId, setTempPerencanaId] = useState(school?.perencanaId || '');
+  const [tempPengawasId, setTempPengawasId] = useState(school?.pengawasId || '');
+
+  useEffect(() => {
+    setTempPerencanaId(school?.perencanaId || '');
+    setTempPengawasId(school?.pengawasId || '');
+  }, [school]);
+
   // Add Task form state
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [taskForm, setTaskForm] = useState({
@@ -367,16 +375,28 @@ export default function SchoolDetail({
     setNewContactFor(null);
   };
 
-  // Save newly created contact and assign
+  // Save newly created contact and assign to temp state
   const saveNewContact = (fieldName) => {
     if (!newContactData.nama.trim() || !newContactData.hp.trim()) return;
     const suffix = fieldName === 'perencanaId' ? 'p' : 'w';
     const newId = `contact-${Date.now()}-${suffix}`;
     onAddContact({ id: newId, nama: newContactData.nama, hp: newContactData.hp });
-    onUpdateSchool({ ...school, [fieldName]: newId });
-    setInlineField(null);
+    if (fieldName === 'perencanaId') {
+      setTempPerencanaId(newId);
+    } else {
+      setTempPengawasId(newId);
+    }
     setNewContactFor(null);
     setNewContactData({ nama: '', hp: '' });
+  };
+
+  const handleSaveMitra = () => {
+    onUpdateSchool({
+      ...school,
+      perencanaId: tempPerencanaId || null,
+      pengawasId: tempPengawasId || null
+    });
+    window.showAlert('Mitra pelaksana lapangan berhasil disimpan!');
   };
 
   // Cancel inline editing
@@ -1227,20 +1247,18 @@ export default function SchoolDetail({
                     ></iframe>
                   </div>
 
-                </div>
-
-                {/* Section: Mitra Pelaksana Lapangan */}
+                </div>                {/* Section: Mitra Pelaksana Lapangan */}
                 <div>
                   <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4">
                     Mitra Pelaksana Lapangan
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    {/* Perencana (inline-editable dropdown) */}
+                    {/* Perencana Dropdown */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Perencana Lapangan</span>
-                      {inlineField === 'perencanaId' ? (
-                        <div className="mt-0.5 space-y-2">
+                      {isAuthorizedToEdit ? (
+                        <div className="mt-1.5 space-y-2">
                           {newContactFor === 'perencanaId' ? (
                             <div className="bg-slate-950 border border-indigo-500/30 p-3 rounded-xl space-y-2">
                               <div className="flex justify-between items-center text-[10px] text-indigo-400 font-semibold">
@@ -1265,111 +1283,51 @@ export default function SchoolDetail({
                                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                               />
                               <div className="flex gap-1.5 justify-end pt-1">
-                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 active:scale-[0.95] transition-all cursor-pointer">Batal</button>
+                                <button onClick={() => setNewContactFor(null)} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 active:scale-[0.95] transition-all cursor-pointer">Batal</button>
                                 <button onClick={() => saveNewContact('perencanaId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm active:scale-[0.95] transition-all duration-150 select-none cursor-pointer">Simpan</button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <select
-                                value={inlineValue}
-                                onChange={(e) => {
-                                  if (e.target.value === 'new') {
-                                    setNewContactFor('perencanaId');
-                                  } else {
-                                    saveContactField('perencanaId', e.target.value);
-                                  }
-                                }}
-                                className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-                                autoFocus
-                              >
-                                <option value="">-- Pilih Kontak --</option>
-                                {contacts.map((c) => (
-                                  <option key={c.id} value={c.id}>{c.nama} ({c.hp})</option>
-                                ))}
-                                <option value="new" className="text-indigo-400 font-bold bg-slate-900">+ Tambah Kontak Baru</option>
-                              </select>
-                              <button onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
+                            <select
+                              value={tempPerencanaId || ''}
+                              onChange={(e) => {
+                                if (e.target.value === 'new') {
+                                  setNewContactFor('perencanaId');
+                                } else {
+                                  setTempPerencanaId(e.target.value);
+                                }
+                              }}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                            >
+                              <option value="">-- Pilih Kontak --</option>
+                              {contacts.map((c) => (
+                                <option key={c.id} value={c.id}>{c.nama} ({c.hp})</option>
+                              ))}
+                              <option value="new" className="text-indigo-400 font-bold bg-slate-900">+ Tambah Kontak Baru</option>
+                            </select>
                           )}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 group/field mt-0.5">
-                          {school.perencanaId ? (
-                            <span className="text-sm font-medium text-slate-200">{perencana.nama}</span>
-                          ) : (
-                            <span className="text-sm font-medium text-slate-600 italic">Belum ditentukan</span>
-                          )}
-                          {isAuthorizedToEdit && (
-                            <button
-                              onClick={() => startContactEdit('perencanaId')}
-                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.perencanaId ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
-                              title="Ubah Perencana"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                        <div className="mt-1 text-sm font-medium text-slate-200">
+                          {school.perencanaId ? (contacts.find(c => c.id === school.perencanaId)?.nama || school.perencanaId) : <span className="text-slate-655 italic">Belum ditentukan</span>}
                         </div>
                       )}
                     </div>
 
-                    {/* HP Perencana (inline-editable, from contact) */}
+                    {/* HP Perencana (Display only, dynamic based on selected temp ID) */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Perencana</span>
-                      {inlineField === 'perencanaHp' ? (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <input
-                            ref={inlineInputRef}
-                            type="text"
-                            value={inlineValue}
-                            onChange={(e) => setInlineValue(e.target.value.replace(/[^0-9+-]/g, ''))}
-                            onKeyDown={handleInlineKeyDown}
-                            onBlur={saveInlineField}
-                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-                            placeholder="08xxxxxxxxxx"
-                          />
-                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 group/field mt-0.5">
-                          {school.perencanaId ? (
-                            <>
-                              <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-                                <Phone className="w-3.5 h-3.5 text-slate-500" />
-                                {perencana.hp || <span className="text-slate-550 italic">Belum diisi</span>}
-                              </span>
-                              {isAuthorizedToEdit && (
-                                <button
-                                  onClick={() => {
-                                    setInlineField('perencanaHp');
-                                    setInlineValue(perencana.hp || '');
-                                  }}
-                                  className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!perencana.hp ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-650'}`}
-                                  title="Edit HP Perencana"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-sm font-medium text-slate-650 italic">-</span>
-                          )}
-                        </div>
-                      )}
+                      <div className="mt-2 text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-slate-500" />
+                        {(contacts.find(c => c.id === tempPerencanaId)?.hp) || <span className="text-slate-655 italic">-</span>}
+                      </div>
                     </div>
 
-                    {/* Pengawas (inline-editable dropdown) */}
+                    {/* Pengawas Dropdown */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Pengawas Lapangan</span>
-                      {inlineField === 'pengawasId' ? (
-                        <div className="mt-0.5 space-y-2">
+                      {isAuthorizedToEdit ? (
+                        <div className="mt-1.5 space-y-2">
                           {newContactFor === 'pengawasId' ? (
                             <div className="bg-slate-950 border border-indigo-500/30 p-3 rounded-xl space-y-2">
                               <div className="flex justify-between items-center text-[10px] text-indigo-400 font-semibold">
@@ -1394,107 +1352,65 @@ export default function SchoolDetail({
                                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                               />
                               <div className="flex gap-1.5 justify-end pt-1">
-                                <button onClick={cancelInlineEdit} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 active:scale-[0.95] transition-all cursor-pointer">Batal</button>
+                                <button onClick={() => setNewContactFor(null)} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-slate-200 active:scale-[0.95] transition-all cursor-pointer">Batal</button>
                                 <button onClick={() => saveNewContact('pengawasId')} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm active:scale-[0.95] transition-all duration-150 select-none cursor-pointer">Simpan</button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <select
-                                value={inlineValue}
-                                onChange={(e) => {
-                                  if (e.target.value === 'new') {
-                                    setNewContactFor('pengawasId');
-                                  } else {
-                                    saveContactField('pengawasId', e.target.value);
-                                  }
-                                }}
-                                className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-                                autoFocus
-                              >
-                                <option value="">-- Pilih Kontak --</option>
-                                {contacts.map((c) => (
-                                  <option key={c.id} value={c.id}>{c.nama} ({c.hp})</option>
-                                ))}
-                                <option value="new" className="text-indigo-400 font-bold bg-slate-900">+ Tambah Kontak Baru</option>
-                              </select>
-                              <button onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
+                            <select
+                              value={tempPengawasId || ''}
+                              onChange={(e) => {
+                                if (e.target.value === 'new') {
+                                  setNewContactFor('pengawasId');
+                                } else {
+                                  setTempPengawasId(e.target.value);
+                                }
+                              }}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                            >
+                              <option value="">-- Pilih Kontak --</option>
+                              {contacts.map((c) => (
+                                <option key={c.id} value={c.id}>{c.nama} ({c.hp})</option>
+                              ))}
+                              <option value="new" className="text-indigo-400 font-bold bg-slate-900">+ Tambah Kontak Baru</option>
+                            </select>
                           )}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 group/field mt-0.5">
-                          {school.pengawasId ? (
-                            <span className="text-sm font-medium text-slate-200">{pengawas.nama}</span>
-                          ) : (
-                            <span className="text-sm font-medium text-slate-600 italic">Belum ditentukan</span>
-                          )}
-                          {isAuthorizedToEdit && (
-                            <button
-                              onClick={() => startContactEdit('pengawasId')}
-                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.pengawasId ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
-                              title="Ubah Pengawas"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                        <div className="mt-1 text-sm font-medium text-slate-200">
+                          {school.pengawasId ? (contacts.find(c => c.id === school.pengawasId)?.nama || school.pengawasId) : <span className="text-slate-655 italic">Belum ditentukan</span>}
                         </div>
                       )}
                     </div>
 
-                    {/* HP Pengawas (inline-editable, from contact) */}
+                    {/* HP Pengawas (Display only, dynamic based on selected temp ID) */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">HP Pengawas</span>
-                      {inlineField === 'pengawasHp' ? (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <input
-                            ref={inlineInputRef}
-                            type="text"
-                            value={inlineValue}
-                            onChange={(e) => setInlineValue(e.target.value.replace(/[^0-9+-]/g, ''))}
-                            onKeyDown={handleInlineKeyDown}
-                            onBlur={saveInlineField}
-                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-                            placeholder="08xxxxxxxxxx"
-                          />
-                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 group/field mt-0.5">
-                          {school.pengawasId ? (
-                            <>
-                              <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
-                                <Phone className="w-3.5 h-3.5 text-slate-500" />
-                                {pengawas.hp || <span className="text-slate-550 italic">Belum diisi</span>}
-                              </span>
-                              {isAuthorizedToEdit && (
-                                <button
-                                  onClick={() => {
-                                    setInlineField('pengawasHp');
-                                    setInlineValue(pengawas.hp || '');
-                                  }}
-                                  className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!pengawas.hp ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-650'}`}
-                                  title="Edit HP Pengawas"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-sm font-medium text-slate-650 italic">-</span>
-                          )}
-                        </div>
-                      )}
+                      <div className="mt-2 text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-slate-500" />
+                        {(contacts.find(c => c.id === tempPengawasId)?.hp) || <span className="text-slate-655 italic">-</span>}
+                      </div>
                     </div>
 
                   </div>
+
+                  {/* Manual Save Button for Mitra Pelaksana */}
+                  {isAuthorizedToEdit && (
+                    <div className="flex justify-end mt-4 pt-4 border-t border-slate-850/60">
+                      <button
+                        onClick={handleSaveMitra}
+                        disabled={tempPerencanaId === (school.perencanaId || '') && tempPengawasId === (school.pengawasId || '')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer ${
+                          tempPerencanaId === (school.perencanaId || '') && tempPengawasId === (school.pengawasId || '')
+                            ? 'bg-slate-800 text-slate-500 border border-slate-850 cursor-not-allowed shadow-none'
+                            : 'bg-indigo-650 hover:bg-indigo-500 text-white shadow-indigo-600/10'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" /> Simpan Perubahan Mitra
+                      </button>
+                    </div>
+                  )}
+
                 </div>
               </div>
 
