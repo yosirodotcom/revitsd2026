@@ -389,18 +389,7 @@ export default function App() {
   useEffect(() => {
     if (!activeProgram) return;
     const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
-    const referenceUsers = activePrefix === 'revitpaud' ? [
-      {
-        id: "yosi-ronadi",
-        nama: "Yosi Ronadi",
-        jabatanKepegawaian: "Super Admin",
-        jabatanTim: "Super Admin",
-        pendidikan: "Strata 2",
-        statusPegawai: "PNS",
-        role: "admin",
-        password: "4051"
-      }
-    ] : initialUsers;
+    const referenceUsers = initialUsers;
 
     // Users
     const storedUsers = localStorage.getItem('revit_users');
@@ -1768,18 +1757,7 @@ export default function App() {
     if (!confirm2) return;
 
     const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
-    const referenceUsers = activePrefix === 'revitpaud' ? [
-      {
-        id: "yosi-ronadi",
-        nama: "Yosi Ronadi",
-        jabatanKepegawaian: "Super Admin",
-        jabatanTim: "Super Admin",
-        pendidikan: "Strata 2",
-        statusPegawai: "PNS",
-        role: "admin",
-        password: "4051"
-      }
-    ] : initialUsers;
+    const referenceUsers = initialUsers;
     const referenceSchools = activePrefix === 'revitpaud' ? initialPaudSchools : initialSchools;
 
     // Reset settings
@@ -3104,31 +3082,9 @@ export default function App() {
     let paudUsersList = [];
     try {
       const stored = window.localStorage.getItem('revitpaud_users');
-      paudUsersList = stored ? JSON.parse(stored) : [
-        {
-          id: "yosi-ronadi",
-          nama: "Yosi Ronadi",
-          jabatanKepegawaian: "Super Admin",
-          jabatanTim: "Super Admin",
-          pendidikan: "Strata 2",
-          statusPegawai: "PNS",
-          role: "admin",
-          password: "4051"
-        }
-      ];
+      paudUsersList = stored ? JSON.parse(stored) : initialUsers;
     } catch (e) {
-      paudUsersList = [
-        {
-          id: "yosi-ronadi",
-          nama: "Yosi Ronadi",
-          jabatanKepegawaian: "Super Admin",
-          jabatanTim: "Super Admin",
-          pendidikan: "Strata 2",
-          statusPegawai: "PNS",
-          role: "admin",
-          password: "4051"
-        }
-      ];
+      paudUsersList = initialUsers;
     }
     if (Array.isArray(paudUsersList)) {
       paudUsersList = paudUsersList.map(u => {
@@ -3179,18 +3135,7 @@ export default function App() {
               programUsers = JSON.parse(stored);
             } catch (e) {}
           } else {
-            programUsers = prefix === 'revitpaud' ? [
-              {
-                id: "yosi-ronadi",
-                nama: "Yosi Ronadi",
-                jabatanKepegawaian: "Super Admin",
-                jabatanTim: "Super Admin",
-                pendidikan: "Strata 2",
-                statusPegawai: "PNS",
-                role: "admin",
-                password: "4051"
-              }
-            ] : initialUsers;
+            programUsers = initialUsers;
           }
 
           const matchingUser = programUsers.find(u => u.id === globalActiveUser.id) || programUsers.find(u => u.nama === globalActiveUser.nama);
