@@ -29,7 +29,12 @@ export default function ProgramPortal({
   paudUsers.forEach(u => {
     if (u && u.id) {
       if (allUsersMap.has(u.id)) {
-        allUsersMap.set(u.id, { ...allUsersMap.get(u.id), sourcePAUD: true });
+        const existing = allUsersMap.get(u.id);
+        allUsersMap.set(u.id, { 
+          ...existing, 
+          password: existing.password || u.password || '',
+          sourcePAUD: true 
+        });
       } else {
         allUsersMap.set(u.id, { ...u, sourcePAUD: true });
       }

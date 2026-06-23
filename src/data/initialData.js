@@ -97,7 +97,8 @@ export const initialUsers = [
     jabatanTim: "Tenaga Administrasi",
     pendidikan: "Strata 2",
     statusPegawai: "PNS",
-    role: "user"
+    role: "user",
+    password: "2026"
   }
 ];
 

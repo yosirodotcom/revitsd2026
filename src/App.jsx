@@ -3075,6 +3075,9 @@ export default function App() {
         if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
         if (u.id === 'etty-rabihati' && u.password !== 'sipil') return { ...u, password: 'sipil' };
         if (u.id === 'chandra-bayu' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
+        if (u.id === 'wida-arindya-sari' && (u.password === undefined || u.password === '' || u.password === '2026')) {
+          return { ...u, password: '2026' };
+        }
         return u;
       });
     }
