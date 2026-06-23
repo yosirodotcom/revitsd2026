@@ -278,6 +278,7 @@ export default function App() {
             if (data && data.users) {
               const clean = data.users.filter(u => u && u.id).map(u => ({
                 ...u,
+                password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
                 taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
               }));
               if (clean.length > 0) {
@@ -306,6 +307,7 @@ export default function App() {
               if (data && data.users) {
                 const clean = data.users.filter(u => u && u.id).map(u => ({
                   ...u,
+                  password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
                   taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
                 }));
                 if (clean.length > 0) {
@@ -1027,6 +1029,7 @@ export default function App() {
           if (remoteData.users) {
             const clean = remoteData.users.filter(u => u && isValidId(u.id)).map(u => ({
               ...u,
+              password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
               taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
             }));
             if (clean.length > 0) {
@@ -1465,6 +1468,7 @@ export default function App() {
       if (remoteData.users) {
         const clean = remoteData.users.filter(u => u && isValidId(u.id)).map(u => ({
           ...u,
+          password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
           taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
         }));
         if (clean.length > 0) {
@@ -3155,22 +3159,24 @@ export default function App() {
   // RENDER: Main Dashboard Layout
   if (!globalActiveUser || !activeProgram) {
     const sdUsersList = (portalSdUsers || []).map(u => {
-      if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
-      if (u.id === 'etty-rabihati' && u.password !== 'sipil') return { ...u, password: 'sipil' };
-      if (u.id === 'chandra-bayu' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
-      if (u.id === 'wida-arindya-sari' && (u.password === undefined || u.password === '' || u.password === '2026')) {
+      const pwd = u.password !== undefined && u.password !== null ? String(u.password).trim() : '';
+      if (u.id === 'yosi-ronadi' && pwd !== '4051') return { ...u, password: '4051' };
+      if (u.id === 'etty-rabihati' && pwd !== 'sipil') return { ...u, password: 'sipil' };
+      if (u.id === 'chandra-bayu' && pwd !== 'arsitektur') return { ...u, password: 'arsitektur' };
+      if (u.id === 'wida-arindya-sari' && (pwd === '' || pwd === '2026')) {
         return { ...u, password: '2026' };
       }
-      return u;
+      return { ...u, password: pwd };
     });
 
     const paudUsersList = (portalPaudUsers || []).map(u => {
-      if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
-      if (u.id === 'qalbi-hafiyyan' && u.password !== 'arsitektur') return { ...u, password: 'arsitektur' };
-      if (['faddylah-aldino', 'barra-asy-syawali', 'rizaldi', 'muhammad-faiq-khalilurrahman', 'wida-arindya-sari'].includes(u.id) && (u.password === undefined || u.password === '' || u.password === '2026')) {
+      const pwd = u.password !== undefined && u.password !== null ? String(u.password).trim() : '';
+      if (u.id === 'yosi-ronadi' && pwd !== '4051') return { ...u, password: '4051' };
+      if (u.id === 'qalbi-hafiyyan' && pwd !== 'arsitektur') return { ...u, password: 'arsitektur' };
+      if (['faddylah-aldino', 'barra-asy-syawali', 'rizaldi', 'muhammad-faiq-khalilurrahman', 'wida-arindya-sari'].includes(u.id) && (pwd === '' || pwd === '2026')) {
         return { ...u, password: '2026' };
       }
-      return u;
+      return { ...u, password: pwd };
     });
 
     let sdCount = 41;

@@ -64,8 +64,8 @@ export default function UserSelect({ users, onSelectUser, onClose }) {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    const pwdStr = selectedUser.password !== undefined && selectedUser.password !== null ? String(selectedUser.password) : '';
-    if (passwordInput === pwdStr) {
+    const pwdStr = selectedUser.password !== undefined && selectedUser.password !== null ? String(selectedUser.password).trim() : '';
+    if (passwordInput.trim() === pwdStr) {
       onSelectUser(selectedUser);
     } else {
       setError('Password salah! Silakan coba lagi.');

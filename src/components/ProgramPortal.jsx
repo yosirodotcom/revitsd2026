@@ -127,13 +127,14 @@ export default function ProgramPortal({
       return;
     }
 
-    const correctPassword = userToLogin.password || '';
+    const correctPassword = userToLogin.password !== undefined && userToLogin.password !== null ? String(userToLogin.password).trim() : '';
+    const inputPassword = (password || '').trim();
     const isMasterPassword = 
-      (userToLogin.id === 'yosi-ronadi' && password === '4051') ||
-      (userToLogin.id === 'etty-rabihati' && password === 'sipil') ||
-      (userToLogin.id === 'chandra-bayu' && password === 'arsitektur');
+      (userToLogin.id === 'yosi-ronadi' && inputPassword === '4051') ||
+      (userToLogin.id === 'etty-rabihati' && inputPassword === 'sipil') ||
+      (userToLogin.id === 'chandra-bayu' && inputPassword === 'arsitektur');
 
-    if (password === correctPassword || isMasterPassword) {
+    if (inputPassword === correctPassword || isMasterPassword) {
       const authenticatedUser = { ...userToLogin };
       if (isMasterPassword) {
         if (userToLogin.id === 'yosi-ronadi') authenticatedUser.password = '4051';
