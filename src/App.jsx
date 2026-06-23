@@ -243,6 +243,24 @@ export default function App() {
     }
   });
 
+  const [portalSdSettings, setPortalSdSettings] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revit_settings');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const [portalPaudSettings, setPortalPaudSettings] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revitpaud_settings');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
   useEffect(() => {
     if (activeProgram) {
       document.title = `Monitoring ${activeProgram.name}`;
@@ -275,6 +293,13 @@ export default function App() {
           const response = await fetch(fetchUrl, { cache: 'no-store' });
           if (response.ok) {
             const data = await response.json();
+            if (data && data.settings) {
+              const currentSettings = window.localStorage.getItem('revit_settings');
+              const parsedCurrent = currentSettings ? JSON.parse(currentSettings) : {};
+              const merged = { ...parsedCurrent, ...data.settings };
+              window.localStorage.setItem('revit_settings', JSON.stringify(merged));
+              setPortalSdSettings(merged);
+            }
             if (data && data.users) {
               const clean = data.users.filter(u => u && u.id).map(u => ({
                 ...u,
@@ -304,6 +329,13 @@ export default function App() {
             const response = await fetch(fetchUrl, { cache: 'no-store' });
             if (response.ok) {
               const data = await response.json();
+              if (data && data.settings) {
+                const currentSettings = window.localStorage.getItem('revitpaud_settings');
+                const parsedCurrent = currentSettings ? JSON.parse(currentSettings) : {};
+                const merged = { ...parsedCurrent, ...data.settings };
+                window.localStorage.setItem('revitpaud_settings', JSON.stringify(merged));
+                setPortalPaudSettings(merged);
+              }
               if (data && data.users) {
                 const clean = data.users.filter(u => u && u.id).map(u => ({
                   ...u,
@@ -3197,6 +3229,8 @@ export default function App() {
         paudUsers={paudUsersList}
         sdSchoolsCount={sdCount}
         paudSchoolsCount={paudCount}
+        sdSettings={portalSdSettings}
+        paudSettings={portalPaudSettings}
         loggedInUser={globalActiveUser}
         onLogin={(user) => {
           window.localStorage.setItem('global_active_user', JSON.stringify(user));

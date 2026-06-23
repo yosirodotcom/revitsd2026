@@ -6,6 +6,8 @@ export default function ProgramPortal({
   paudUsers = [], 
   sdSchoolsCount = 41, 
   paudSchoolsCount = 55, 
+  sdSettings = {},
+  paudSettings = {},
   onLogin, 
   onLogout,
   loggedInUser, 
@@ -76,6 +78,35 @@ export default function ProgramPortal({
     return { hasSD, hasPAUD };
   };
 
+  const formatRupiah = (val) => {
+    if (val === undefined || val === null || val === '') return '';
+    const num = Number(String(val).replace(/[^\d]/g, ''));
+    if (isNaN(num) || num === 0) return val;
+    return 'Rp ' + num.toLocaleString('id-ID');
+  };
+
+  const formatDateShort = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const stdMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      const dd = d.getDate();
+      const mm = stdMonths[d.getMonth()];
+      const yyyy = d.getFullYear();
+      return `${dd} ${mm} ${yyyy}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getTimeline = (settings) => {
+    const start = formatDateShort(settings?.projectStartDate || settings?.projectStart);
+    const end = formatDateShort(settings?.projectEndDate || settings?.projectEnd);
+    if (start && end) return `${start} – ${end}`;
+    return '';
+  };
+
   const programs = [];
   if (loggedInUser) {
     const { hasSD, hasPAUD } = checkUserPrograms(loggedInUser);
@@ -88,8 +119,8 @@ export default function ProgramPortal({
         theme: 'indigo',
         icon: GraduationCap,
         schoolCount: sdSchoolsCount,
-        budget: 'Rp 1.500.000.000',
-        timeline: '12 Jun - 12 Des 2026',
+        budget: formatRupiah(sdSettings?.totalProjectContract) || 'Rp 1.500.000.000',
+        timeline: getTimeline(sdSettings) || '12 Jun - 12 Des 2026',
         agency: 'Teknik Sipil & Arsitektur'
       });
     }
@@ -102,8 +133,8 @@ export default function ProgramPortal({
         theme: 'emerald',
         icon: Baby,
         schoolCount: paudSchoolsCount,
-        budget: 'Rp 800.000.000',
-        timeline: '12 Jun - 12 Des 2026',
+        budget: formatRupiah(paudSettings?.totalProjectContract) || 'Rp 800.000.000',
+        timeline: getTimeline(paudSettings) || '12 Jun - 12 Des 2026',
         agency: 'Kependidikan PAUD & Arsitektur'
       });
     }
