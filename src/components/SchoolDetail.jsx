@@ -1056,6 +1056,46 @@ export default function SchoolDetail({
                       )}
                     </div>
 
+                    {/* Alamat (inline-editable) */}
+                    <div className="sm:col-span-2">
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Alamat Sekolah</span>
+                      {inlineField === 'alamat' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Alamat Lengkap Sekolah"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          <span className={`text-sm font-medium ${school.alamat ? 'text-slate-200' : 'text-slate-600 italic'}`}>
+                            {school.alamat || 'Belum diisi'}
+                          </span>
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('alamat')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.alamat ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Alamat"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Kabupaten (read-only) */}
                     <div>
                       <span className="block text-[10px] uppercase font-semibold text-slate-500">Kabupaten</span>

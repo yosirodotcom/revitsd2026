@@ -64,6 +64,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   const [newSchoolData, setNewSchoolData] = useState({
     npsn: '',
     nama_sekolah: '',
+    alamat: '',
     kabupaten: 'Melawi',
   });
 
@@ -243,7 +244,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
       return window.showAlert('Sekolah dengan NPSN tersebut sudah terdaftar');
     }
 
-    const newSchool = {
+     const newSchool = {
       ...newSchoolData,
       desa: '',
       kecamatan: '',
@@ -262,7 +263,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
     onAddSchool(newSchool);
     window.showAlert('Sekolah baru berhasil ditambahkan ke Master Data');
-    setNewSchoolData({ npsn: '', nama_sekolah: '', kabupaten: 'Melawi' });
+    setNewSchoolData({ npsn: '', nama_sekolah: '', alamat: '', kabupaten: 'Melawi' });
     setIsAddingMaster(false);
   };
 
@@ -683,6 +684,19 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
                   placeholder="Contoh: SD Negeri 55 Pontianak"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  Alamat Sekolah (Opsional)
+                </label>
+                <input
+                  type="text"
+                  value={newSchoolData.alamat}
+                  onChange={(e) => setNewSchoolData({ ...newSchoolData, alamat: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                  placeholder="Contoh: Jl. Merdeka Timur No. 4"
                 />
               </div>
 

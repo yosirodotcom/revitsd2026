@@ -86,6 +86,7 @@ export const syncService = {
           ...s,
           nama: s.nama_sekolah || s.nama || '',
           kepalaSekolah: s.kepala_sekolah || s.kepalaSekolah || '',
+          alamat: s.alamat || '',
           // Strip Base64 foto_banner jika sudah berupa URL Drive (mengurangi ukuran payload)
           foto_banner: (s.foto_banner && s.foto_banner.startsWith('http')) ? s.foto_banner : (s.foto_banner || '')
         })),

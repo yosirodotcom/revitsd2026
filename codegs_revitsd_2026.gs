@@ -13,7 +13,7 @@ const SCHEMAS = {
   ],
   users: ["id", "nama", "jabatanKepegawaian", "jabatanTim", "coordinatorId", "pendidikan", "statusPegawai", "role", "password", "taxPct", "defaultTripDays"],
   schools: [
-    "npsn", "nama", "kabupaten", "kecamatan", "desa", "kepalaSekolah", 
+    "npsn", "nama", "alamat", "kabupaten", "kecamatan", "desa", "kepalaSekolah", 
     "hp_kepala_sekolah", "fasilitatorId", "koordinat", "perencanaId", 
     "pengawasId", "progres_fisik", "dokumen_mingguan", "dokumen_bulanan", 
     "dokumen_progres_50", "dokumen_progres_100", "foto_banner"
@@ -185,6 +185,30 @@ function doPost(e) {
       const sheet = ss.getSheetByName(sheetName);
       const headers = SCHEMAS[sheetName];
 
+      // A. Read existing data from Google Sheet to preserve manually filled columns if client doesn't send them
+      const existingDataMap = {};
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+      let keyField = "id";
+      if (sheetName === "schools") keyField = "npsn";
+      else if (sheetName === "settings") keyField = null;
+      else if (sheetName === "duty_reports") keyField = "id";
+
+      if (lastRow > 1 && lastCol > 0 && keyField) {
+        const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+        const existingRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+        existingRows.forEach(row => {
+          const obj = {};
+          existingHeaders.forEach((h, index) => {
+            obj[h] = row[index];
+          });
+          const keyVal = obj[keyField];
+          if (keyVal !== undefined && keyVal !== null && keyVal !== "") {
+            existingDataMap[String(keyVal)] = obj;
+          }
+        });
+      }
+
       // 1. Proses upload file otomatis ke Drive jika ada field Base64
       const processedData = clientData.map(item => {
         const newItem = { ...item };
@@ -238,8 +262,15 @@ function doPost(e) {
 
       if (processedData.length > 0) {
         const rowsToWrite = processedData.map(item => {
+          const keyVal = keyField ? item[keyField] : null;
+          const existingItem = (keyVal && existingDataMap[String(keyVal)]) ? existingDataMap[String(keyVal)] : {};
+
           return headers.map(h => {
             let val = item[h];
+            // If the client value is undefined (missing key), fallback to existing sheet value to protect manually entered data
+            if (val === undefined && existingItem[h] !== undefined && existingItem[h] !== null && existingItem[h] !== "") {
+              val = existingItem[h];
+            }
             if (val === undefined || val === null) return "";
             if (typeof val === "boolean") return val.toString();
             return val;

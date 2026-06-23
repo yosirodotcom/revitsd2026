@@ -3,6 +3,7 @@
 export const initialPaudSchools = [
   {
     "npsn": "30108692",
+    "alamat": "",
     "nama_sekolah": "TK Angkasa",
     "kabupaten": "Bengkayang",
     "kecamatan": "Sanggau Ledo",
@@ -14,6 +15,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69958516",
+    "alamat": "",
     "nama_sekolah": "PAUD Darul Fikri",
     "kabupaten": "Bengkayang",
     "kecamatan": "Ledo",
@@ -25,6 +27,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "70039851",
+    "alamat": "",
     "nama_sekolah": "KB Berkah Sungai Danti",
     "kabupaten": "Bengkayang",
     "kecamatan": "Sanggau Ledo",
@@ -36,6 +39,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30108240",
+    "alamat": "",
     "nama_sekolah": "TK Negeri Pembina Kecamatan Seberuang",
     "kabupaten": "Kapuas Hulu",
     "kecamatan": "Seberuang",
@@ -47,6 +51,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30109422",
+    "alamat": "",
     "nama_sekolah": "TK Dharma Wanita",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Simpang Hilir",
@@ -58,6 +63,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69870769",
+    "alamat": "",
     "nama_sekolah": "TK Kasih Bunda",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Seponti",
@@ -69,6 +75,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69870771",
+    "alamat": "",
     "nama_sekolah": "KB Miftahul Huda",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Teluk Batang",
@@ -80,6 +87,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69870772",
+    "alamat": "",
     "nama_sekolah": "PAUD Terpadu Pelita Hati",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Seponti",
@@ -91,6 +99,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871074",
+    "alamat": "",
     "nama_sekolah": "TK Pembina Simpang Hilir",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Simpang Hilir",
@@ -102,6 +111,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871076",
+    "alamat": "",
     "nama_sekolah": "TK Sartika 01",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Simpang Hilir",
@@ -113,6 +123,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871079",
+    "alamat": "",
     "nama_sekolah": "TK Pembina Teluk Batang",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Teluk Batang",
@@ -124,6 +135,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871080",
+    "alamat": "",
     "nama_sekolah": "TK Babussa Adah",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Teluk Batang",
@@ -135,6 +147,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871085",
+    "alamat": "",
     "nama_sekolah": "TK Pembina Seponti",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Seponti",
@@ -146,6 +159,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871090",
+    "alamat": "",
     "nama_sekolah": "KB Mentari",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Sukadana",
@@ -157,6 +171,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871092",
+    "alamat": "",
     "nama_sekolah": "KB Kasih Ibu",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Sukadana",
@@ -168,6 +183,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69871101",
+    "alamat": "",
     "nama_sekolah": "KB At Taubah",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Teluk Batang",
@@ -179,6 +195,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69938526",
+    "alamat": "",
     "nama_sekolah": "PAUD Terpadu Asmaul Husnah",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Pulau Maya",
@@ -190,6 +207,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69938528",
+    "alamat": "",
     "nama_sekolah": "PAUD Terpadu Maya Permai",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Pulau Maya",
@@ -201,6 +219,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69948059",
+    "alamat": "",
     "nama_sekolah": "TKIT Permata Kayong",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Sukadana",
@@ -212,6 +231,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69977534",
+    "alamat": "",
     "nama_sekolah": "TK Mutiara Pelapis",
     "kabupaten": "Kayong Utara",
     "kecamatan": "Kepulauan Karimata",
@@ -223,6 +243,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69836503",
+    "alamat": "",
     "nama_sekolah": "TK Aisyiyah Bustanul Athfal 09",
     "kabupaten": "Ketapang",
     "kecamatan": "Matan Hilir Selatan",
@@ -234,6 +255,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69836508",
+    "alamat": "",
     "nama_sekolah": "TK Aisyiyah Bustanul Atfhal 08",
     "kabupaten": "Ketapang",
     "kecamatan": "Matan Hilir Selatan",
@@ -245,6 +267,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69836551",
+    "alamat": "",
     "nama_sekolah": "KB Kedaung Jaya",
     "kabupaten": "Ketapang",
     "kecamatan": "Benua Kayong",
@@ -256,6 +279,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69836553",
+    "alamat": "",
     "nama_sekolah": "TK Usaha Bersama",
     "kabupaten": "Ketapang",
     "kecamatan": "Benua Kayong",
@@ -267,6 +291,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69836555",
+    "alamat": "",
     "nama_sekolah": "KB Ar Rahim",
     "kabupaten": "Ketapang",
     "kecamatan": "Matan Hilir Utara",
@@ -278,6 +303,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69866567",
+    "alamat": "",
     "nama_sekolah": "KB PMS",
     "kabupaten": "Ketapang",
     "kecamatan": "Matan Hilir Utara",
@@ -289,6 +315,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69896600",
+    "alamat": "",
     "nama_sekolah": "KB Al Jannah",
     "kabupaten": "Ketapang",
     "kecamatan": "Matan Hilir Utara",
@@ -300,6 +327,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69896971",
+    "alamat": "",
     "nama_sekolah": "KB Tanjung Ria",
     "kabupaten": "Ketapang",
     "kecamatan": "Benua Kayong",
@@ -311,6 +339,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69953389",
+    "alamat": "",
     "nama_sekolah": "TK Aisyiyah Bustanul Athfal 03",
     "kabupaten": "Ketapang",
     "kecamatan": "Singkup",
@@ -322,6 +351,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69909579",
+    "alamat": "",
     "nama_sekolah": "TK Tunas Cendikia",
     "kabupaten": "Kubu Raya",
     "kecamatan": "Rasau Jaya",
@@ -333,6 +363,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69975317",
+    "alamat": "",
     "nama_sekolah": "TK Negeri Pembina Kecamatan Telok Pakedai",
     "kabupaten": "Kubu Raya",
     "kecamatan": "Telok Pakedai",
@@ -344,6 +375,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "70006018",
+    "alamat": "",
     "nama_sekolah": "TK Terpadu Methodist Immanuel",
     "kabupaten": "Kubu Raya",
     "kecamatan": "Sungai Kakap",
@@ -355,6 +387,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "70028237",
+    "alamat": "",
     "nama_sekolah": "KB Darul Mukhtar",
     "kabupaten": "Kubu Raya",
     "kecamatan": "Sungai Raya",
@@ -366,6 +399,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30107751",
+    "alamat": "",
     "nama_sekolah": "TK Budi Mulia",
     "kabupaten": "Landak",
     "kecamatan": "Mempawah Hulu",
@@ -377,6 +411,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30108645",
+    "alamat": "",
     "nama_sekolah": "TK Negeri Satu Atap Pesayangan",
     "kabupaten": "Landak",
     "kecamatan": "Ngabang",
@@ -388,6 +423,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69850397",
+    "alamat": "",
     "nama_sekolah": "TK Satu Atap 03 Ngabang",
     "kabupaten": "Landak",
     "kecamatan": "Ngabang",
@@ -399,6 +435,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69935736",
+    "alamat": "",
     "nama_sekolah": "PAUD Elsadai Setolo",
     "kabupaten": "Landak",
     "kecamatan": "Menyuke",
@@ -410,6 +447,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69949601",
+    "alamat": "",
     "nama_sekolah": "TK Nurul Yaqin",
     "kabupaten": "Landak",
     "kecamatan": "Menjalin",
@@ -421,6 +459,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69989340",
+    "alamat": "",
     "nama_sekolah": "KB Anugerah Bunda",
     "kabupaten": "Landak",
     "kecamatan": "Menyuke",
@@ -432,6 +471,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "70006056",
+    "alamat": "",
     "nama_sekolah": "TK Perintis",
     "kabupaten": "Landak",
     "kecamatan": "Sompak",
@@ -443,6 +483,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69911791",
+    "alamat": "",
     "nama_sekolah": "KB Permata Ummi",
     "kabupaten": "Mempawah",
     "kecamatan": "Jongkat",
@@ -454,6 +495,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "70002643",
+    "alamat": "",
     "nama_sekolah": "TK Negeri Pembina Toho",
     "kabupaten": "Mempawah",
     "kecamatan": "Toho",
@@ -465,6 +507,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30108401",
+    "alamat": "",
     "nama_sekolah": "TK Negeri Satu Atap SDN 13 Kubung",
     "kabupaten": "Sambas",
     "kecamatan": "Teluk Keramat",
@@ -476,6 +519,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69935654",
+    "alamat": "",
     "nama_sekolah": "TK Dharma Asih",
     "kabupaten": "Sanggau",
     "kecamatan": "Balai",
@@ -487,6 +531,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69949242",
+    "alamat": "",
     "nama_sekolah": "TK Pelita Desa Amiati Jaya",
     "kabupaten": "Sanggau",
     "kecamatan": "Meliau",
@@ -498,6 +543,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30107518",
+    "alamat": "",
     "nama_sekolah": "TK As Syakirin",
     "kabupaten": "Sintang",
     "kecamatan": "Sintang",
@@ -509,6 +555,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30107557",
+    "alamat": "",
     "nama_sekolah": "TK Negeri 1 Sepauk",
     "kabupaten": "Sintang",
     "kecamatan": "Sepauk",
@@ -520,6 +567,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69903667",
+    "alamat": "",
     "nama_sekolah": "Cerdas",
     "kabupaten": "Sintang",
     "kecamatan": "Sintang",
@@ -531,6 +579,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69968784",
+    "alamat": "",
     "nama_sekolah": "KB Pelita Yerusalem Lalang",
     "kabupaten": "Sintang",
     "kecamatan": "Kayan Hilir",
@@ -542,6 +591,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "69985561",
+    "alamat": "",
     "nama_sekolah": "TPA Cahaya Bunda",
     "kabupaten": "Sintang",
     "kecamatan": "Sintang",
@@ -553,6 +603,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "70053136",
+    "alamat": "",
     "nama_sekolah": "TK Aku Anak Saleh",
     "kabupaten": "Sintang",
     "kecamatan": "Sintang",
@@ -564,6 +615,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30109326",
+    "alamat": "",
     "nama_sekolah": "TK Aisyiah BA IV",
     "kabupaten": "Kota Pontianak",
     "kecamatan": "Pontianak Barat",
@@ -575,6 +627,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30109338",
+    "alamat": "",
     "nama_sekolah": "TK Ananda",
     "kabupaten": "Kota Pontianak",
     "kecamatan": "Pontianak Barat",
@@ -586,6 +639,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30109362",
+    "alamat": "",
     "nama_sekolah": "TK IGTK I PGRI",
     "kabupaten": "Kota Pontianak",
     "kecamatan": "Pontianak Kota",
@@ -597,6 +651,7 @@ export const initialPaudSchools = [
   },
   {
     "npsn": "30108354",
+    "alamat": "",
     "nama_sekolah": "TK Torsina III",
     "kabupaten": "Kota Singkawang",
     "kecamatan": "Singkawang Selatan",

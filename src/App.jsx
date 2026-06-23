@@ -480,6 +480,10 @@ export default function App() {
             const init = referenceSchools.find((x) => String(x.npsn) === s.npsn);
             let updated = { ...s };
             
+            if (updated.alamat === undefined) {
+              updated.alamat = s.alamat || '';
+              isUpdated = true;
+            }
             if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, s.npsn) && !isInvalidSchoolName(updated.nama, s.npsn)) {
               updated.nama_sekolah = updated.nama;
               isUpdated = true;
@@ -955,6 +959,7 @@ export default function App() {
               let updated = { 
                 ...s,
                 npsn: String(s.npsn).trim(),
+                alamat: s.alamat || '',
                 progres_fisik: (s.progres_fisik === undefined || s.progres_fisik === null || String(s.progres_fisik).trim() === '') ? 0 : Number(s.progres_fisik)
               };
               if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, updated.npsn) && !isInvalidSchoolName(updated.nama, updated.npsn)) {
@@ -1950,7 +1955,6 @@ export default function App() {
   const handleCloseSchoolDetail = () => {
     setSelectedSchoolNpsn(null);
     setActiveSchoolTab('profile');
-    triggerSync();
   };
 
   // 7. School Actions (Fase 2)
@@ -3443,7 +3447,7 @@ export default function App() {
                   onDeleteTrip={handleDeleteTrip}
                   onAddTripDoc={handleAddTripDoc}
                   onDeleteTripDoc={handleDeleteTripDoc}
-                  onCloseDocsModal={() => triggerSync()}
+                  onCloseDocsModal={() => {}}
                   warnings={warnings}
                   onDismissWarning={handleDismissWarning}
                 />
@@ -3576,7 +3580,6 @@ export default function App() {
           documents={personnelDocs.filter((d) => d.userId === personnelDocsUser.id)}
           onClose={() => {
             setPersonnelDocsUser(null);
-            triggerSync();
           }}
           onAddDoc={handleAddPersonnelDoc}
           onDeleteDoc={handleDeletePersonnelDoc}
@@ -3590,7 +3593,6 @@ export default function App() {
           reports={reports.filter((r) => r.userId === memberReportsUser.id)}
           onClose={() => {
             setMemberReportsUser(null);
-            triggerSync();
           }}
           onAddReport={handleAddReport}
           onDeleteReport={handleDeleteReport}
