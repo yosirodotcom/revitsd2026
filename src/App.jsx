@@ -31,6 +31,9 @@ const storageHelper = {
   getItem: (key) => {
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
+      if (baseKey === 'users') {
+        return window.localStorage.getItem('revit_users');
+      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.getItem(`${prefix}_${baseKey}`);
     }
@@ -39,6 +42,9 @@ const storageHelper = {
   setItem: (key, value) => {
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
+      if (baseKey === 'users') {
+        return window.localStorage.setItem('revit_users', value);
+      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.setItem(`${prefix}_${baseKey}`, value);
     }
@@ -47,6 +53,9 @@ const storageHelper = {
   removeItem: (key) => {
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
+      if (baseKey === 'users') {
+        return window.localStorage.removeItem('revit_users');
+      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.removeItem(`${prefix}_${baseKey}`);
     }
@@ -3079,19 +3088,7 @@ export default function App() {
       });
     }
 
-    let paudUsersList = [];
-    try {
-      const stored = window.localStorage.getItem('revitpaud_users');
-      paudUsersList = stored ? JSON.parse(stored) : initialUsers;
-    } catch (e) {
-      paudUsersList = initialUsers;
-    }
-    if (Array.isArray(paudUsersList)) {
-      paudUsersList = paudUsersList.map(u => {
-        if (u.id === 'yosi-ronadi' && u.password !== '4051') return { ...u, password: '4051' };
-        return u;
-      });
-    }
+    let paudUsersList = sdUsersList;
 
     let sdCount = 41;
     try {
@@ -3128,7 +3125,7 @@ export default function App() {
           window.localStorage.setItem('active_program_prefix', prog.prefix);
           
           const prefix = prog.prefix;
-          const stored = window.localStorage.getItem(`${prefix}_users`);
+          const stored = window.localStorage.getItem('revit_users');
           let programUsers = [];
           if (stored) {
             try {
