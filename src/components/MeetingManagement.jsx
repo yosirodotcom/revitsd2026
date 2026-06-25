@@ -50,6 +50,7 @@ export default function MeetingManagement({
   meetingDocs = [],
   users, 
   activeUser, 
+  settings = {},
   onAddMeeting, 
   onUpdateMeeting, 
   onDeleteMeeting 
@@ -392,9 +393,7 @@ export default function MeetingManagement({
       meeting.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (meeting.keterangan && meeting.keterangan.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const activePrefix = localStorage.getItem('active_program_prefix') || 'revit';
-    const localSettings = JSON.parse(localStorage.getItem(`${activePrefix}_settings`) || '{}');
-    const todayStr = localSettings.simulatedToday || new Date().toISOString().split('T')[0];
+    const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
     const status = getMeetingStatus(meeting, todayStr);
     
     if (statusFilter === 'akan-datang') {
@@ -498,9 +497,7 @@ export default function MeetingManagement({
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {filteredMeetings.map((meet) => {
-                const activePrefix = localStorage.getItem('active_program_prefix') || 'revit';
-                const localSettings = JSON.parse(localStorage.getItem(`${activePrefix}_settings`) || '{}');
-                const todayStr = localSettings.simulatedToday || new Date().toISOString().split('T')[0];
+                const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
                 const status = getMeetingStatus(meet, todayStr);
                 const isPast = status === 'selesai';
 

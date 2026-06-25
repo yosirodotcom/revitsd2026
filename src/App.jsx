@@ -3579,6 +3579,7 @@ export default function App() {
                   meetingDocs={meetingDocs}
                   users={users}
                   activeUser={activeUser}
+                  settings={settings}
                   onAddMeeting={handleAddMeeting}
                   onUpdateMeeting={handleUpdateMeeting}
                   onDeleteMeeting={handleDeleteMeeting}
