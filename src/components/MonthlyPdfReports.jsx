@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2, Pencil } from 'lucide-react';
+import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2, UploadCloud, CloudUpload, Loader2 } from 'lucide-react';
 
 export default function MonthlyPdfReports({ 
   reports, 
@@ -50,8 +50,10 @@ export default function MonthlyPdfReports({
   });
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadFileName, setUploadFileName] = useState('');
+  const [pendingReport, setPendingReport] = useState(null);  // file sudah dibaca, belum disimpan
+  const [isSavingReport, setIsSavingReport] = useState(false);
 
-  // Handle PDF upload conversion to Base64 and auto-submit
+  // Handle PDF upload — hanya baca file & tampilkan progress, BELUM simpan ke server
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -67,6 +69,7 @@ export default function MonthlyPdfReports({
       return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 10MB.');
     }
 
+    setPendingReport(null);
     setUploadFileName(file.name);
     setUploadProgress(0);
 
@@ -81,19 +84,8 @@ export default function MonthlyPdfReports({
           clearInterval(interval);
           const reader = new FileReader();
           reader.readAsDataURL(file);
-          reader.onload = async (event) => {
+          reader.onload = (event) => {
             const targetMonth = Number(formData.bulanKe);
-            // Check if report for this month already exists
-            const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth);
-            if (exists) {
-              if (!await window.showConfirm(`Laporan untuk Bulan Ke-${targetMonth} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
-                e.target.value = '';
-                setUploadProgress(null);
-                setUploadFileName('');
-                return;
-              }
-            }
-
             const newReport = {
               id: `report-${activeUser.id}-bulan-${targetMonth}`,
               userId: activeUser.id,
@@ -104,19 +96,39 @@ export default function MonthlyPdfReports({
               status: 'pending',
               note: ''
             };
-
-            onAddReport(newReport);
-            setFormData({ bulanKe: 1, fileName: '', fileData: '' });
-            e.target.value = '';
+            // Simpan ke state pending — user masih harus klik Simpan
+            setPendingReport(newReport);
             setUploadProgress(null);
-            setUploadFileName('');
-            setIsAdding(false);
           };
           return 100;
         }
         return next;
       });
     }, 150);
+
+    e.target.value = '';
+  };
+
+  // Dipanggil saat user menekan tombol Simpan — baru kirim ke Google Sheets
+  const handleSaveReport = async () => {
+    if (!pendingReport) return;
+    const targetMonth = pendingReport.bulanKe;
+    const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth);
+    if (exists) {
+      if (!await window.showConfirm(`Laporan untuk Bulan Ke-${targetMonth} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
+        return;
+      }
+    }
+    setIsSavingReport(true);
+    try {
+      onAddReport(pendingReport);
+      setPendingReport(null);
+      setUploadFileName('');
+      setFormData({ bulanKe: 1, fileName: '', fileData: '' });
+      setIsAdding(false);
+    } finally {
+      setIsSavingReport(false);
+    }
   };
 
   const handleEditReportFileChange = (reportId, e) => {
@@ -314,8 +326,15 @@ export default function MonthlyPdfReports({
                 </label>
                 <select
                   value={formData.bulanKe}
-                  onChange={(e) => setFormData({ ...formData, bulanKe: Number(e.target.value) })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                  onChange={(e) => {
+                    setFormData({ ...formData, bulanKe: Number(e.target.value) });
+                    // Reset pending file jika bulan diganti
+                    setPendingReport(null);
+                    setUploadFileName('');
+                    setUploadProgress(null);
+                  }}
+                  disabled={uploadProgress !== null || !!pendingReport}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                 >
                   {[1, 2, 3, 4, 5, 6].map((num) => {
                     const isUploaded = uploadedMonths.includes(num);
@@ -332,10 +351,14 @@ export default function MonthlyPdfReports({
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
                   Pilih Berkas PDF (Maks 10MB)
                 </label>
-                {uploadProgress !== null ? (
+                {/* State 1: Progress bar sedang berjalan */}
+                {uploadProgress !== null && (
                   <div className="space-y-1.5 pt-1.5">
                     <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
-                      <span className="truncate max-w-[120px] text-indigo-300">{uploadFileName}</span>
+                      <span className="truncate max-w-[120px] text-indigo-300 flex items-center gap-1">
+                        <UploadCloud className="w-3 h-3 animate-bounce" />
+                        {uploadFileName}
+                      </span>
                       <span className="text-indigo-400">{uploadProgress}%</span>
                     </div>
                     <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
@@ -345,7 +368,30 @@ export default function MonthlyPdfReports({
                       />
                     </div>
                   </div>
-                ) : (
+                )}
+                {/* State 2: File sudah terbaca, siap disimpan */}
+                {uploadProgress === null && pendingReport && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-[11px] text-emerald-300 font-semibold truncate">{pendingReport.fileName}</span>
+                    </div>
+                    <label
+                      className="px-2.5 py-2 rounded-xl text-[11px] font-semibold bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 cursor-pointer transition-all shrink-0"
+                      title="Ganti file"
+                    >
+                      Ganti
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </div>
+                )}
+                {/* State 3: Belum ada file dipilih */}
+                {uploadProgress === null && !pendingReport && (
                   <input
                     type="file"
                     accept=".pdf"
@@ -357,17 +403,40 @@ export default function MonthlyPdfReports({
               </div>
             </div>
 
-            <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-850">
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData({ bulanKe: 1, fileName: '', fileData: '' });
-                  setIsAdding(false);
-                }}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200"
-              >
-                Batal
-              </button>
+            <div className="pt-3 flex items-center justify-between gap-2 border-t border-slate-800/70">
+              <p className="text-[10px] text-slate-500">
+                {pendingReport
+                  ? <span>File siap dikirim. Klik <span className="text-emerald-400 font-semibold">Simpan</span> untuk mengunggah ke Google Sheets.</span>
+                  : 'Pilih file PDF terlebih dahulu sebelum menyimpan.'}
+              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ bulanKe: 1, fileName: '', fileData: '' });
+                    setPendingReport(null);
+                    setUploadFileName('');
+                    setUploadProgress(null);
+                    setIsAdding(false);
+                  }}
+                  disabled={isSavingReport}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-40"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveReport}
+                  disabled={!pendingReport || isSavingReport || uploadProgress !== null}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/30"
+                >
+                  {isSavingReport ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
+                  ) : (
+                    <><CloudUpload className="w-4 h-4" /> Simpan ke Google Sheets</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -483,29 +552,15 @@ export default function MonthlyPdfReports({
                       {((subTab === 'my' && rep.userId === activeUser.id) || (!canReview && rep.userId === activeUser.id)) && (
                         <div className="flex items-center gap-2">
                           {(rep.status === 'rejected' || rep.status === 'pending' || !rep.status) && (
-                            <label
-                              className="p-2 rounded-xl bg-slate-950 hover:bg-indigo-950/40 border border-slate-855 hover:border-indigo-500/30 text-indigo-400 transition-all cursor-pointer inline-flex items-center justify-center"
-                              title="Edit / Unggah Ulang PDF Laporan"
-                            >
-                              <Pencil className="w-4 h-4" />
-                              <input
-                                type="file"
-                                accept=".pdf"
-                                className="hidden"
-                                onChange={(e) => handleEditReportFileChange(rep.id, e)}
-                              />
-                            </label>
-                          )}
-
-                          {rep.status === 'rejected' && (
                             <button
                               onClick={async () => {
-                                if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe} yang ditolak ini?`)) {
+                                const label = rep.status === 'rejected' ? 'yang ditolak' : 'ini';
+                                if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe} ${label}? Data juga akan dihapus dari Google Sheets.`)) {
                                   onDeleteReport(rep.id);
                                   window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
                                 }
                               }}
-                              className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 transition-all cursor-pointer"
+                              className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 hover:text-rose-400 transition-all cursor-pointer"
                               title="Hapus Laporan"
                             >
                               <Trash2 className="w-4 h-4" />

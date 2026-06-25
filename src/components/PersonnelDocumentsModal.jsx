@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, UploadCloud, Eye, Trash2, FileText, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { X, UploadCloud, Eye, Trash2, FileText, CheckCircle2, ShieldAlert, Save, Loader2 } from 'lucide-react';
 
 const CATEGORIES = [
   { key: 'KTP', label: 'KTP (Kartu Tanda Penduduk)', desc: 'Unggah berkas scan KTP asli (PDF/Gambar, maks 5MB).', isMultiple: false },
@@ -15,12 +15,14 @@ export default function PersonnelDocumentsModal({
   documents = [], 
   onClose, 
   onAddDoc, 
-  onDeleteDoc 
+  onDeleteDoc,
+  onSave 
 }) {
   const isSuperAdmin = activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin';
   const isOwnDocuments = activeUser.id === user.id;
 
   const [uploadingState, setUploadingState] = React.useState({});
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const handleUpload = (e, category) => {
     const file = e.target.files[0];
@@ -280,13 +282,38 @@ export default function PersonnelDocumentsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-950/20 border-t border-slate-800/80 flex items-center justify-end select-none">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-slate-200 transition-colors cursor-pointer"
-          >
-            Tutup Dialog
-          </button>
+        <div className="px-6 py-4 bg-slate-950/20 border-t border-slate-800/80 flex items-center justify-between select-none gap-3">
+          <p className="text-[10px] text-slate-500">
+            Klik <span className="text-indigo-400 font-semibold">Simpan</span> untuk mengirim perubahan ke Google Sheets.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              disabled={isSaving}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Batal
+            </button>
+            <button
+              onClick={async () => {
+                if (!onSave) { onClose(); return; }
+                setIsSaving(true);
+                try {
+                  await onSave();
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+              disabled={isSaving || Object.keys(uploadingState).length > 0}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-900/30"
+            >
+              {isSaving ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Menyimpan...</>
+              ) : (
+                <><Save className="w-3.5 h-3.5" /> Simpan ke Google Sheets</>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

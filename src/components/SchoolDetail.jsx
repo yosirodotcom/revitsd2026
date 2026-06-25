@@ -4,7 +4,8 @@ import {
   CheckCircle2, AlertTriangle, ListTodo, Plus, Trash2, Calendar, 
   ChevronRight, Play, CheckCircle, AlertCircle, Phone, User, Pencil,
   Download, FileText, Sparkles, Bold, Italic, List, ListOrdered, AlignLeft, 
-  AlignCenter, AlignRight, AlignJustify, Paperclip, MessageSquare, Send
+  AlignCenter, AlignRight, AlignJustify, Paperclip, MessageSquare, Send,
+  Save, Loader2
 } from 'lucide-react';
 
 // Rich Text Editor kustom
@@ -211,6 +212,8 @@ export default function SchoolDetail({
   }, [initialTab]);
   const [progresInput, setProgresInput] = useState(school?.progres_fisik || 0);
   const [uploadingState, setUploadingState] = useState({});
+  const [pendingDocs, setPendingDocs] = useState({});   // { [categoryKey]: newDocObject }
+  const [savingDocKey, setSavingDocKey] = useState(null); // key sedang dalam proses simpan
 
   // Phase 5 Kendala states
   const [isReporting, setIsReporting] = useState(false);
@@ -571,6 +574,9 @@ export default function SchoolDetail({
       return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 10MB.');
     }
 
+    // Reset pending jika ada yang lama untuk kategori ini
+    setPendingDocs((prev) => { const copy = { ...prev }; delete copy[categoryKey]; return copy; });
+
     setUploadingState((prev) => ({
       ...prev,
       [categoryKey]: { progress: 0, fileName: file.name }
@@ -599,8 +605,8 @@ export default function SchoolDetail({
               uploadedBy: activeUser ? activeUser.nama : 'Guest',
               uploadedAt: new Date().toISOString()
             };
-
-            onAddSchoolDoc(newDoc);
+            // Simpan ke pending — user harus klik Simpan
+            setPendingDocs((latest) => ({ ...latest, [categoryKey]: newDoc }));
             setUploadingState((latest) => {
               const copy = { ...latest };
               delete copy[categoryKey];
@@ -620,6 +626,19 @@ export default function SchoolDetail({
     }, 150);
 
     e.target.value = '';
+  };
+
+  // Dipanggil saat tombol Simpan ditekan — baru kirim ke Google Sheets
+  const handleSaveSchoolDoc = async (categoryKey) => {
+    const doc = pendingDocs[categoryKey];
+    if (!doc) return;
+    setSavingDocKey(categoryKey);
+    try {
+      onAddSchoolDoc(doc);
+      setPendingDocs((prev) => { const copy = { ...prev }; delete copy[categoryKey]; return copy; });
+    } finally {
+      setSavingDocKey(null);
+    }
   };
 
   const handleDownloadFile = (file) => {
@@ -1691,7 +1710,7 @@ export default function SchoolDetail({
                       {/* Files List */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[220px] pr-1">
                         {uploadingState[cat.key] && (
-                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5 animate-pulse">
+                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5">
                             <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
                               <span className="truncate max-w-[150px] text-indigo-300 flex items-center gap-1.5">
                                 <Plus className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
@@ -1755,12 +1774,34 @@ export default function SchoolDetail({
                           </div>
                         ))}
 
-                        {catFiles.length === 0 && (
+                        {catFiles.length === 0 && !pendingDocs[cat.key] && !uploadingState[cat.key] && (
                           <div className="text-center py-6 text-[10px] text-slate-650 italic border border-dashed border-slate-850/60 rounded-xl select-none">
                             Belum ada berkas diunggah
                           </div>
                         )}
                       </div>
+
+                      {/* Pending Save Footer */}
+                      {pendingDocs[cat.key] && (
+                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between gap-2 select-none">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                            <span className="text-[10px] text-emerald-400 font-semibold truncate">{pendingDocs[cat.key].fileName}</span>
+                            <span className="text-[9px] text-slate-500 shrink-0">siap disimpan</span>
+                          </div>
+                          <button
+                            onClick={() => handleSaveSchoolDoc(cat.key)}
+                            disabled={savingDocKey === cat.key}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow shadow-emerald-900/30 shrink-0"
+                          >
+                            {savingDocKey === cat.key ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...</>
+                            ) : (
+                              <><Save className="w-3 h-3" /> Simpan ke Google Sheets</>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1807,7 +1848,7 @@ export default function SchoolDetail({
                       {/* Files List */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[220px] pr-1">
                         {uploadingState[cat.key] && (
-                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5 animate-pulse">
+                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5">
                             <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
                               <span className="truncate max-w-[150px] text-indigo-300 flex items-center gap-1.5">
                                 <Plus className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
@@ -1871,12 +1912,34 @@ export default function SchoolDetail({
                           </div>
                         ))}
 
-                        {catFiles.length === 0 && (
+                        {catFiles.length === 0 && !pendingDocs[cat.key] && !uploadingState[cat.key] && (
                           <div className="text-center py-6 text-[10px] text-slate-650 italic border border-dashed border-slate-850/60 rounded-xl select-none">
                             Belum ada berkas diunggah
                           </div>
                         )}
                       </div>
+
+                      {/* Pending Save Footer */}
+                      {pendingDocs[cat.key] && (
+                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between gap-2 select-none">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                            <span className="text-[10px] text-emerald-400 font-semibold truncate">{pendingDocs[cat.key].fileName}</span>
+                            <span className="text-[9px] text-slate-500 shrink-0">siap disimpan</span>
+                          </div>
+                          <button
+                            onClick={() => handleSaveSchoolDoc(cat.key)}
+                            disabled={savingDocKey === cat.key}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow shadow-emerald-900/30 shrink-0"
+                          >
+                            {savingDocKey === cat.key ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...</>
+                            ) : (
+                              <><Save className="w-3 h-3" /> Simpan ke Google Sheets</>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

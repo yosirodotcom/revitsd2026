@@ -2870,7 +2870,7 @@ export default function App() {
     const updated = [...schoolDocs, newDoc];
     setSchoolDocs(updated);
     localStorage.setItem('revit_school_docs', JSON.stringify(updated));
-    syncWithNewState({ schoolDocs: updated, activityLogs: updatedLogs });
+    syncWithNewState({ schoolDocs: updated, activityLogs: updatedLogs }, true, true);
   };
 
   const handleDeleteSchoolDoc = (docId) => {
@@ -3648,6 +3648,10 @@ export default function App() {
           }}
           onAddDoc={handleAddPersonnelDoc}
           onDeleteDoc={handleDeletePersonnelDoc}
+          onSave={async () => {
+            syncWithNewState({ personnelDocs }, true, true);
+            setPersonnelDocsUser(null);
+          }}
         />
       )}
 
@@ -3660,7 +3664,7 @@ export default function App() {
             setMemberReportsUser(null);
           }}
           onAddReport={handleAddReport}
-          onDeleteReport={handleDeleteReport}
+          onDeleteReport={(reportId) => handleDeleteReport(reportId, true)}
         />
       )}
 
