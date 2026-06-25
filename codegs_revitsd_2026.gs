@@ -35,7 +35,7 @@ const SCHEMAS = {
   personnel_docs: ["id", "userId", "type", "fileName", "fileSize", "fileData", "uploadedBy", "uploadedAt"],
   meeting_docs: ["id", "meetingId", "fileName", "fileSize", "fileData", "uploadedBy", "uploadedAt"],
   trip_docs: ["id", "tripId", "category", "fileName", "fileSize", "fileData", "uploadedBy", "uploadedAt"],
-  meetings: ["id", "judul", "tanggal", "jam", "lokasi", "keterangan", "pesertaIds", "fotoKegiatan"],
+  meetings: ["id", "judul", "tanggal", "isMultiDay", "tanggalSelesai", "jam", "lokasi", "keterangan", "pesertaIds", "fotoKegiatan", "linkYoutube"],
   activity_logs: ["id", "userId", "timestamp", "actionType", "description", "fileRef_id", "fileRef_type", "fileRef_fileName", "fileRef_fileData"],
   kendala: ["id", "schoolId", "userId", "userName", "tanggal", "isi", "createdAt"],
   kendala_comments: ["id", "kendalaId", "userId", "userName", "userRole", "tanggal", "isi", "createdAt"],
