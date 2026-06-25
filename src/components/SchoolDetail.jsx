@@ -1797,7 +1797,7 @@ export default function SchoolDetail({
                             {savingDocKey === cat.key ? (
                               <><Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...</>
                             ) : (
-                              <><Save className="w-3 h-3" /> Simpan ke Google Sheets</>
+                              <><Save className="w-3 h-3" /> Simpan</>
                             )}
                           </button>
                         </div>
@@ -1935,7 +1935,7 @@ export default function SchoolDetail({
                             {savingDocKey === cat.key ? (
                               <><Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...</>
                             ) : (
-                              <><Save className="w-3 h-3" /> Simpan ke Google Sheets</>
+                              <><Save className="w-3 h-3" /> Simpan</>
                             )}
                           </button>
                         </div>

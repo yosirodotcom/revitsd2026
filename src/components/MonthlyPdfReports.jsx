@@ -433,7 +433,7 @@ export default function MonthlyPdfReports({
                   {isSavingReport ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
                   ) : (
-                    <><CloudUpload className="w-4 h-4" /> Simpan ke Google Sheets</>
+                    <><CloudUpload className="w-4 h-4" /> Simpan</>
                   )}
                 </button>
               </div>

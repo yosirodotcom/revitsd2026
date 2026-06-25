@@ -310,7 +310,7 @@ export default function PersonnelDocumentsModal({
               {isSaving ? (
                 <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Menyimpan...</>
               ) : (
-                <><Save className="w-3.5 h-3.5" /> Simpan ke Google Sheets</>
+                <><Save className="w-3.5 h-3.5" /> Simpan</>
               )}
             </button>
           </div>
