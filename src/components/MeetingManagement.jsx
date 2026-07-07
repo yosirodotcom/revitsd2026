@@ -321,7 +321,19 @@ export default function MeetingManagement({
       : startDate;
     
     if (endDate < todayStr) return 'selesai';
-    if (startDate <= todayStr && todayStr <= endDate) return 'ongoing';
+    if (startDate <= todayStr && todayStr <= endDate) {
+      // Jika rapat hari ini dan single-day serta memiliki jam mulai, cek jam jika bukan simulasi tanggal
+      if (startDate === todayStr && !meet.isMultiDay && meet.jam && !settings.simulatedToday) {
+        const now = new Date();
+        const currentHours = String(now.getHours()).padStart(2, '0');
+        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+        const currentTime = `${currentHours}:${currentMinutes}`;
+        if (meet.jam > currentTime) {
+          return 'upcoming';
+        }
+      }
+      return 'ongoing';
+    }
     return 'upcoming';
   };
 

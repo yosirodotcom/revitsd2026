@@ -3302,6 +3302,33 @@ export default function App() {
         <main className={`${activeUser ? 'flex-1' : 'w-full'} min-h-screen overflow-y-auto bg-slate-950/20`}>
         <div className="max-w-7xl mx-auto p-4 md:p-8">
           
+          {/* Simulated Date Warning Banner */}
+          {settings?.simulatedToday && (
+            <div className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-400 select-none animate-fade-in">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <Info className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold block">Simulasi Tanggal Aktif: {settings.simulatedToday}</span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Sistem sedang berjalan dalam mode simulasi tanggal. Hal ini memengaruhi perhitungan status rapat, dinas, dan keuangan.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const nextSettings = { ...settings, simulatedToday: '' };
+                  handleUpdateSettings(nextSettings);
+                  window.showAlert('Simulasi tanggal dinonaktifkan. Sistem sekarang menggunakan tanggal riil hari ini.');
+                }}
+                className="shrink-0 px-3.5 py-1.5 rounded-xl text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-0 cursor-pointer transition-colors"
+              >
+                Kembalikan ke Tanggal Asli
+              </button>
+            </div>
+          )}
+
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-900 pb-5 select-none">
             <div>
