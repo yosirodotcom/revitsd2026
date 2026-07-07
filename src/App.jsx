@@ -82,6 +82,31 @@ const isInvalidSchoolName = (name, npsn) => {
 
 const parseSettings = (rawSettings) => {
   if (!rawSettings) return null;
+
+  const cleanDateString = (val) => {
+    if (!val) return '';
+    const str = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return str;
+    }
+    if (str.includes('T')) {
+      const part = str.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(part)) {
+        return part;
+      }
+    }
+    try {
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return '';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const date = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${date}`;
+    } catch (e) {
+      return '';
+    }
+  };
+
   const numFields = [
     'totalProjectContract',
     'honorKetuaTim',
@@ -92,13 +117,23 @@ const parseSettings = (rawSettings) => {
     'deductionLembagaPct',
     'biayaOperasional'
   ];
+  const dateFields = ['projectStartDate', 'projectEndDate', 'simulatedToday'];
   const parsed = {};
   
-  // Only copy keys that have truthy or non-empty string values, ignoring uninitialized cells
+  // Only copy keys that have truthy or non-empty string values, ignoring uninitialized cells (except simulatedToday)
   Object.keys(rawSettings).forEach(key => {
     const val = rawSettings[key];
-    if (val !== undefined && val !== null && String(val).trim() !== '') {
+    if (key === 'simulatedToday') {
+      parsed[key] = val !== undefined && val !== null ? cleanDateString(val) : '';
+    } else if (val !== undefined && val !== null && String(val).trim() !== '') {
       parsed[key] = val;
+    }
+  });
+
+  // Clean date fields to YYYY-MM-DD
+  dateFields.forEach(field => {
+    if (parsed[field] !== undefined) {
+      parsed[field] = cleanDateString(parsed[field]);
     }
   });
 
@@ -139,6 +174,7 @@ const parseSettings = (rawSettings) => {
       parsed[field] = parseNumber(parsed[field]);
     }
   });
+
   return parsed;
 };
 
