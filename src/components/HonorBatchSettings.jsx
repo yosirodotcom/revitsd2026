@@ -66,7 +66,7 @@ export default function HonorBatchSettings({
     const projectStart = settings.projectStartDate || '2026-06-12';
     const start = new Date(projectStart);
     start.setMonth(start.getMonth() + Number(month));
-    const todayVal = new Date(settings.simulatedToday || new Date().toISOString().split('T')[0]);
+    const todayVal = new Date();
     const isTimeReached = todayVal >= start;
 
     let mySchools = [];

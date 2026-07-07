@@ -78,7 +78,7 @@ export const syncService = {
             danaTahap1Diterima: state.settings.danaTahap1Diterima || false,
             danaTahap2Diterima: state.settings.danaTahap2Diterima || false,
             danaTahap3Diterima: state.settings.danaTahap3Diterima || false,
-            simulatedToday: state.settings.simulatedToday || ''
+            simulatedToday: ''
           };
         })(),
         users: (dirtyTables && dirtyTables.users === false) ? null : state.users,
@@ -104,7 +104,7 @@ export const syncService = {
           status: (() => {
             if (t.isPaid || t.status === 'paid') return 'paid';
             if (t.statusPersetujuan === 'approved') {
-              const todayStr = state.settings.simulatedToday || new Date().toISOString().split('T')[0];
+              const todayStr = new Date().toISOString().split('T')[0];
               const today = new Date(todayStr);
               const end = new Date(t.tanggalSelesai || t.tanggalMulai || t.date);
               if (today >= end) {

@@ -425,7 +425,7 @@ export default function MeetingManagement({
     if (endDate < todayStr) return 'selesai';
     if (startDate <= todayStr && todayStr <= endDate) {
       // Jika rapat hari ini dan single-day serta memiliki jam mulai, cek jam jika bukan simulasi tanggal
-      if (startDate === todayStr && !meet.isMultiDay && meet.jam && !settings.simulatedToday) {
+      if (startDate === todayStr && !meet.isMultiDay && meet.jam) {
         const now = new Date();
         const currentHours = String(now.getHours()).padStart(2, '0');
         const currentMinutes = String(now.getMinutes()).padStart(2, '0');
@@ -507,7 +507,7 @@ export default function MeetingManagement({
       meeting.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (meeting.keterangan && meeting.keterangan.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
     const status = getMeetingStatus(meeting, todayStr);
     
     if (statusFilter === 'akan-datang') {
@@ -611,7 +611,7 @@ export default function MeetingManagement({
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {filteredMeetings.map((meet) => {
-                const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
+                const todayStr = new Date().toISOString().split('T')[0];
                 const status = getMeetingStatus(meet, todayStr);
                 const isPast = status === 'selesai';
 

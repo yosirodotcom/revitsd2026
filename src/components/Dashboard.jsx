@@ -233,7 +233,7 @@ export default function Dashboard({
     projectEndDate: settings.projectEndDate || '2026-12-12',
     googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
     googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN',
-    simulatedToday: settings.simulatedToday || ''
+    simulatedToday: ''
   });
 
   const [selectedFacilitator, setSelectedFacilitator] = useState(null);
@@ -355,7 +355,7 @@ export default function Dashboard({
     const start = new Date(projectStart);
     start.setMonth(start.getMonth() + Number(month));
     const targetDateStr = start.toISOString().split('T')[0];
-    const todayVal = new Date(settings.simulatedToday || new Date().toISOString().split('T')[0]);
+    const todayVal = new Date();
     const targetVal = new Date(targetDateStr);
     const isTimeReached = todayVal >= targetVal;
 
@@ -487,7 +487,7 @@ export default function Dashboard({
       projectEndDate: settings.projectEndDate || '2026-12-12',
       googleAppsScriptUrl: settings.googleAppsScriptUrl || '',
       googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN',
-      simulatedToday: settings.simulatedToday || ''
+      simulatedToday: ''
     });
   }, [settings]);
 
@@ -599,7 +599,7 @@ export default function Dashboard({
     const date = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${date}`;
   };
-  const todayStr = settings.simulatedToday || getTodayDateStr();
+  const todayStr = getTodayDateStr();
 
   const startMs = new Date(dates.projectStartDate).getTime();
   const endMs = new Date(dates.projectEndDate).getTime();
@@ -1642,7 +1642,7 @@ export default function Dashboard({
                       const start = new Date(projectStart);
                       start.setMonth(start.getMonth() + Number(month));
                       const targetDateStr = start.toISOString().split('T')[0];
-                      const todayVal = new Date(settings.simulatedToday || new Date().toISOString().split('T')[0]);
+                      const todayVal = new Date();
                       const targetVal = new Date(targetDateStr);
                       const isTimeReached = todayVal >= targetVal;
 
@@ -3010,17 +3010,7 @@ export default function Dashboard({
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Simulasi Tanggal Hari Ini (Testing)
-                  </label>
-                  <input
-                    type="date"
-                    value={dates.simulatedToday}
-                    onChange={(e) => setDates({ ...dates, simulatedToday: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                  />
-                </div>
+
                 <div className="border-t border-slate-850 my-2 pt-2">
                   <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Penyimpanan Sheets & Drive</span>
                   
@@ -3375,7 +3365,7 @@ export default function Dashboard({
                         const getTripDisplayStatus = (t) => {
                           if (t.isPaid || t.status === 'paid') return 'paid';
                           if (t.statusPersetujuan === 'approved') {
-                            const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
+                            const todayStr = new Date().toISOString().split('T')[0];
                             const today = new Date(todayStr);
                             const start = new Date(t.tanggalMulai || t.date);
                             const end = new Date(t.tanggalSelesai || t.tanggalMulai || t.date);
@@ -3799,7 +3789,7 @@ export default function Dashboard({
                   const getTripDisplayStatus = (t) => {
                     if (t.isPaid || t.status === 'paid') return 'paid';
                     if (t.statusPersetujuan === 'approved') {
-                      const todayStr = settings.simulatedToday || new Date().toISOString().split('T')[0];
+                      const todayStr = new Date().toISOString().split('T')[0];
                       const today = new Date(todayStr);
                       const start = new Date(t.tanggalMulai || t.date);
                       const end = new Date(t.tanggalSelesai || t.tanggalMulai || t.date);

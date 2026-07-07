@@ -200,7 +200,7 @@ export default function FinancialDashboard({
     const start = new Date(projectStart);
     start.setMonth(start.getMonth() + Number(month));
     const targetDateStr = start.toISOString().split('T')[0];
-    const todayVal = new Date(settings?.simulatedToday || new Date().toISOString().split('T')[0]);
+    const todayVal = new Date();
     const targetVal = new Date(targetDateStr);
     const isTimeReached = todayVal >= targetVal;
 

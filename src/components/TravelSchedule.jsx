@@ -34,7 +34,7 @@ export default function TravelSchedule({
     const date = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${date}`;
   };
-  const todayDate = settings?.simulatedToday || getTodayDateStr();
+  const todayDate = getTodayDateStr();
 
   const getDurationFriendly = (startDateStr, endDateStr) => {
     if (!startDateStr || !endDateStr) return '-';
