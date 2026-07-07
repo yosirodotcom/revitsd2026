@@ -45,6 +45,108 @@ const getDirectImageUrl = (url) => {
   return url;
 };
 
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return '';
+  const str = String(dateStr).trim();
+  try {
+    let d;
+    if (str.includes('T')) {
+      d = new Date(str);
+    } else {
+      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const day = parseInt(match[3], 10);
+        d = new Date(year, month, day);
+      } else {
+        d = new Date(str);
+      }
+    }
+    if (isNaN(d.getTime())) return dateStr;
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const formatDisplayTime = (timeStr) => {
+  if (!timeStr) return '';
+  const str = String(timeStr).trim();
+  try {
+    if (str.includes('T')) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes} WIB`;
+      }
+    }
+    const simpleMatch = str.match(/^(\d{1,2}):(\d{2})/);
+    if (simpleMatch) {
+      const hours = simpleMatch[1].padStart(2, '0');
+      const minutes = simpleMatch[2];
+      return `${hours}:${minutes} WIB`;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return timeStr;
+};
+
+const cleanInputDate = (val) => {
+  if (!val) return '';
+  const str = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+  if (str.includes('T')) {
+    const part = str.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(part)) {
+      return part;
+    }
+  }
+  try {
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
+  } catch (e) {
+    return '';
+  }
+};
+
+const cleanInputTime = (val) => {
+  if (!val) return '';
+  const str = String(val).trim();
+  try {
+    if (str.includes('T')) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+    }
+    const simpleMatch = str.match(/^(\d{1,2}):(\d{2})/);
+    if (simpleMatch) {
+      const hours = simpleMatch[1].padStart(2, '0');
+      const minutes = simpleMatch[2];
+      return `${hours}:${minutes}`;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return '';
+};
+
 export default function MeetingManagement({ 
   meetings, 
   meetingDocs = [],
@@ -106,10 +208,10 @@ export default function MeetingManagement({
     setEditingMeeting(meeting);
     setFormData({
       judul: meeting.judul || '',
-      tanggal: meeting.tanggal || '',
+      tanggal: cleanInputDate(meeting.tanggal) || '',
       isMultiDay: !!meeting.isMultiDay,
-      tanggalSelesai: meeting.tanggalSelesai || '',
-      jam: meeting.jam || '',
+      tanggalSelesai: cleanInputDate(meeting.tanggalSelesai) || '',
+      jam: cleanInputTime(meeting.jam) || '',
       lokasi: meeting.lokasi || '',
       pesertaIds: meeting.pesertaIds || [],
       keterangan: meeting.keterangan || '',
@@ -533,9 +635,9 @@ export default function MeetingManagement({
                             <span className="flex items-center gap-1">
                               <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                               {meet.isMultiDay ? (
-                                `${meet.tanggal} s.d. ${meet.tanggalSelesai} • Multi-Hari`
+                                `${formatDisplayDate(meet.tanggal)} s.d. ${formatDisplayDate(meet.tanggalSelesai)} • Multi-Hari`
                               ) : (
-                                `${meet.tanggal} • Pukul ${meet.jam}`
+                                `${formatDisplayDate(meet.tanggal)} • Pukul ${formatDisplayTime(meet.jam)}`
                               )}
                             </span>
                             <span className="flex items-center gap-1">
@@ -1006,9 +1108,9 @@ export default function MeetingManagement({
                 <div className="font-bold text-slate-300">Detail Pertemuan:</div>
                 <div className="mt-1">
                   Waktu Pelaksanaan: {notulenMeeting.isMultiDay ? (
-                    `${notulenMeeting.tanggal} s.d. ${notulenMeeting.tanggalSelesai} (Multi-Hari)`
+                    `${formatDisplayDate(notulenMeeting.tanggal)} s.d. ${formatDisplayDate(notulenMeeting.tanggalSelesai)} (Multi-Hari)`
                   ) : (
-                    `${notulenMeeting.tanggal} pukul ${notulenMeeting.jam}`
+                    `${formatDisplayDate(notulenMeeting.tanggal)} pukul ${formatDisplayTime(notulenMeeting.jam)}`
                   )}
                 </div>
                 <div>Tempat / Lokasi: {notulenMeeting.lokasi}</div>
@@ -1068,9 +1170,9 @@ export default function MeetingManagement({
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                     {selectedMeetingDetail.isMultiDay ? (
-                      `${selectedMeetingDetail.tanggal} s.d. ${selectedMeetingDetail.tanggalSelesai} • Multi-Hari`
+                      `${formatDisplayDate(selectedMeetingDetail.tanggal)} s.d. ${formatDisplayDate(selectedMeetingDetail.tanggalSelesai)} • Multi-Hari`
                     ) : (
-                      `${selectedMeetingDetail.tanggal} • Pukul ${selectedMeetingDetail.jam}`
+                      `${formatDisplayDate(selectedMeetingDetail.tanggal)} • Pukul ${formatDisplayTime(selectedMeetingDetail.jam)}`
                     )}
                   </span>
                   <span className="flex items-center gap-1">

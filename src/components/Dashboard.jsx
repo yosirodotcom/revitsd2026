@@ -176,6 +176,30 @@ function TripMultiMap({ schools, batchList }) {
   );
 }
 
+const formatDisplayTime = (timeStr) => {
+  if (!timeStr) return '';
+  const str = String(timeStr).trim();
+  try {
+    if (str.includes('T')) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes} WIB`;
+      }
+    }
+    const simpleMatch = str.match(/^(\d{1,2}):(\d{2})/);
+    if (simpleMatch) {
+      const hours = simpleMatch[1].padStart(2, '0');
+      const minutes = simpleMatch[2];
+      return `${hours}:${minutes} WIB`;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return timeStr;
+};
+
 export default function Dashboard({ 
   activeUser, 
   settings, 
@@ -894,7 +918,7 @@ export default function Dashboard({
         endDateStr: end,
         title: meet.judul,
         type: 'rapat',
-        details: `Tempat: ${meet.lokasi}${meet.jam ? ` • Pukul ${meet.jam}` : ''}`,
+        details: `Tempat: ${meet.lokasi}${meet.jam ? ` • Pukul ${formatDisplayTime(meet.jam)}` : ''}`,
         raw: meet
       });
     });
