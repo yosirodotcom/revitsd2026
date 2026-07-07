@@ -45,6 +45,36 @@ const getDirectImageUrl = (url) => {
   return url;
 };
 
+const getLocalYYYYMMDD = (dateVal) => {
+  if (!dateVal) return '';
+  const str = String(dateVal).trim();
+  if (str.includes('T')) {
+    try {
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return '';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const date = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${date}`;
+    } catch (e) {
+      return '';
+    }
+  }
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return str;
+  }
+  return '';
+};
+
+const getTodayLocalYYYYMMDD = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const date = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+};
+
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '';
   const str = String(dateStr).trim();
@@ -417,20 +447,21 @@ export default function MeetingManagement({
 
   // Helper to determine meeting status
   const getMeetingStatus = (meet, todayStr) => {
-    const startDate = meet.tanggal ? meet.tanggal.substring(0, 10) : '';
+    const startDate = getLocalYYYYMMDD(meet.tanggal);
     const endDate = meet.isMultiDay 
-      ? (meet.tanggalSelesai ? meet.tanggalSelesai.substring(0, 10) : startDate)
+      ? (getLocalYYYYMMDD(meet.tanggalSelesai) || startDate)
       : startDate;
     
     if (endDate < todayStr) return 'selesai';
     if (startDate <= todayStr && todayStr <= endDate) {
-      // Jika rapat hari ini dan single-day serta memiliki jam mulai, cek jam jika bukan simulasi tanggal
+      // Jika rapat hari ini dan single-day serta memiliki jam mulai, cek jam
       if (startDate === todayStr && !meet.isMultiDay && meet.jam) {
         const now = new Date();
         const currentHours = String(now.getHours()).padStart(2, '0');
         const currentMinutes = String(now.getMinutes()).padStart(2, '0');
         const currentTime = `${currentHours}:${currentMinutes}`;
-        if (meet.jam > currentTime) {
+        const meetingCleanTime = cleanInputTime(meet.jam);
+        if (meetingCleanTime && meetingCleanTime > currentTime) {
           return 'upcoming';
         }
       }
@@ -507,7 +538,7 @@ export default function MeetingManagement({
       meeting.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (meeting.keterangan && meeting.keterangan.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayLocalYYYYMMDD();
     const status = getMeetingStatus(meeting, todayStr);
     
     if (statusFilter === 'akan-datang') {
@@ -611,7 +642,7 @@ export default function MeetingManagement({
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {filteredMeetings.map((meet) => {
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = getTodayLocalYYYYMMDD();
                 const status = getMeetingStatus(meet, todayStr);
                 const isPast = status === 'selesai';
 
