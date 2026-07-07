@@ -29,16 +29,31 @@ import ProgramPortal from './components/ProgramPortal';
 // Shadowing helper to dynamically prefix localStorage operations for multi-program isolation
 const storageHelper = {
   getItem: (key) => {
+    // List of allowed configuration keys we want to keep in localStorage
+    const allowedKeys = [
+      'settings', 'active_user', 'last_env_url', 'last_env_token', 'sidebar_collapsed', 'has_cleared_initial_sim'
+    ];
+
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
+      if (!allowedKeys.includes(baseKey)) {
+        return null; // Bypass reading operational tables from localStorage
+      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.getItem(`${prefix}_${baseKey}`);
     }
     return window.localStorage.getItem(key);
   },
   setItem: (key, value) => {
+    const allowedKeys = [
+      'settings', 'active_user', 'last_env_url', 'last_env_token', 'sidebar_collapsed', 'has_cleared_initial_sim'
+    ];
+
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
+      if (!allowedKeys.includes(baseKey)) {
+        return; // No-op: do not write operational/business data to localStorage
+      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.setItem(`${prefix}_${baseKey}`, value);
     }
@@ -510,381 +525,44 @@ export default function App() {
   // karena ia mendeteksi entry 'manual_log' di activityLogs tanpa log harian yang cocok,
   // lalu membuatnya kembali. Fungsi handleAddManualActivityLog sudah membuat kedua entri
   // (activity log + daily log) secara bersamaan, sehingga useEffect tersebut tidak diperlukan.
-
   useEffect(() => {
     if (!activeProgram) return;
     const activePrefix = window.localStorage.getItem('active_program_prefix') || 'revit';
     const referenceUsers = activePrefix === 'revitpaud' ? initialPaudUsers : initialUsers;
-
-    // Users
-    const storedUsers = localStorage.getItem('revit_users');
-    if (storedUsers) {
-      try {
-        const parsedUsers = JSON.parse(storedUsers);
-        const cleanUsers = Array.isArray(parsedUsers) ? parsedUsers.filter(u => u && isValidId(u.id)) : [];
-        if (cleanUsers.length === 0) {
-          setUsers(referenceUsers);
-          localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
-        } else {
-          let migrated = false;
-          const updatedUsers = cleanUsers.map(u => {
-            let updated = { ...u };
-            if (updated.id === 'yosi-ronadi' && (updated.password === undefined || updated.password === '')) {
-              updated.password = '4051';
-              migrated = true;
-            }
-            if (updated.id === 'etty-rabihati' && (updated.password === undefined || updated.password === '')) {
-              updated.password = 'sipil';
-              migrated = true;
-            }
-            if (updated.id === 'chandra-bayu' && (updated.password === undefined || updated.password === '')) {
-              updated.password = 'arsitektur';
-              migrated = true;
-            }
-            if (updated.password === undefined) {
-              updated.password = '';
-              migrated = true;
-            }
-            // Normalisasi taxPct
-            if (updated.taxPct === undefined || updated.taxPct === null || String(updated.taxPct).trim() === '') {
-              if (updated.taxPct !== null) {
-                updated.taxPct = null;
-                migrated = true;
-              }
-            } else {
-              const parsedTax = Number(updated.taxPct);
-              if (updated.taxPct !== parsedTax) {
-                updated.taxPct = parsedTax;
-                migrated = true;
-              }
-            }
-            return updated;
-          });
-          if (migrated) {
-            localStorage.setItem('revit_users', JSON.stringify(updatedUsers));
-            setUsers(updatedUsers);
-          } else {
-            setUsers(cleanUsers);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to parse stored users, resetting to referenceUsers:", e);
-        setUsers(referenceUsers);
-        localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
-      }
-    } else {
-      setUsers(referenceUsers);
-      localStorage.setItem('revit_users', JSON.stringify(referenceUsers));
-    }
-
     const referenceSchools = activePrefix === 'revitpaud' ? initialPaudSchools : initialSchools;
 
-    // Schools
-    const storedSchools = localStorage.getItem('revit_schools');
-    if (storedSchools) {
-      try {
-        const parsed = JSON.parse(storedSchools);
-        const cleanSchools = Array.isArray(parsed) ? parsed.filter(s => s && isValidId(s.npsn)).map(s => ({ ...s, npsn: String(s.npsn).trim() })) : [];
-        if (cleanSchools.length === 0) {
-          setSchools(referenceSchools);
-          localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
-        } else {
-          let isUpdated = false;
-          const migrated = cleanSchools.map((s) => {
-            const init = referenceSchools.find((x) => String(x.npsn) === s.npsn);
-            let updated = { ...s };
-            
-            if (updated.alamat === undefined) {
-              updated.alamat = s.alamat || '';
-              isUpdated = true;
-            }
-            if (updated.nama && isInvalidSchoolName(updated.nama_sekolah, s.npsn) && !isInvalidSchoolName(updated.nama, s.npsn)) {
-              updated.nama_sekolah = updated.nama;
-              isUpdated = true;
-            }
-            if (updated.kepalaSekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
-              updated.kepala_sekolah = updated.kepalaSekolah;
-              isUpdated = true;
-            }
-            
-            if (init) {
-              if (isInvalidSchoolName(updated.nama_sekolah, s.npsn)) {
-                updated.nama_sekolah = init.nama_sekolah;
-                isUpdated = true;
-              }
-              if (init.kepala_sekolah && (!updated.kepala_sekolah || String(updated.kepala_sekolah).trim() === '')) {
-                updated.kepala_sekolah = init.kepala_sekolah;
-                isUpdated = true;
-              }
-              if (init.koordinat && !s.koordinat) {
-                updated.koordinat = init.koordinat;
-                isUpdated = true;
-              }
-              if (init.fasilitatorId !== s.fasilitatorId) {
-                updated.fasilitatorId = init.fasilitatorId;
-                isUpdated = true;
-              }
-            }
-            return updated;
-          });
-          if (isUpdated) {
-            localStorage.setItem('revit_schools', JSON.stringify(migrated));
-            setSchools(migrated);
-          } else {
-            setSchools(cleanSchools);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to parse stored schools, resetting to referenceSchools:", e);
-        setSchools(referenceSchools);
-        localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
-      }
-    } else {
-      setSchools(referenceSchools);
-      localStorage.setItem('revit_schools', JSON.stringify(referenceSchools));
-    }
+    // Initialize all operational states with their default values
+    setUsers(referenceUsers);
+    setSchools(referenceSchools);
+    setContacts([]);
+    setTasks([]);
+    setTrips([]);
+    setLogs([]);
+    setReports([]);
+    setDutyReports([]);
+    setExpenses([]);
+    setPayments([]);
+    setSchoolDocs([]);
+    setPersonnelDocs([]);
+    setMeetings([]);
+    setMeetingDocs([]);
+    setTripDocs([]);
+    setActivityLogs([]);
+    setKendala([]);
+    setKendalaComments([]);
+    setKendalaDocs([]);
+    setWarnings([]);
 
-    // Contacts
-    const storedContacts = localStorage.getItem('revit_contacts');
-    if (storedContacts) {
-      try {
-        setContacts(JSON.parse(storedContacts).filter(Boolean));
-      } catch {
-        setContacts([]);
-      }
-    } else {
-      setContacts([]);
-      localStorage.setItem('revit_contacts', JSON.stringify([]));
-    }
+    // Clear operational data from localStorage to free space and prevent local cache reliance
+    const keysToClear = [
+      'revit_users', 'revit_schools', 'revit_contacts', 'revit_tasks', 'revit_trips',
+      'revit_logs', 'revit_reports', 'revit_duty_reports', 'revit_expenses', 'revit_payments',
+      'revit_school_docs', 'revit_personnel_docs', 'revit_meetings', 'revit_meeting_docs',
+      'revit_trip_docs', 'revit_activity_logs', 'revit_kendala', 'revit_kendala_comments',
+      'revit_kendala_docs', 'revit_warnings', 'revit_is_dirty'
+    ];
+    keysToClear.forEach(key => localStorage.removeItem(key));
 
-    // Tasks
-    const storedTasks = localStorage.getItem('revit_tasks');
-    if (storedTasks) {
-      try {
-        setTasks(JSON.parse(storedTasks).filter(Boolean));
-      } catch {
-        setTasks([]);
-      }
-    } else {
-      setTasks([]);
-      localStorage.setItem('revit_tasks', JSON.stringify([]));
-    }
-
-    // Trips
-    const storedTrips = localStorage.getItem('revit_trips');
-    if (storedTrips) {
-      try {
-        setTrips(JSON.parse(storedTrips).filter(Boolean));
-      } catch {
-        setTrips([]);
-      }
-    } else {
-      setTrips([]);
-      localStorage.setItem('revit_trips', JSON.stringify([]));
-    }
-
-    // Daily Logs & Meetings Startup Sync
-    let initialLogs = [];
-    const storedLogs = localStorage.getItem('revit_logs');
-    if (storedLogs) {
-      try {
-        initialLogs = JSON.parse(storedLogs).filter(Boolean);
-      } catch {
-        initialLogs = [];
-      }
-    }
-
-    let initialMeetings = [];
-    const storedMeetings = localStorage.getItem('revit_meetings');
-    if (storedMeetings) {
-      try {
-        const parsed = JSON.parse(storedMeetings);
-        initialMeetings = parsed.map(m => {
-          if (m && typeof m.pesertaIds === 'string') {
-            m.pesertaIds = m.pesertaIds ? m.pesertaIds.split(',') : [];
-          }
-          return m;
-        });
-      } catch {
-        initialMeetings = [];
-      }
-    }
-    setMeetings(initialMeetings);
-
-    // Meeting Docs
-    const storedMeetingDocs = localStorage.getItem('revit_meeting_docs');
-    if (storedMeetingDocs) {
-      try {
-        setMeetingDocs(JSON.parse(storedMeetingDocs).filter(Boolean));
-      } catch {
-        setMeetingDocs([]);
-      }
-    } else {
-      setMeetingDocs([]);
-      localStorage.setItem('revit_meeting_docs', JSON.stringify([]));
-    }
-
-    // Synchronize daily logs with the loaded meetings
-    const syncedLogs = syncMeetingLogs(initialMeetings, initialLogs);
-    setLogs(syncedLogs);
-    localStorage.setItem('revit_logs', JSON.stringify(syncedLogs));
-
-    // Load and Synchronize activity logs with the loaded meetings
-    let initialActivityLogs = [];
-    const storedActivityLogs = localStorage.getItem('revit_activity_logs');
-    if (storedActivityLogs) {
-      try {
-        initialActivityLogs = JSON.parse(storedActivityLogs).filter(Boolean);
-      } catch {
-        initialActivityLogs = [];
-      }
-    }
-    const syncedActivityLogs = syncMeetingActivityLogs(initialMeetings, initialActivityLogs);
-    setActivityLogs(syncedActivityLogs);
-    localStorage.setItem('revit_activity_logs', JSON.stringify(syncedActivityLogs));
-
-    // Monthly PDF Reports
-    const storedReports = localStorage.getItem('revit_reports');
-    if (storedReports) {
-      try {
-        setReports(JSON.parse(storedReports).filter(Boolean));
-      } catch {
-        setReports([]);
-      }
-    } else {
-      setReports([]);
-      localStorage.setItem('revit_reports', JSON.stringify([]));
-    }
-
-    // Duty Reports
-    const storedDutyReports = localStorage.getItem('revit_duty_reports');
-    if (storedDutyReports) {
-      try {
-        setDutyReports(JSON.parse(storedDutyReports).filter(Boolean));
-      } catch {
-        setDutyReports([]);
-      }
-    } else {
-      setDutyReports([]);
-      localStorage.setItem('revit_duty_reports', JSON.stringify([]));
-    }
-
-    // Expenses
-    const storedExpenses = localStorage.getItem('revit_expenses');
-    if (storedExpenses) {
-      try {
-        setExpenses(JSON.parse(storedExpenses).filter(Boolean));
-      } catch {
-        setExpenses([]);
-      }
-    } else {
-      setExpenses([]);
-      localStorage.setItem('revit_expenses', JSON.stringify([]));
-    }
-
-    // Payments
-    const storedPayments = localStorage.getItem('revit_payments');
-    if (storedPayments) {
-      try {
-        setPayments(JSON.parse(storedPayments).filter(Boolean));
-      } catch {
-        setPayments([]);
-      }
-    } else {
-      setPayments([]);
-      localStorage.setItem('revit_payments', JSON.stringify([]));
-    }
-
-    // School Docs
-    const storedSchoolDocs = localStorage.getItem('revit_school_docs');
-    if (storedSchoolDocs) {
-      try {
-        setSchoolDocs(JSON.parse(storedSchoolDocs).filter(Boolean));
-      } catch {
-        setSchoolDocs([]);
-      }
-    } else {
-      setSchoolDocs([]);
-      localStorage.setItem('revit_school_docs', JSON.stringify([]));
-    }
-
-    // Personnel Docs
-    const storedPersonnelDocs = localStorage.getItem('revit_personnel_docs');
-    if (storedPersonnelDocs) {
-      try {
-        setPersonnelDocs(JSON.parse(storedPersonnelDocs).filter(Boolean));
-      } catch {
-        setPersonnelDocs([]);
-      }
-    } else {
-      setPersonnelDocs([]);
-      localStorage.setItem('revit_personnel_docs', JSON.stringify([]));
-    }
-
-    // Trip Docs
-    const storedTripDocs = localStorage.getItem('revit_trip_docs');
-    if (storedTripDocs) {
-      try {
-        setTripDocs(JSON.parse(storedTripDocs).filter(Boolean));
-      } catch {
-        setTripDocs([]);
-      }
-    } else {
-      setTripDocs([]);
-      localStorage.setItem('revit_trip_docs', JSON.stringify([]));
-    }
-
-    // Kendala
-    const storedKendala = localStorage.getItem('revit_kendala');
-    if (storedKendala) {
-      try {
-        setKendala(JSON.parse(storedKendala).filter(Boolean));
-      } catch {
-        setKendala([]);
-      }
-    } else {
-      setKendala([]);
-      localStorage.setItem('revit_kendala', JSON.stringify([]));
-    }
-
-    // Kendala Comments
-    const storedKendalaComments = localStorage.getItem('revit_kendala_comments');
-    if (storedKendalaComments) {
-      try {
-        setKendalaComments(JSON.parse(storedKendalaComments).filter(Boolean));
-      } catch {
-        setKendalaComments([]);
-      }
-    } else {
-      setKendalaComments([]);
-      localStorage.setItem('revit_kendala_comments', JSON.stringify([]));
-    }
-
-    // Kendala Docs
-    const storedKendalaDocs = localStorage.getItem('revit_kendala_docs');
-    if (storedKendalaDocs) {
-      try {
-        setKendalaDocs(JSON.parse(storedKendalaDocs).filter(Boolean));
-      } catch {
-        setKendalaDocs([]);
-      }
-    } else {
-      setKendalaDocs([]);
-      localStorage.setItem('revit_kendala_docs', JSON.stringify([]));
-    }
-
-    // Warnings
-    const storedWarnings = localStorage.getItem('revit_warnings');
-    if (storedWarnings) {
-      try {
-        setWarnings(JSON.parse(storedWarnings).filter(Boolean));
-      } catch {
-        setWarnings([]);
-      }
-    } else {
-      setWarnings([]);
-      localStorage.setItem('revit_warnings', JSON.stringify([]));
-    }
 
     // Diagnostics
     console.log("=== SINKRONISASI DIAGNOSTIC ===");
@@ -892,6 +570,25 @@ export default function App() {
     console.log("2. .env Token:", import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN);
     console.log("3. localStorage revit_last_env_url:", localStorage.getItem('revit_last_env_url'));
     console.log("4. localStorage revit_settings:", localStorage.getItem('revit_settings'));
+
+    // One-time migration to clear active date simulation and restore real date
+    const hasClearedInitialSim = localStorage.getItem('revit_has_cleared_initial_sim');
+    if (!hasClearedInitialSim) {
+      const storedSettingsRaw = localStorage.getItem('revit_settings');
+      if (storedSettingsRaw) {
+        try {
+          const parsed = JSON.parse(storedSettingsRaw);
+          if (parsed && parsed.simulatedToday) {
+            parsed.simulatedToday = '';
+            localStorage.setItem('revit_settings', JSON.stringify(parsed));
+            localStorage.setItem('revit_is_dirty', 'true');
+          }
+        } catch (e) {
+          console.error('[Migration] Failed to clear simulatedToday:', e);
+        }
+      }
+      localStorage.setItem('revit_has_cleared_initial_sim', 'true');
+    }
 
     // Settings
     const storedSettings = localStorage.getItem('revit_settings');
@@ -1047,15 +744,6 @@ export default function App() {
         setSyncStatus('connecting');
         setIsBlockingSync(true);
         try {
-          // If local state is dirty, push local changes before fetching to avoid overwriting them
-          const isLocalDirty = localStorage.getItem('revit_is_dirty') === 'true';
-          if (isLocalDirty) {
-            console.log('[Sync] Initial load found dirty state. Syncing local changes to Google Sheets first.');
-            const localState = getStateFromLocalStorage();
-            await triggerSync(localState, false);
-            return;
-          }
-
           const remoteData = await syncService.fetchData();
           
           if (remoteData.users) {
@@ -1343,7 +1031,7 @@ export default function App() {
         });
       });
     };
-  }, []);
+  }, [activeProgram]);
 
 
 
@@ -1753,6 +1441,9 @@ export default function App() {
       console.error('[Sync] Detail error sinkronisasi:', errMsg, 'URL aktif:', syncService.getApiConfig().url);
       // Simpan error terakhir untuk UI
       setLastSyncTime(`Error: ${errMsg.substring(0, 100)}`);
+      if (window.showAlert) {
+        window.showAlert(`Gagal menyimpan data ke Google Sheets: ${errMsg}. Silakan periksa koneksi internet Anda atau konfigurasi API di Pengaturan.`);
+      }
     } finally {
       isSyncingRef.current = false;
       setIsBlockingSync(false);
@@ -1760,7 +1451,7 @@ export default function App() {
   };
 
 
-  const syncWithNewState = (updatedStateKeys, isManual = false, shouldSyncNow = false) => {
+  const syncWithNewState = (updatedStateKeys, isManual = true, shouldSyncNow = true) => {
     localStorage.setItem('revit_is_dirty', 'true');
     setIsDirty(true);
     
@@ -1810,25 +1501,15 @@ export default function App() {
       ...pendingSyncUpdatesRef.current
     };
     if (shouldSyncNow) {
-      triggerSync(nextState, isManual);
+      triggerSync(nextState, true); // Force isManual=true to show blocking overlay
     }
   };
-
   // Auto-seed welcome log on Facilitator login
   useEffect(() => {
     if (!activeProgram) return;
     if (activeUser && activeUser.jabatanTim === 'Fasilitator') {
-      const stored = localStorage.getItem('revit_activity_logs');
-      let currentLogs = [];
-      if (stored) {
-        try {
-          currentLogs = JSON.parse(stored).filter(Boolean);
-        } catch (e) {
-          currentLogs = [];
-        }
-      }
-      const userLogs = currentLogs.filter(l => l.userId === activeUser.id);
-      if (userLogs.length === 0) {
+      const userLogs = (activityLogs || []).filter(l => l.userId === activeUser.id);
+      if (userLogs.length === 0 && syncStatus === 'success') {
         const welcomeLog = {
           id: `act-welcome-${activeUser.id}-${Date.now()}`,
           userId: activeUser.id,
@@ -1837,13 +1518,12 @@ export default function App() {
           description: `Masuk ke dalam Sistem Informasi ${activeProgram.name} sebagai ${activeUser.nama}`,
           fileRef: null
         };
-        const updated = [welcomeLog, ...currentLogs];
+        const updated = [welcomeLog, ...(activityLogs || [])];
         setActivityLogs(updated);
-        localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
         syncWithNewState({ activityLogs: updated });
       }
     }
-  }, [activeUser, activeProgram]);
+  }, [activeUser, activityLogs, syncStatus, activeProgram]);
 
   // 4. Update Settings (Super Admin)
   const handleUpdateSettings = (newSettings) => {
@@ -3055,19 +2735,10 @@ export default function App() {
       fileRef
     };
 
-    let currentLogs = [];
-    const stored = localStorage.getItem('revit_activity_logs');
-    if (stored) {
-      try {
-        currentLogs = JSON.parse(stored).filter(Boolean);
-      } catch (e) {
-        currentLogs = [];
-      }
-    }
+    const currentLogs = activityLogs || [];
     const updated = [newLog, ...currentLogs].slice(0, 50);
     
     setActivityLogs(updated);
-    localStorage.setItem('revit_activity_logs', JSON.stringify(updated));
 
     if (shouldSync) {
       setTimeout(() => {

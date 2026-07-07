@@ -139,7 +139,7 @@ function doGet(e) {
     });
 
     if (sheetName === "settings") {
-      result[sheetName] = list[0] || { projectStartDate: "2026-06-12", projectEndDate: "2026-12-12", simulatedToday: "2026-09-14" };
+      result[sheetName] = list[0] || { projectStartDate: "2026-06-12", projectEndDate: "2026-12-12", simulatedToday: "" };
     } else {
       result[sheetName] = list;
     }
