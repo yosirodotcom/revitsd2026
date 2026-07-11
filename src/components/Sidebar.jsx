@@ -17,7 +17,8 @@ import {
   BadgeCheck,
   ChevronLeft,
   ChevronRight,
-  Layers
+  Layers,
+  DatabaseZap
 } from 'lucide-react';
 
 export default function Sidebar({ activeUser, activeView, onViewChange, onEditProfile, onManageDocuments, onLogout, onSwitchProgram, activeProgramName }) {
@@ -61,6 +62,7 @@ export default function Sidebar({ activeUser, activeView, onViewChange, onEditPr
     { id: 'pantau-tanggung-jawab', name: 'Pantau Tugas Tim', icon: ShieldAlert, roles: [] },
     { id: 'kelola-tim', name: 'Kelola Anggota Tim', icon: Users, roles: ['Super Admin'] },
     { id: 'kelola-fasilitator', name: 'Kelola Fasilitator', icon: UserCog, roles: ['Super Admin'] },
+    { id: 'migration', name: 'Migrasi Data ke Firebase', icon: DatabaseZap, roles: ['Super Admin'] },
   ];
 
   const filteredMenu = menuItems.filter(item => {

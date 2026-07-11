@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { uploadFileToStorage } from '../services/firestoreService';
 import { Calendar, Plus, Camera, Image, ShieldAlert, FileText, Check, X, Clock, User, Pencil, Trash2, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteLog, onEditLog }) {
@@ -6,6 +7,8 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
   const [isAdding, setIsAdding] = useState(false);
   const [selectedUserFilter, setSelectedUserFilter] = useState(isMonitorRole ? 'Semua' : activeUser.id);
   const [previewImage, setPreviewImage] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false); // loading saat upload ke Storage
+  const [uploadingEditPhoto, setUploadingEditPhoto] = useState(false);
   
   const [logPage, setLogPage] = useState(1);
   const [editingLogId, setEditingLogId] = useState(null);
@@ -75,69 +78,58 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
     });
   };
 
-  // Client-side image resize & compression using Canvas
-  const compressImage = (file, callback) => {
-    if (!file.type.startsWith('image/')) return window.showAlert('Hanya berkas gambar yang didukung!');
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new window.Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600;
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Compress to JPEG with 0.6 quality
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-        callback(dataUrl);
-      };
-    };
-  };
-
-  const handleImageChange = (e) => {
+  // Upload foto langsung ke Firebase Storage — tanpa kompresi
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
+    if (!file.type.startsWith('image/')) {
       e.target.value = '';
-      return window.showAlert('Ukuran file gambar terlalu besar! Maksimal 10MB.');
+      return window.showAlert('Hanya berkas gambar yang didukung (JPG, PNG, dll.)!');
     }
-    compressImage(file, (dataUrl) => {
-      setPreviewImage(dataUrl);
-      setFormData((prev) => ({ ...prev, foto: dataUrl }));
-    });
+    if (file.size > 30 * 1024 * 1024) {
+      e.target.value = '';
+      return window.showAlert('Ukuran foto terlalu besar! Maksimal 30MB.');
+    }
+    setUploadingPhoto(true);
+    try {
+      const programId = window.localStorage.getItem('active_program_prefix') === 'revitpaud'
+        ? 'revitpaud2026' : 'revitsd2026';
+      const path = `logs/${activeUser.id}-${Date.now()}/${file.name}`;
+      const url = await uploadFileToStorage(programId, path, file);
+      setPreviewImage(url);
+      setFormData((prev) => ({ ...prev, foto: url }));
+    } catch (err) {
+      console.error('Upload foto gagal:', err);
+      window.showAlert('Gagal mengunggah foto. Pastikan Firebase Storage sudah aktif.');
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
-  const handleEditImageChange = (e) => {
+  const handleEditImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
+    if (!file.type.startsWith('image/')) {
       e.target.value = '';
-      return window.showAlert('Ukuran file gambar terlalu besar! Maksimal 10MB.');
+      return window.showAlert('Hanya berkas gambar yang didukung!');
     }
-    compressImage(file, (dataUrl) => {
-      setEditingLogFoto(dataUrl);
-    });
+    if (file.size > 30 * 1024 * 1024) {
+      e.target.value = '';
+      return window.showAlert('Ukuran foto terlalu besar! Maksimal 30MB.');
+    }
+    setUploadingEditPhoto(true);
+    try {
+      const programId = window.localStorage.getItem('active_program_prefix') === 'revitpaud'
+        ? 'revitpaud2026' : 'revitsd2026';
+      const path = `logs/${activeUser.id}-edit-${Date.now()}/${file.name}`;
+      const url = await uploadFileToStorage(programId, path, file);
+      setEditingLogFoto(url);
+    } catch (err) {
+      console.error('Upload foto edit gagal:', err);
+      window.showAlert('Gagal mengunggah foto.');
+    } finally {
+      setUploadingEditPhoto(false);
+    }
   };
 
   const resetForm = () => {

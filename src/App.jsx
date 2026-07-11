@@ -23,7 +23,8 @@ import MemberLogsModal from './components/MemberLogsModal';
 import MeetingManagement from './components/MeetingManagement';
 import RightActivitySidebar from './components/RightActivitySidebar';
 import HonorBatchSettings from './components/HonorBatchSettings';
-import { syncService } from './services/api';
+import MigrationTool from './components/MigrationTool';
+import { syncService } from './services/firebaseAdapter';
 import ProgramPortal from './components/ProgramPortal';
 
 // Shadowing helper to dynamically prefix localStorage operations for multi-program isolation
@@ -320,89 +321,61 @@ export default function App() {
     }
   }, [activeProgram]);
 
-  // Background fetch users on login portal mount to sync passwords with Google Sheets
+  // Background fetch users on portal login mount — menggunakan Firebase Firestore
   useEffect(() => {
     if (globalActiveUser && activeProgram) return;
 
     const fetchPortalUsers = async () => {
-      // 1. Fetch SD Users
+      // 1. Fetch SD Users dari Firebase
       try {
-        const storedSettings = window.localStorage.getItem('revit_settings');
-        let url = '';
-        let token = 'REVITSD2026_SECURE_TOKEN';
-        if (storedSettings) {
-          const parsed = JSON.parse(storedSettings);
-          url = parsed.googleAppsScriptUrl;
-          token = parsed.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN';
-        }
-        if (!url) {
-          url = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
-          token = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_TOKEN || 'REVITSD2026_SECURE_TOKEN';
-        }
-        if (url) {
-          const fetchUrl = `${url}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
-          const response = await fetch(fetchUrl, { cache: 'no-store' });
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.settings) {
-              const currentSettings = window.localStorage.getItem('revit_settings');
-              const parsedCurrent = currentSettings ? JSON.parse(currentSettings) : {};
-              const merged = { ...parsedCurrent, ...data.settings };
-              window.localStorage.setItem('revit_settings', JSON.stringify(merged));
-              setPortalSdSettings(merged);
-            }
-            if (data && data.users) {
-              const clean = data.users.filter(u => u && u.id).map(u => ({
-                ...u,
-                password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
-                taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
-              }));
-              if (clean.length > 0) {
-                window.localStorage.setItem('revit_users', JSON.stringify(clean));
-                setPortalSdUsers(clean);
-              }
-            }
+        const { fetchAllData: fetchFirestore } = await import('./services/firestoreService');
+        const sdData = await fetchFirestore('revitsd2026');
+        if (sdData.users && sdData.users.length > 0) {
+          const clean = sdData.users.filter(u => u && u.id).map(u => ({
+            ...u,
+            password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
+            taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
+          }));
+          if (clean.length > 0) {
+            window.localStorage.setItem('revit_users', JSON.stringify(clean));
+            setPortalSdUsers(clean);
           }
         }
+        if (sdData.settings && Object.keys(sdData.settings).length > 0) {
+          const currentSettings = window.localStorage.getItem('revit_settings');
+          const parsedCurrent = currentSettings ? JSON.parse(currentSettings) : {};
+          const merged = { ...parsedCurrent, ...sdData.settings };
+          window.localStorage.setItem('revit_settings', JSON.stringify(merged));
+          setPortalSdSettings(merged);
+        }
       } catch (err) {
-        console.warn('[Portal Sync] Gagal memuat user SD dari Google Sheet:', err);
+        console.warn('[Portal Sync] Gagal memuat user SD dari Firebase:', err);
       }
 
-      // 2. Fetch PAUD Users
+      // 2. Fetch PAUD Users dari Firebase
       try {
-        const storedSettings = window.localStorage.getItem('revitpaud_settings');
-        if (storedSettings) {
-          const parsed = JSON.parse(storedSettings);
-          const url = parsed.googleAppsScriptUrl;
-          const token = parsed.googleAppsScriptToken || 'REVITPAUD2026_SECURE_TOKEN';
-          if (url) {
-            const fetchUrl = `${url}?token=${encodeURIComponent(token)}&_t=${Date.now()}`;
-            const response = await fetch(fetchUrl, { cache: 'no-store' });
-            if (response.ok) {
-              const data = await response.json();
-              if (data && data.settings) {
-                const currentSettings = window.localStorage.getItem('revitpaud_settings');
-                const parsedCurrent = currentSettings ? JSON.parse(currentSettings) : {};
-                const merged = { ...parsedCurrent, ...data.settings };
-                window.localStorage.setItem('revitpaud_settings', JSON.stringify(merged));
-                setPortalPaudSettings(merged);
-              }
-              if (data && data.users) {
-                const clean = data.users.filter(u => u && u.id).map(u => ({
-                  ...u,
-                  password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
-                  taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
-                }));
-                if (clean.length > 0) {
-                  window.localStorage.setItem('revitpaud_users', JSON.stringify(clean));
-                  setPortalPaudUsers(clean);
-                }
-              }
-            }
+        const { fetchAllData: fetchFirestore } = await import('./services/firestoreService');
+        const paudData = await fetchFirestore('revitpaud2026');
+        if (paudData.users && paudData.users.length > 0) {
+          const clean = paudData.users.filter(u => u && u.id).map(u => ({
+            ...u,
+            password: u.password !== undefined && u.password !== null ? String(u.password).trim() : '',
+            taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
+          }));
+          if (clean.length > 0) {
+            window.localStorage.setItem('revitpaud_users', JSON.stringify(clean));
+            setPortalPaudUsers(clean);
           }
         }
+        if (paudData.settings && Object.keys(paudData.settings).length > 0) {
+          const currentSettings = window.localStorage.getItem('revitpaud_settings');
+          const parsedCurrent = currentSettings ? JSON.parse(currentSettings) : {};
+          const merged = { ...parsedCurrent, ...paudData.settings };
+          window.localStorage.setItem('revitpaud_settings', JSON.stringify(merged));
+          setPortalPaudSettings(merged);
+        }
       } catch (err) {
-        console.warn('[Portal Sync] Gagal memuat user PAUD dari Google Sheet:', err);
+        console.warn('[Portal Sync] Gagal memuat user PAUD dari Firebase:', err);
       }
     };
 
@@ -3314,6 +3287,13 @@ export default function App() {
                   onAddLog={handleAddLog}
                   onDeleteLog={handleDeleteLog}
                   onEditLog={handleEditLog}
+                />
+              )}
+
+              {activeView === 'migration' && (
+                <MigrationTool
+                  activeUser={activeUser}
+                  settings={settings}
                 />
               )}
             </>
