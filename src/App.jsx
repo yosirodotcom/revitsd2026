@@ -204,7 +204,10 @@ const DEFAULT_DIRTY_TABLES = {
 };
 
 const getLocalDirtyTables = (initAllTrue = false) => {
-  const stored = localStorage.getItem('revit_dirty_tables');
+  // PENTING: Gunakan window.localStorage langsung (bukan storageHelper/alias localStorage)
+  // karena storageHelper memblokir key 'revit_dirty_tables' (tidak ada di allowedKeys),
+  // sehingga dirty table tracking tidak pernah tersimpan → semua tabel selalu dianggap 'bersih' → data tidak di-push ke Firestore.
+  const stored = window.localStorage.getItem('revit_dirty_tables');
   if (stored) {
     try {
       return JSON.parse(stored);
@@ -220,7 +223,8 @@ const getLocalDirtyTables = (initAllTrue = false) => {
 };
 
 const setLocalDirtyTables = (dirty) => {
-  localStorage.setItem('revit_dirty_tables', JSON.stringify(dirty));
+  // PENTING: Gunakan window.localStorage langsung agar tidak diblokir storageHelper.
+  window.localStorage.setItem('revit_dirty_tables', JSON.stringify(dirty));
 };
 
 export default function App() {
@@ -398,7 +402,8 @@ export default function App() {
   const [isBlockingSync, setIsBlockingSync] = useState(false);
   const [isDirty, setIsDirty] = useState(() => {
     try {
-      return localStorage.getItem('revit_is_dirty') === 'true';
+      // Gunakan window.localStorage langsung — storageHelper memblokir key ini
+      return window.localStorage.getItem('revit_is_dirty') === 'true';
     } catch (e) {
       console.warn('Failed to read revit_is_dirty from localStorage:', e);
       return false;
@@ -590,7 +595,7 @@ export default function App() {
           if (parsed && parsed.simulatedToday) {
             parsed.simulatedToday = '';
             localStorage.setItem('revit_settings', JSON.stringify(parsed));
-            localStorage.setItem('revit_is_dirty', 'true');
+            window.localStorage.setItem('revit_is_dirty', 'true');
           }
         } catch (e) {
           console.error('[Migration] Failed to clear simulatedToday:', e);
@@ -1105,7 +1110,7 @@ export default function App() {
       setIsBlockingSync(true);
     }
     try {
-      const localDirty = localStorage.getItem('revit_is_dirty') === 'true';
+      const localDirty = window.localStorage.getItem('revit_is_dirty') === 'true'; // Gunakan window.localStorage — storageHelper memblokir key ini
       const stateToPush = currentState || latestStateRef.current || {
         users,
         schools,
@@ -1138,7 +1143,7 @@ export default function App() {
         // Set flag menjadi false *SEBELUM* pushData dimulai. 
         // Jika ada perubahan state baru (dari interaksi user) saat pushData sedang berjalan (berlangsung ~2 detik),
         // maka aksi user akan men-set flag menjadi true kembali.
-        localStorage.setItem('revit_is_dirty', 'false');
+        window.localStorage.setItem('revit_is_dirty', 'false');
         setIsDirty(false);
 
         const dirtyTables = getLocalDirtyTables();
@@ -1148,7 +1153,7 @@ export default function App() {
           setLocalDirtyTables(DEFAULT_DIRTY_TABLES);
         } catch (e) {
           // Jika push gagal, kembalikan status dirty agar dipush ulang di kesempatan berikutnya
-          localStorage.setItem('revit_is_dirty', 'true');
+          window.localStorage.setItem('revit_is_dirty', 'true');
           setIsDirty(true);
           throw e;
         }
@@ -1178,7 +1183,7 @@ export default function App() {
       // PROTEKSI RACE CONDITION KRUSIAL:
       // Jika user melakukan aksi (misal: save trip) saat fetchData sedang berjalan,
       // flag revit_is_dirty akan menjadi true. Jika kita timpa state sekarang, data baru user akan lenyap!
-      if (localStorage.getItem('revit_is_dirty') === 'true') {
+      if (window.localStorage.getItem('revit_is_dirty') === 'true') {
         console.warn('[Sync] Peringatan: State lokal berubah saat mengambil data dari server. Membatalkan update state untuk mencegah hilangnya data (data akan di-push di siklus berikutnya).');
         setSyncStatus('success');
         setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
@@ -1461,7 +1466,7 @@ export default function App() {
 
 
   const syncWithNewState = (updatedStateKeys, isManual = true, shouldSyncNow = true) => {
-    localStorage.setItem('revit_is_dirty', 'true');
+    window.localStorage.setItem('revit_is_dirty', 'true'); // Gunakan window.localStorage — storageHelper memblokir key ini
     setIsDirty(true);
     
     // Tandai tabel kotor
@@ -1550,7 +1555,7 @@ export default function App() {
         allDirty[key] = true;
       });
       setLocalDirtyTables(allDirty);
-      localStorage.setItem('revit_is_dirty', 'true');
+      window.localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
     }
     
@@ -1644,7 +1649,7 @@ export default function App() {
       allDirty[key] = true;
     });
     setLocalDirtyTables(allDirty);
-    localStorage.setItem('revit_is_dirty', 'true');
+    window.localStorage.setItem('revit_is_dirty', 'true');
     setIsDirty(true);
 
     const nextState = {
@@ -2040,7 +2045,7 @@ export default function App() {
 
   const syncWarningsDebounced = (latestWarnings) => {
     // Mark warnings state and table as dirty immediately to avoid loss of state on reload
-    localStorage.setItem('revit_is_dirty', 'true');
+    window.localStorage.setItem('revit_is_dirty', 'true');
     setIsDirty(true);
     const dirty = getLocalDirtyTables();
     dirty['warnings'] = true;
@@ -2420,7 +2425,7 @@ export default function App() {
     if (shouldSync) {
       syncWithNewState({ reports: updated, activityLogs: updatedLogs }, true);
     } else {
-      localStorage.setItem('revit_is_dirty', 'true');
+      window.localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
       const dirty = getLocalDirtyTables();
       dirty.reports = true;
@@ -2443,7 +2448,7 @@ export default function App() {
       if (updatedLogs) syncState.activityLogs = updatedLogs;
       syncWithNewState(syncState, true);
     } else {
-      localStorage.setItem('revit_is_dirty', 'true');
+      window.localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
       const dirty = getLocalDirtyTables();
       dirty.reports = true;
@@ -2482,7 +2487,7 @@ export default function App() {
     if (shouldSync) {
       syncWithNewState({ reports: updated, activityLogs: updatedLogs }, true);
     } else {
-      localStorage.setItem('revit_is_dirty', 'true');
+      window.localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
       const dirty = getLocalDirtyTables();
       dirty.reports = true;
@@ -2754,7 +2759,7 @@ export default function App() {
         syncWithNewState({ activityLogs: updated });
       }, 0);
     } else {
-      localStorage.setItem('revit_is_dirty', 'true');
+      window.localStorage.setItem('revit_is_dirty', 'true');
       setIsDirty(true);
       
       const dirty = getLocalDirtyTables();

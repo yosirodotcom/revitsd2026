@@ -29,3 +29,7 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Firebase Service Account (JANGAN DI-COMMIT!)
+serviceAccountKey.json
+*.serviceAccountKey.json
