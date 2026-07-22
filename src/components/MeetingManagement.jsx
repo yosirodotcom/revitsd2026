@@ -202,6 +202,7 @@ export default function MeetingManagement({
   const [formPhotos, setFormPhotos] = useState([]); // Foto baru yang akan diunggah
   const [lightboxPhoto, setLightboxPhoto] = useState(null); // URL foto yang dibuka di lightbox
   const [lightboxIndex, setLightboxIndex] = useState(0); // Index foto aktif di lightbox
+  const [failedPhotoIds, setFailedPhotoIds] = useState([]); // ID foto yang gagal dimuat (broken url/base64)
 
   const isSuperAdmin = activeUser.jabatanTim === 'Super Admin';
 
@@ -1429,37 +1430,67 @@ export default function MeetingManagement({
                           )}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {allPhotos.map((photo, idx) => (
-                            <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-950 cursor-zoom-in"
-                              onClick={() => openLightbox(allPhotos.map(p => getDirectImageUrl(p.fileData || '')), idx)}
-                            >
-                              <img
-                                src={getDirectImageUrl(photo.fileData || '')}
-                                alt={photo.name || `Foto ${idx + 1}`}
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                              />
-                              <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-1.5">
-                                <span className="text-[8px] text-slate-300 font-medium truncate max-w-[70%]">
-                                  {photo.uploadedBy ? `oleh ${photo.uploadedBy}` : ''}
-                                </span>
-                                {isSuperAdmin && photo.id !== 'legacy-foto' && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); onDeleteMeetingPhoto && onDeleteMeetingPhoto(photo.id); }}
-                                    className="p-1 rounded-full bg-rose-950 text-rose-400 hover:text-rose-200 border-0 cursor-pointer shrink-0"
-                                    title="Hapus foto ini"
-                                  >
-                                    <Trash2 className="w-2.5 h-2.5" />
-                                  </button>
-                                )}
-                              </div>
-                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="w-5 h-5 rounded-full bg-slate-950/80 flex items-center justify-center">
-                                  <ZoomIn className="w-3 h-3 text-white" />
+                          {allPhotos.map((photo, idx) => {
+                            const isFailed = failedPhotoIds.includes(photo.id) || !photo.fileData;
+                            const imgUrl = getDirectImageUrl(photo.fileData || '');
+
+                            if (isFailed) {
+                              return (
+                                <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden border border-rose-900/50 bg-slate-950/80 p-2 flex flex-col items-center justify-center text-center select-none">
+                                  <Camera className="w-5 h-5 text-rose-500/60 mb-1" />
+                                  <span className="text-[9px] text-rose-400 font-semibold truncate max-w-full">Gagal Dimuat</span>
+                                  {isSuperAdmin && photo.id !== 'legacy-foto' && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDeleteMeetingPhoto && onDeleteMeetingPhoto(photo.id);
+                                      }}
+                                      className="mt-1.5 px-2 py-0.5 rounded bg-rose-950/90 hover:bg-rose-900 text-rose-300 text-[9px] font-bold border border-rose-800/80 cursor-pointer flex items-center gap-1 transition-all"
+                                      title="Hapus foto ini"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Hapus
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div 
+                                key={photo.id} 
+                                className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-950 cursor-zoom-in"
+                                onClick={() => openLightbox(allPhotos.filter(p => !failedPhotoIds.includes(p.id) && p.fileData).map(p => getDirectImageUrl(p.fileData || '')), idx)}
+                              >
+                                <img
+                                  src={imgUrl}
+                                  alt={photo.name || `Foto ${idx + 1}`}
+                                  onError={() => setFailedPhotoIds(prev => [...prev, photo.id])}
+                                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-1.5">
+                                  <span className="text-[8px] text-slate-300 font-medium truncate max-w-[70%]">
+                                    {photo.uploadedBy ? `oleh ${photo.uploadedBy}` : ''}
+                                  </span>
+                                  {isSuperAdmin && photo.id !== 'legacy-foto' && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); onDeleteMeetingPhoto && onDeleteMeetingPhoto(photo.id); }}
+                                      className="p-1 rounded-full bg-rose-950 text-rose-400 hover:text-rose-200 border-0 cursor-pointer shrink-0"
+                                      title="Hapus foto ini"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="w-5 h-5 rounded-full bg-slate-950/80 flex items-center justify-center">
+                                    <ZoomIn className="w-3 h-3 text-white" />
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
