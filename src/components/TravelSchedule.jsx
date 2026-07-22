@@ -770,7 +770,7 @@ export default function TravelSchedule({
                               <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
                                 {isImage ? (
                                   <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-slate-700 bg-slate-900">
-                                    <img src={getDirectImageUrl(doc.fileData)} alt={doc.name} crossOrigin={doc.fileData && doc.fileData.startsWith('data:') ? undefined : "anonymous"} className="w-full h-full object-cover" />
+                                    <img src={getDirectImageUrl(doc.fileData)} alt={doc.name} className="w-full h-full object-cover" />
                                   </div>
                                 ) : (
                                   <div className={`w-10 h-10 rounded-lg ${colors.bg} border ${colors.border} flex items-center justify-center shrink-0`}>
@@ -1901,7 +1901,7 @@ export default function TravelSchedule({
                                         className="w-14 h-14 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 hover:border-emerald-500/50 transition-colors shrink-0 block"
                                         title={photo.name}
                                       >
-                                        <img src={getDirectImageUrl(photo.fileData)} alt={photo.name} crossOrigin={photo.fileData && photo.fileData.startsWith('data:') ? undefined : "anonymous"} className="w-full h-full object-cover" />
+                                        <img src={getDirectImageUrl(photo.fileData)} alt={photo.name} className="w-full h-full object-cover" />
                                       </a>
                                     ))}
                                     {batchPhotos.length > 6 && (

@@ -3737,7 +3737,6 @@ export default function Dashboard({
                           <img 
                             src={typeof getDirectImageUrl === 'function' ? getDirectImageUrl(meet.fotoKegiatan) : meet.fotoKegiatan} 
                             alt="Dokumentasi Rapat" 
-                            crossOrigin={meet.fotoKegiatan && meet.fotoKegiatan.startsWith('data:') ? undefined : "anonymous"}
                             className="w-full max-h-48 object-cover rounded-xl border border-slate-800 cursor-pointer"
                             onClick={() => window.open(meet.fotoKegiatan, '_blank')}
                           />

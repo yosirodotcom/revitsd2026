@@ -485,7 +485,6 @@ export default function DailyLogs({ logs, users, activeUser, onAddLog, onDeleteL
                           <img 
                             src={getDirectImageUrl(log.foto)} 
                             alt="Bukti kegiatan" 
-                            crossOrigin={log.foto && log.foto.startsWith('data:') ? undefined : "anonymous"} 
                             className="w-full h-full object-cover group-hover/img:scale-[1.04] transition-transform duration-500" 
                           />
                           <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity duration-300">

@@ -793,7 +793,6 @@ export default function SchoolDetail({
           <img
             src={getDirectImageUrl(school.foto_banner)}
             alt={school.nama_sekolah}
-            crossOrigin={school.foto_banner && school.foto_banner.startsWith('data:') ? undefined : "anonymous"}
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
           />
         ) : (
