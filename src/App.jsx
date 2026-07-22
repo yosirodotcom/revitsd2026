@@ -245,6 +245,7 @@ export default function App() {
   const [personnelDocs, setPersonnelDocs] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [meetingDocs, setMeetingDocs] = useState([]);
+  const [meetingPhotos, setMeetingPhotos] = useState([]);
   const [tripDocs, setTripDocs] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [isActivitySidebarOpen, setIsActivitySidebarOpen] = useState(false);
@@ -524,6 +525,7 @@ export default function App() {
       personnelDocs,
       meetings,
       meetingDocs,
+      meetingPhotos,
       tripDocs,
       activityLogs,
       kendala,
@@ -532,7 +534,7 @@ export default function App() {
       warnings,
       settings
     };
-  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, personnelDocs, meetings, meetingDocs, tripDocs, activityLogs, kendala, kendalaComments, kendalaDocs, warnings, settings]);
+  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, personnelDocs, meetings, meetingDocs, meetingPhotos, tripDocs, activityLogs, kendala, kendalaComments, kendalaDocs, warnings, settings]);
 
   // NOTE: useEffect sinkronisasi manual_log → daily logs telah DIHAPUS.
   // useEffect tersebut menyebabkan bug di mana log harian yang dihapus langsung dibuat ulang
@@ -560,6 +562,7 @@ export default function App() {
     setPersonnelDocs([]);
     setMeetings([]);
     setMeetingDocs([]);
+    setMeetingPhotos([]);
     setTripDocs([]);
     setActivityLogs([]);
     setKendala([]);
@@ -572,8 +575,8 @@ export default function App() {
       'revit_users', 'revit_schools', 'revit_contacts', 'revit_tasks', 'revit_trips',
       'revit_logs', 'revit_reports', 'revit_duty_reports', 'revit_expenses', 'revit_payments',
       'revit_school_docs', 'revit_personnel_docs', 'revit_meetings', 'revit_meeting_docs',
-      'revit_trip_docs', 'revit_activity_logs', 'revit_kendala', 'revit_kendala_comments',
-      'revit_kendala_docs', 'revit_warnings', 'revit_is_dirty'
+      'revit_meeting_photos', 'revit_trip_docs', 'revit_activity_logs', 'revit_kendala',
+      'revit_kendala_comments', 'revit_kendala_docs', 'revit_warnings', 'revit_is_dirty'
     ];
     keysToClear.forEach(key => localStorage.removeItem(key));
 
@@ -742,6 +745,7 @@ export default function App() {
         personnelDocs: parseOrFallback('revit_personnel_docs', []),
         meetings: parseOrFallback('revit_meetings', []),
         meetingDocs: parseOrFallback('revit_meeting_docs', []),
+        meetingPhotos: parseOrFallback('revit_meeting_photos', []),
         tripDocs: parseOrFallback('revit_trip_docs', []),
         activityLogs: parseOrFallback('revit_activity_logs', []),
         kendala: parseOrFallback('revit_kendala', []),
@@ -918,6 +922,11 @@ export default function App() {
               const cleanDocs = remoteData.meeting_docs.filter(d => d && isValidId(d.id));
               setMeetingDocs(cleanDocs);
               localStorage.setItem('revit_meeting_docs', JSON.stringify(cleanDocs));
+            }
+            if (remoteData.meeting_photos) {
+              const cleanPhotos = remoteData.meeting_photos.filter(p => p && isValidId(p.id));
+              setMeetingPhotos(cleanPhotos);
+              localStorage.setItem('revit_meeting_photos', JSON.stringify(cleanPhotos));
             }
           }
           if (remoteData.trip_docs) {
@@ -1126,6 +1135,7 @@ export default function App() {
         personnelDocs,
         meetings,
         meetingDocs,
+        meetingPhotos,
         tripDocs,
         activityLogs,
         kendala,
@@ -1360,6 +1370,11 @@ export default function App() {
           setMeetingDocs(cleanDocs);
           localStorage.setItem('revit_meeting_docs', JSON.stringify(cleanDocs));
         }
+        if (remoteData.meeting_photos) {
+          const cleanPhotos = remoteData.meeting_photos.filter(p => p && isValidId(p.id));
+          setMeetingPhotos(cleanPhotos);
+          localStorage.setItem('revit_meeting_photos', JSON.stringify(cleanPhotos));
+        }
 
         // Sync meeting logs when meetings are loaded
         const currentLogs = remoteData.logs ? remoteData.logs.filter(l => l && isValidId(l.id)) : logs;
@@ -1477,6 +1492,7 @@ export default function App() {
       if (key === 'schoolDocs') tableName = 'school_docs';
       if (key === 'personnelDocs') tableName = 'personnel_docs';
       if (key === 'meetingDocs') tableName = 'meeting_docs';
+      if (key === 'meetingPhotos') tableName = 'meeting_photos';
       if (key === 'tripDocs') tableName = 'trip_docs';
       if (key === 'activityLogs') tableName = 'activity_logs';
       if (key === 'kendalaComments') tableName = 'kendala_comments';
@@ -1505,6 +1521,7 @@ export default function App() {
       personnelDocs,
       meetings,
       meetingDocs,
+      meetingPhotos,
       tripDocs,
       activityLogs,
       kendala,
@@ -1612,6 +1629,7 @@ export default function App() {
     setPersonnelDocs([]);
     setMeetings([]);
     setMeetingDocs([]);
+    setMeetingPhotos([]);
     setTripDocs([]);
     setActivityLogs([]);
     setKendala([]);
@@ -1635,6 +1653,7 @@ export default function App() {
     localStorage.setItem('revit_personnel_docs', JSON.stringify([]));
     localStorage.setItem('revit_meetings', JSON.stringify([]));
     localStorage.setItem('revit_meeting_docs', JSON.stringify([]));
+    localStorage.setItem('revit_meeting_photos', JSON.stringify([]));
     localStorage.setItem('revit_trip_docs', JSON.stringify([]));
     localStorage.setItem('revit_activity_logs', JSON.stringify([]));
     localStorage.setItem('revit_kendala', JSON.stringify([]));
@@ -1667,6 +1686,7 @@ export default function App() {
       personnelDocs: [],
       meetings: [],
       meetingDocs: [],
+      meetingPhotos: [],
       tripDocs: [],
       activityLogs: [],
       kendala: [],
@@ -2615,7 +2635,7 @@ export default function App() {
     syncWithNewState(syncState);
   };
 
-  const handleAddMeeting = (newMeeting, documents = []) => {
+  const handleAddMeeting = (newMeeting, documents = [], photos = []) => {
     const schedLog = {
       id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       userId: activeUser.id,
@@ -2637,6 +2657,14 @@ export default function App() {
       localStorage.setItem('revit_meeting_docs', JSON.stringify(updatedDocs));
     }
 
+    let updatedPhotos = [...meetingPhotos];
+    if (photos && photos.length > 0) {
+      const photosWithId = photos.map(p => ({ ...p, meetingId: newMeeting.id }));
+      updatedPhotos = [...updatedPhotos, ...photosWithId];
+      setMeetingPhotos(updatedPhotos);
+      localStorage.setItem('revit_meeting_photos', JSON.stringify(updatedPhotos));
+    }
+
     const updatedLogs = syncMeetingLogs(updatedMeetings, logs);
     setLogs(updatedLogs);
     localStorage.setItem('revit_logs', JSON.stringify(updatedLogs));
@@ -2649,12 +2677,13 @@ export default function App() {
     syncWithNewState({ 
       meetings: updatedMeetings, 
       meetingDocs: updatedDocs,
+      meetingPhotos: updatedPhotos,
       logs: updatedLogs, 
       activityLogs: updatedActivityLogs 
     }, true, true);
   };
 
-  const handleUpdateMeeting = (updatedMeeting, documents = []) => {
+  const handleUpdateMeeting = (updatedMeeting, documents = [], newPhotos = []) => {
     const oldMeeting = meetings.find(m => m.id === updatedMeeting.id);
     const hasNotulenChanged = oldMeeting && oldMeeting.keterangan !== updatedMeeting.keterangan;
     
@@ -2681,6 +2710,15 @@ export default function App() {
     setMeetingDocs(updatedDocs);
     localStorage.setItem('revit_meeting_docs', JSON.stringify(updatedDocs));
 
+    // Tambahkan foto baru (foto yang sudah ada tidak dihapus lewat handler ini)
+    let updatedPhotos = [...meetingPhotos];
+    if (newPhotos && newPhotos.length > 0) {
+      const photosWithId = newPhotos.map(p => ({ ...p, meetingId: updatedMeeting.id }));
+      updatedPhotos = [...updatedPhotos, ...photosWithId];
+    }
+    setMeetingPhotos(updatedPhotos);
+    localStorage.setItem('revit_meeting_photos', JSON.stringify(updatedPhotos));
+
     const updatedLogs = syncMeetingLogs(updatedMeetings, logs);
     setLogs(updatedLogs);
     localStorage.setItem('revit_logs', JSON.stringify(updatedLogs));
@@ -2693,9 +2731,17 @@ export default function App() {
     syncWithNewState({ 
       meetings: updatedMeetings, 
       meetingDocs: updatedDocs,
+      meetingPhotos: updatedPhotos,
       logs: updatedLogs, 
       activityLogs: updatedActivityLogs 
     }, true, true);
+  };
+
+  const handleDeleteMeetingPhoto = (photoId) => {
+    const updatedPhotos = meetingPhotos.filter(p => p.id !== photoId);
+    setMeetingPhotos(updatedPhotos);
+    localStorage.setItem('revit_meeting_photos', JSON.stringify(updatedPhotos));
+    syncWithNewState({ meetingPhotos: updatedPhotos }, true, true);
   };
 
   const handleDeleteMeeting = (meetingId) => {
@@ -2719,6 +2765,10 @@ export default function App() {
     const updatedDocs = meetingDocs.filter(d => d.meetingId !== meetingId);
     setMeetingDocs(updatedDocs);
     localStorage.setItem('revit_meeting_docs', JSON.stringify(updatedDocs));
+
+    const updatedPhotos = meetingPhotos.filter(p => p.meetingId !== meetingId);
+    setMeetingPhotos(updatedPhotos);
+    localStorage.setItem('revit_meeting_photos', JSON.stringify(updatedPhotos));
 
     const updatedLogs = syncMeetingLogs(updatedMeetings, logs);
     setLogs(updatedLogs);
@@ -3264,12 +3314,14 @@ export default function App() {
                 <MeetingManagement
                   meetings={meetings}
                   meetingDocs={meetingDocs}
+                  meetingPhotos={meetingPhotos}
                   users={users}
                   activeUser={activeUser}
                   settings={settings}
                   onAddMeeting={handleAddMeeting}
                   onUpdateMeeting={handleUpdateMeeting}
                   onDeleteMeeting={handleDeleteMeeting}
+                  onDeleteMeetingPhoto={handleDeleteMeetingPhoto}
                 />
               )}
 

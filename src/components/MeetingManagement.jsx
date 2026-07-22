@@ -18,9 +18,12 @@ import {
   Youtube,
   ExternalLink,
   ChevronRight,
+  ChevronLeft,
   Download,
   Paperclip,
-  File
+  File,
+  ZoomIn,
+  Grid3X3
 } from 'lucide-react';
 
 const getDirectImageUrl = (url) => {
@@ -180,12 +183,14 @@ const cleanInputTime = (val) => {
 export default function MeetingManagement({ 
   meetings, 
   meetingDocs = [],
+  meetingPhotos = [],
   users, 
   activeUser, 
   settings = {},
   onAddMeeting, 
   onUpdateMeeting, 
-  onDeleteMeeting 
+  onDeleteMeeting,
+  onDeleteMeetingPhoto
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('semua'); // 'semua' | 'akan-datang' | 'selesai'
@@ -194,6 +199,9 @@ export default function MeetingManagement({
   const [notulenMeeting, setNotulenMeeting] = useState(null); // Rapat yang sedang diisi notulennya saja
   const [selectedMeetingDetail, setSelectedMeetingDetail] = useState(null); // Rapat yang sedang dilihat detailnya
   const [formDocs, setFormDocs] = useState([]);
+  const [formPhotos, setFormPhotos] = useState([]); // Foto baru yang akan diunggah
+  const [lightboxPhoto, setLightboxPhoto] = useState(null); // URL foto yang dibuka di lightbox
+  const [lightboxIndex, setLightboxIndex] = useState(0); // Index foto aktif di lightbox
 
   const isSuperAdmin = activeUser.jabatanTim === 'Super Admin';
 
@@ -206,11 +214,9 @@ export default function MeetingManagement({
     lokasi: '',
     pesertaIds: [],
     keterangan: '',
-    fotoKegiatan: '',
     linkYoutube: ''
   });
 
-  const [previewImage, setPreviewImage] = useState(null);
   const [notulenText, setNotulenText] = useState('');
 
   // Reset Form
@@ -224,10 +230,9 @@ export default function MeetingManagement({
       lokasi: '',
       pesertaIds: [],
       keterangan: '',
-      fotoKegiatan: '',
       linkYoutube: ''
     });
-    setPreviewImage(null);
+    setFormPhotos([]);
     setFormDocs([]);
     setIsAdding(false);
     setEditingMeeting(null);
@@ -245,12 +250,11 @@ export default function MeetingManagement({
       lokasi: meeting.lokasi || '',
       pesertaIds: meeting.pesertaIds || [],
       keterangan: meeting.keterangan || '',
-      fotoKegiatan: meeting.fotoKegiatan || '',
       linkYoutube: meeting.linkYoutube || ''
     });
     const existingDocs = meetingDocs ? meetingDocs.filter(d => d.meetingId === meeting.id) : [];
     setFormDocs(existingDocs);
-    setPreviewImage(meeting.fotoKegiatan || null);
+    setFormPhotos([]); // Form foto baru kosong saat edit (foto lama tampil di detail)
     setIsAdding(false);
   };
 
@@ -260,48 +264,75 @@ export default function MeetingManagement({
     setNotulenText(meeting.keterangan || '');
   };
 
-  // Canvas Image Compression (resolusi maks 600px, kualitas 60% JPEG)
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) return window.showAlert('Hanya berkas gambar yang didukung!');
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new window.Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600;
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+  // Canvas Image Compression — multi-foto (resolusi maks 800px, kualitas 70% JPEG)
+  const compressImageFile = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_SIZE) { height = Math.round(height * MAX_SIZE / width); width = MAX_SIZE; }
+          } else {
+            if (height > MAX_SIZE) { width = Math.round(width * MAX_SIZE / height); height = MAX_SIZE; }
           }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Compress to JPEG with 0.6 quality
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-        setPreviewImage(dataUrl);
-        setFormData((prev) => ({ ...prev, fotoKegiatan: dataUrl }));
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+          resolve({ dataUrl, originalName: file.name });
+        };
       };
-    };
+    });
   };
+
+  const handlePhotoFilesChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    const nonImages = files.filter(f => !f.type.startsWith('image/'));
+    if (nonImages.length > 0) {
+      window.showAlert('Hanya berkas gambar yang didukung!');
+      e.target.value = '';
+      return;
+    }
+    const MAX_PHOTOS = 10;
+    const remaining = MAX_PHOTOS - formPhotos.length;
+    if (files.length > remaining) {
+      window.showAlert(`Maksimal ${MAX_PHOTOS} foto per rapat. Anda bisa menambahkan ${remaining} foto lagi.`);
+      e.target.value = '';
+      return;
+    }
+    const compressed = await Promise.all(files.map(f => compressImageFile(f)));
+    const newPhotos = compressed.map(({ dataUrl, originalName }, idx) => ({
+      id: `photo-meet-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 6)}`,
+      meetingId: '',
+      name: originalName,
+      fileData: dataUrl,
+      uploadedBy: activeUser.nama,
+      uploadedAt: new Date().toISOString()
+    }));
+    setFormPhotos(prev => [...prev, ...newPhotos]);
+    e.target.value = '';
+  };
+
+  const handleRemoveFormPhoto = (photoId) => {
+    setFormPhotos(prev => prev.filter(p => p.id !== photoId));
+  };
+
+  // Lightbox helper untuk galeri foto
+  const openLightbox = (photos, idx) => {
+    setLightboxPhoto(photos);
+    setLightboxIndex(idx);
+  };
+  const closeLightbox = () => setLightboxPhoto(null);
+  const lightboxPrev = () => setLightboxIndex(i => Math.max(0, i - 1));
+  const lightboxNext = (total) => setLightboxIndex(i => Math.min(total - 1, i + 1));
 
   // Handle Document Upload
   const handleDocUpload = (e) => {
@@ -398,7 +429,7 @@ export default function MeetingManagement({
       onUpdateMeeting({
         ...editingMeeting,
         ...cleanData
-      }, formDocs);
+      }, formDocs, formPhotos);
       window.showAlert('Data rapat berhasil diperbarui');
     } else {
       const newMeeting = {
@@ -406,7 +437,7 @@ export default function MeetingManagement({
         ...cleanData,
         createdAt: new Date().toISOString()
       };
-      onAddMeeting(newMeeting, formDocs);
+      onAddMeeting(newMeeting, formDocs, formPhotos);
       window.showAlert('Rapat baru berhasil dijadwalkan');
     }
     resetForm();
@@ -697,20 +728,27 @@ export default function MeetingManagement({
                       </div>
 
                       {/* Preview Media Indicators */}
-                      {(meet.fotoKegiatan || meet.linkYoutube) && (
-                        <div className="flex items-center gap-2 pt-1">
-                          {meet.fotoKegiatan && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                              <Image className="w-3 h-3" /> Foto Dokumentasi
-                            </span>
-                          )}
-                          {meet.linkYoutube && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-rose-450 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
-                              <Youtube className="w-3 h-3" /> Rekaman Video
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {(() => {
+                        const photoCount = meetingPhotos.filter(p => p.meetingId === meet.id).length;
+                        const hasLegacyPhoto = !!meet.fotoKegiatan;
+                        const totalPhotos = photoCount + (hasLegacyPhoto && photoCount === 0 ? 1 : 0);
+                        const hasMedia = totalPhotos > 0 || meet.linkYoutube;
+                        if (!hasMedia) return null;
+                        return (
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
+                            {totalPhotos > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                                <Grid3X3 className="w-3 h-3" /> {totalPhotos} Foto Dokumentasi
+                              </span>
+                            )}
+                            {meet.linkYoutube && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-rose-450 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
+                                <Youtube className="w-3 h-3" /> Rekaman Video
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Anggota yang Diundang */}
                       <div className="space-y-1.5 pt-2 border-t border-slate-900">
@@ -929,49 +967,58 @@ export default function MeetingManagement({
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
-                  Foto Dokumentasi / Kegiatan (Kompresi Otomatis)
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 bg-slate-900 border border-slate-850 hover:bg-slate-850 rounded-xl px-4 py-2 text-xs font-semibold text-slate-200 hover:text-white cursor-pointer transition-colors shadow-sm">
-                    <Camera className="w-4 h-4 text-slate-400" /> Pilih Foto
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between select-none">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Foto Dokumentasi / Kegiatan — <span className="text-indigo-400 normal-case font-bold">Bisa Lebih dari Satu</span>
                   </label>
-                  <span className="text-[10px] text-slate-500 leading-tight">
-                    Unggah bukti foto rapat. Sistem otomatis mengompresi gambar.
-                  </span>
+                  <span className="text-[10px] text-slate-500">{formPhotos.length}/10 foto dipilih</span>
                 </div>
+                <label className="flex items-center gap-2 w-fit bg-slate-900 border border-slate-850 hover:bg-slate-850 rounded-xl px-4 py-2 text-xs font-semibold text-slate-200 hover:text-white cursor-pointer transition-colors shadow-sm select-none">
+                  <Camera className="w-4 h-4 text-indigo-400" /> Pilih Foto (Multi-Pilih)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoFilesChange}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  Pilih satu atau banyak foto sekaligus (maks. 10 foto per rapat). Otomatis dikompres ke JPEG 800px / 70%.
+                </p>
+                {/* Grid thumbnail foto yang dipilih di form */}
+                {formPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+                    {formPhotos.map((photo, idx) => (
+                      <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                        <img src={photo.fileData} alt={photo.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openLightbox(formPhotos.map(p => p.fileData), idx)}
+                            className="p-1 rounded-full bg-slate-900/80 text-slate-200 hover:text-white border-0 cursor-pointer"
+                            title="Perbesar"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFormPhoto(photo.id)}
+                            className="p-1 rounded-full bg-rose-950/80 text-rose-400 hover:text-rose-300 border-0 cursor-pointer"
+                            title="Hapus foto"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <span className="absolute bottom-0 left-0 right-0 text-center text-[8px] text-white bg-slate-950/60 py-0.5 px-1 truncate">{idx + 1}. {photo.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
             </div>
-
-            {/* Preview and Upload Image Area */}
-            {previewImage && (
-              <div className="space-y-1.5 max-w-sm">
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
-                  Preview Foto Dokumentasi
-                </label>
-                <div className="relative border border-slate-800 rounded-xl overflow-hidden aspect-video bg-slate-950 flex items-center justify-center">
-                  <img src={previewImage} alt="Dokumentasi rapat" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPreviewImage(null);
-                      setFormData((prev) => ({ ...prev, fotoKegiatan: '' }));
-                    }}
-                    className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/80 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-950 transition-colors cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Selection Peserta (Checked Grid) */}
             <div className="space-y-3 pt-2">
@@ -1224,7 +1271,11 @@ export default function MeetingManagement({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
               {/* Left Column: Agenda/Notulen & Attendees (8/12 or 12/12) */}
-              <div className={`${(selectedMeetingDetail.fotoKegiatan || selectedMeetingDetail.linkYoutube) ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-5`}>
+              {(() => {
+                const photoCount = meetingPhotos.filter(p => p.meetingId === selectedMeetingDetail.id).length;
+                const hasRightContent = photoCount > 0 || !!selectedMeetingDetail.fotoKegiatan || !!selectedMeetingDetail.linkYoutube;
+                return (
+                  <div className={`${hasRightContent ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-5`}>
                 
                 {/* Risalah / Notulen */}
                 <div className="space-y-2">
@@ -1320,68 +1371,137 @@ export default function MeetingManagement({
                 </div>
 
               </div>
+                );
+              })()}
 
-              {/* Right Column: Foto Dokumentasi & Embed YouTube (5/12) */}
-              {(selectedMeetingDetail.fotoKegiatan || selectedMeetingDetail.linkYoutube) && (
-                <div className="lg:col-span-5 space-y-6">
-                  
-                  {/* Foto Dokumentasi */}
-                  {selectedMeetingDetail.fotoKegiatan && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">
-                        <Image className="w-4 h-4 text-indigo-400" /> Foto Dokumentasi Kegiatan
-                      </h4>
-                      <div 
-                        className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center cursor-zoom-in"
-                        onClick={() => window.open(selectedMeetingDetail.fotoKegiatan)}
-                        title="Klik untuk membuka dalam ukuran penuh"
-                      >
-                        <img 
-                          src={getDirectImageUrl(selectedMeetingDetail.fotoKegiatan)} 
-                          alt="Dokumentasi Rapat" 
-                          crossOrigin={selectedMeetingDetail.fotoKegiatan && selectedMeetingDetail.fotoKegiatan.startsWith('data:') ? undefined : "anonymous"}
-                          className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300" 
-                        />
+              {/* Right Column: Galeri Foto & Embed YouTube (5/12) */}
+              {(() => {
+                const detailPhotos = meetingPhotos.filter(p => p.meetingId === selectedMeetingDetail.id);
+                // Backward compat: sertakan fotoKegiatan legacy jika belum ada di meetingPhotos
+                const legacyPhoto = selectedMeetingDetail.fotoKegiatan && detailPhotos.length === 0
+                  ? [{ id: 'legacy-foto', fileData: selectedMeetingDetail.fotoKegiatan, name: 'Foto Dokumentasi', uploadedBy: '' }]
+                  : [];
+                const allPhotos = [...detailPhotos, ...legacyPhoto];
+                const hasRightContent = allPhotos.length > 0 || selectedMeetingDetail.linkYoutube;
+                if (!hasRightContent) return null;
+                return (
+                  <div className="lg:col-span-5 space-y-6">
+                    
+                    {/* Galeri Foto Dokumentasi */}
+                    {allPhotos.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between select-none">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Grid3X3 className="w-4 h-4 text-indigo-400" /> Galeri Foto Dokumentasi ({allPhotos.length})
+                          </h4>
+                          {isSuperAdmin && (
+                            <label className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors select-none">
+                              <Camera className="w-3 h-3" /> Tambah Foto
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const files = Array.from(e.target.files);
+                                  if (!files.length) return;
+                                  const MAX_PHOTOS = 10;
+                                  const remaining = MAX_PHOTOS - detailPhotos.length;
+                                  if (files.length > remaining) {
+                                    window.showAlert(`Maks. ${MAX_PHOTOS} foto. Sisa slot: ${remaining}`);
+                                    e.target.value = '';
+                                    return;
+                                  }
+                                  const compressed = await Promise.all(files.map(f => compressImageFile(f)));
+                                  const newPhotos = compressed.map(({ dataUrl, originalName }, idx) => ({
+                                    id: `photo-meet-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 6)}`,
+                                    meetingId: selectedMeetingDetail.id,
+                                    name: originalName,
+                                    fileData: dataUrl,
+                                    uploadedBy: activeUser.nama,
+                                    uploadedAt: new Date().toISOString()
+                                  }));
+                                  onUpdateMeeting({ ...selectedMeetingDetail }, [], newPhotos);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {allPhotos.map((photo, idx) => (
+                            <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-950 cursor-zoom-in"
+                              onClick={() => openLightbox(allPhotos.map(p => getDirectImageUrl(p.fileData || '')), idx)}
+                            >
+                              <img
+                                src={getDirectImageUrl(photo.fileData || '')}
+                                alt={photo.name || `Foto ${idx + 1}`}
+                                crossOrigin={photo.fileData && photo.fileData.startsWith('data:') ? undefined : "anonymous"}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-1.5">
+                                <span className="text-[8px] text-slate-300 font-medium truncate max-w-[70%]">
+                                  {photo.uploadedBy ? `oleh ${photo.uploadedBy}` : ''}
+                                </span>
+                                {isSuperAdmin && photo.id !== 'legacy-foto' && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); onDeleteMeetingPhoto && onDeleteMeetingPhoto(photo.id); }}
+                                    className="p-1 rounded-full bg-rose-950 text-rose-400 hover:text-rose-200 border-0 cursor-pointer shrink-0"
+                                    title="Hapus foto ini"
+                                  >
+                                    <Trash2 className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="w-5 h-5 rounded-full bg-slate-950/80 flex items-center justify-center">
+                                  <ZoomIn className="w-3 h-3 text-white" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* YouTube Embed Player */}
-                  {selectedMeetingDetail.linkYoutube && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">
-                        <Youtube className="w-4 h-4 text-rose-450" /> Rekaman Jalannya Rapat
-                      </h4>
-                      {getYoutubeEmbedUrl(selectedMeetingDetail.linkYoutube) ? (
-                        <div className="w-full aspect-video rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 shadow-md">
-                          <iframe 
-                            src={getYoutubeEmbedUrl(selectedMeetingDetail.linkYoutube)} 
-                            className="w-full h-full border-0"
-                            allowFullScreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            title="Rekaman Rapat"
-                          ></iframe>
-                        </div>
-                      ) : (
-                        <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 text-center space-y-2.5">
-                          <p className="text-xs text-slate-500">
-                            Tautan video eksternal terdaftar. Klik tombol di bawah ini untuk menonton rekaman rapat di tab baru:
-                          </p>
-                          <a
-                            href={selectedMeetingDetail.linkYoutube}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/20 hover:border-transparent rounded-xl text-xs font-bold transition-all"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Buka Rekaman Video
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {/* YouTube Embed Player */}
+                    {selectedMeetingDetail.linkYoutube && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">
+                          <Youtube className="w-4 h-4 text-rose-450" /> Rekaman Jalannya Rapat
+                        </h4>
+                        {getYoutubeEmbedUrl(selectedMeetingDetail.linkYoutube) ? (
+                          <div className="w-full aspect-video rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 shadow-md">
+                            <iframe 
+                              src={getYoutubeEmbedUrl(selectedMeetingDetail.linkYoutube)} 
+                              className="w-full h-full border-0"
+                              allowFullScreen
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              title="Rekaman Rapat"
+                            ></iframe>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 text-center space-y-2.5">
+                            <p className="text-xs text-slate-500">
+                              Tautan video eksternal terdaftar. Klik tombol di bawah ini untuk menonton rekaman rapat di tab baru:
+                            </p>
+                            <a
+                              href={selectedMeetingDetail.linkYoutube}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/20 hover:border-transparent rounded-xl text-xs font-bold transition-all"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> Buka Rekaman Video
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                </div>
-              )}
+                  </div>
+                );
+              })()}
 
             </div>
 
@@ -1409,6 +1529,75 @@ export default function MeetingManagement({
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* LIGHTBOX MODAL */}
+      {lightboxPhoto && Array.isArray(lightboxPhoto) && lightboxPhoto.length > 0 && (
+        <div
+          className="fixed inset-0 bg-slate-950/95 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          {/* Close */}
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors border-0 cursor-pointer z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Counter */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-xs text-slate-400 font-semibold bg-slate-900 border border-slate-800 px-3 py-1 rounded-full z-10">
+            {lightboxIndex + 1} / {lightboxPhoto.length}
+          </div>
+
+          {/* Prev Button */}
+          {lightboxIndex > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); lightboxPrev(); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer z-10"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Next Button */}
+          {lightboxIndex < lightboxPhoto.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); lightboxNext(lightboxPhoto.length); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer z-10"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Main Image */}
+          <img
+            src={lightboxPhoto[lightboxIndex]}
+            alt={`Foto ${lightboxIndex + 1}`}
+            className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl select-none"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Thumbnail Strip */}
+          {lightboxPhoto.length > 1 && (
+            <div
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-[90vw] px-2 py-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {lightboxPhoto.map((url, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setLightboxIndex(idx)}
+                  className={`shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                    idx === lightboxIndex ? 'border-indigo-500 scale-110' : 'border-slate-700 opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img src={url} alt={`thumb-${idx}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

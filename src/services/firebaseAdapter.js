@@ -79,8 +79,8 @@ const normalizeRemoteData = (raw) => {
     users = [], schools = [], contacts = [], tasks = [], trips = [],
     logs = [], reports = [], duty_reports = [], expenses = [], payments = [],
     school_docs = [], personnel_docs = [], meetings = [], meeting_docs = [],
-    trip_docs = [], activity_logs = [], kendala = [], kendala_comments = [],
-    kendala_docs = [], warnings = [],
+    meeting_photos = [], trip_docs = [], activity_logs = [], kendala = [],
+    kendala_comments = [], kendala_docs = [], warnings = [],
   } = raw;
 
   const strip = (arr) => arr.map(({ _updatedAt, ...rest }) => rest);
@@ -118,6 +118,7 @@ const normalizeRemoteData = (raw) => {
     expenses: strip(expenses), payments: strip(payments),
     school_docs: strip(school_docs), personnel_docs: strip(personnel_docs),
     meetings: cleanMeetings, meeting_docs: strip(meeting_docs),
+    meeting_photos: strip(meeting_photos),
     trip_docs: strip(trip_docs), activity_logs: cleanActivityLogs,
     kendala: strip(kendala), kendala_comments: strip(kendala_comments),
     kendala_docs: strip(kendala_docs), warnings: cleanWarnings,
@@ -225,6 +226,12 @@ export const syncService = {
       tasks.push(
         processFilesInDocs(programId, 'meeting_docs', state.meetingDocs, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'meeting_docs', d))
+      );
+
+    if (isDirty('meeting_photos') && state.meetingPhotos?.length)
+      tasks.push(
+        processFilesInDocs(programId, 'meeting_photos', state.meetingPhotos, ['fileData'])
+          .then(d => saveDocumentsBatch(programId, 'meeting_photos', d))
       );
 
     if (isDirty('trip_docs') && state.tripDocs?.length)
