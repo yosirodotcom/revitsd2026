@@ -43,8 +43,9 @@ const resolveFileField = async (programId, collection, docId, fieldName, value) 
       const url = await uploadBase64ToStorage(programId, path, value);
       return url;
     } catch (err) {
-      console.error(`[Adapter] Gagal upload ${path}:`, err.message);
-      return ''; // Jangan simpan Base64 raksasa ke Firestore jika upload gagal
+      console.error(`[Adapter] Gagal upload ${path} ke Storage (Rules / Authorization):`, err.message);
+      // Fallback: Kembalikan Base64 asli agar foto/file TIDAK HILANG di Firestore jika Storage belum dikonfigurasi
+      return value;
     }
   }
   return value;
