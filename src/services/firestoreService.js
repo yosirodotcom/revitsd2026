@@ -49,6 +49,7 @@ export const COLLECTIONS = [
   'personnel_docs',
   'meetings',
   'meeting_docs',
+  'meeting_photos',
   'trip_docs',
   'activity_logs',
   'kendala',

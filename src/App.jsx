@@ -918,16 +918,16 @@ export default function App() {
             setMeetings(cleanMeetings);
             localStorage.setItem('revit_meetings', JSON.stringify(cleanMeetings));
 
-            if (remoteData.meeting_docs) {
-              const cleanDocs = remoteData.meeting_docs.filter(d => d && isValidId(d.id));
-              setMeetingDocs(cleanDocs);
-              localStorage.setItem('revit_meeting_docs', JSON.stringify(cleanDocs));
-            }
-            if (remoteData.meeting_photos) {
-              const cleanPhotos = remoteData.meeting_photos.filter(p => p && isValidId(p.id));
-              setMeetingPhotos(cleanPhotos);
-              localStorage.setItem('revit_meeting_photos', JSON.stringify(cleanPhotos));
-            }
+          }
+          if (remoteData.meeting_docs) {
+            const cleanDocs = remoteData.meeting_docs.filter(d => d && isValidId(d.id));
+            setMeetingDocs(cleanDocs);
+            localStorage.setItem('revit_meeting_docs', JSON.stringify(cleanDocs));
+          }
+          if (remoteData.meeting_photos) {
+            const cleanPhotos = remoteData.meeting_photos.filter(p => p && isValidId(p.id));
+            setMeetingPhotos(cleanPhotos);
+            localStorage.setItem('revit_meeting_photos', JSON.stringify(cleanPhotos));
           }
           if (remoteData.trip_docs) {
             const clean = remoteData.trip_docs.filter(d => d && isValidId(d.id));
@@ -1364,24 +1364,23 @@ export default function App() {
         });
         setMeetings(cleanMeetings);
         localStorage.setItem('revit_meetings', JSON.stringify(cleanMeetings));
+      }
+      if (remoteData.meeting_docs) {
+        const cleanDocs = remoteData.meeting_docs.filter(d => d && isValidId(d.id));
+        setMeetingDocs(cleanDocs);
+        localStorage.setItem('revit_meeting_docs', JSON.stringify(cleanDocs));
+      }
+      if (remoteData.meeting_photos) {
+        const cleanPhotos = remoteData.meeting_photos.filter(p => p && isValidId(p.id));
+        setMeetingPhotos(cleanPhotos);
+        localStorage.setItem('revit_meeting_photos', JSON.stringify(cleanPhotos));
+      }
 
-        if (remoteData.meeting_docs) {
-          const cleanDocs = remoteData.meeting_docs.filter(d => d && isValidId(d.id));
-          setMeetingDocs(cleanDocs);
-          localStorage.setItem('revit_meeting_docs', JSON.stringify(cleanDocs));
-        }
-        if (remoteData.meeting_photos) {
-          const cleanPhotos = remoteData.meeting_photos.filter(p => p && isValidId(p.id));
-          setMeetingPhotos(cleanPhotos);
-          localStorage.setItem('revit_meeting_photos', JSON.stringify(cleanPhotos));
-        }
-
-        // Sync meeting logs when meetings are loaded
         const currentLogs = remoteData.logs ? remoteData.logs.filter(l => l && isValidId(l.id)) : logs;
         const updatedLogs = syncMeetingLogs(cleanMeetings, currentLogs);
         setLogs(updatedLogs);
         localStorage.setItem('revit_logs', JSON.stringify(updatedLogs));
-      }
+
       if (remoteData.trip_docs) {
         const clean = remoteData.trip_docs.filter(d => d && isValidId(d.id));
         setTripDocs(clean);
