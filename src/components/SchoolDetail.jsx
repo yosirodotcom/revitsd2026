@@ -72,23 +72,20 @@ function SCurveChart({ records = [], school = {} }) {
     const safeRecords = Array.isArray(records) ? records : [];
     const schoolProgressVal = parseNum(school?.progres_fisik);
 
-    const effectiveRecords = (safeRecords.length > 0)
-      ? safeRecords
-      : (schoolProgressVal > 0 ? [{ minggu: 1, realisasi: schoolProgressVal, kumulatif: schoolProgressVal, rencana: Math.round(schoolProgressVal / 2) }] : []);
+    const effectiveRecords = safeRecords;
 
     const recordMap = new Map();
     effectiveRecords.forEach(r => recordMap.set(parseNum(r.minggu), r));
 
     const filledWeeks = effectiveRecords
       .filter(r => {
-        const rel = parseNum(r.realisasi);
-        const kum = parseNum(r.kumulatif);
-        const w = parseNum(r.minggu);
-        return (rel > 0 || kum > 0 || w === 1);
+        const rel = parseNum(r?.realisasi);
+        const kum = parseNum(r?.kumulatif);
+        return (rel > 0 || kum > 0);
       })
-      .map(r => parseNum(r.minggu));
+      .map(r => parseNum(r?.minggu));
 
-    const rawMaxFilled = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => parseNum(r.minggu))) : 0);
+    const rawMaxFilled = filledWeeks.length > 0 ? Math.max(...filledWeeks) : 0;
     const maxFilledWeek = Math.max(0, Math.min(totalWeeks, Math.floor(parseNum(rawMaxFilled))));
 
     let maxRencanaWeek = 0;
@@ -681,6 +678,13 @@ export default function SchoolDetail({
       setWpForm({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
     }
   }, [selectedMinggu, weeklyProgress, school?.npsn]);
+
+  useEffect(() => {
+    if ((activeTab === 'weekly-progress' || activeTab === 'progres-mingguan') && schoolWpRecords.length === 0 && onRefreshGSheetData && !isRefreshingGSheet) {
+      setIsRefreshingGSheet(true);
+      onRefreshGSheetData().finally(() => setIsRefreshingGSheet(false));
+    }
+  }, [activeTab, schoolWpRecords.length]);
 
   const handleSaveWpForm = (e) => {
     e.preventDefault();
