@@ -3270,7 +3270,7 @@ export default function App() {
       setGlobalActiveUser(user);
       setShowLoginModal(false);
 
-      const activeProg = targetProg || publicProgram;
+      const activeProg = targetProg || publicProgram || { id: 'revitsd2026', prefix: 'revit', name: 'Revitalisasi Sekolah Dasar 2026' };
       if (activeProg) {
         const prefix = activeProg.prefix;
         window.localStorage.setItem('active_program_id', activeProg.id);

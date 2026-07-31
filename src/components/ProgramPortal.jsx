@@ -186,6 +186,7 @@ export default function ProgramPortal({
       setSelectedUser(null);
       setPassword('');
       setSearchQuery('');
+      setShowLoginForm(false);
       if (onClose) onClose();
     } else {
       setError('Kata sandi yang Anda masukkan salah!');
@@ -218,7 +219,7 @@ export default function ProgramPortal({
   };
 
   // MODE 1: Login Form (Modal / Standalone)
-  if (showLoginForm || isLoginModal) {
+  if (!loggedInUser && (showLoginForm || isLoginModal)) {
     return (
       <div className="min-h-screen bg-white text-slate-800 font-['Outfit',sans-serif] grid grid-cols-1 lg:grid-cols-12 overflow-hidden select-none w-full relative" style={{ backgroundColor: '#ffffff', color: '#1f2937' }}>
         
