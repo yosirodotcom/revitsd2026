@@ -46,6 +46,15 @@ function parseDateStrToObj(dateStr) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Helper parser angka yang aman terhadap string koma ("8,825"), undefined, null, atau NaN
+const parseNum = (val) => {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const cleaned = String(val).replace(',', '.').trim();
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+};
+
 // Grafik Kurva-S Progres Mingguan
 function SCurveChart({ records = [], school = {} }) {
   const totalWeeks = 24;
@@ -60,44 +69,59 @@ function SCurveChart({ records = [], school = {} }) {
   const chartW = width - padding.left - padding.right; // 800 - 110 - 35 = 655px
   const chartH = height - padding.top - padding.bottom;
 
-  // Fallback: Jika records mingguan belum diisi di tab progres mingguan tetapi sekolah memiliki progres_fisik master > 0
-  const schoolProgressVal = Number(school?.progres_fisik || 0);
-  const effectiveRecords = (records && records.length > 0)
-    ? records
+  const safeRecords = Array.isArray(records) ? records : [];
+  const schoolProgressVal = parseNum(school?.progres_fisik);
+
+  const effectiveRecords = (safeRecords.length > 0)
+    ? safeRecords
     : (schoolProgressVal > 0 ? [{ minggu: 1, realisasi: schoolProgressVal, kumulatif: schoolProgressVal, rencana: Math.round(schoolProgressVal / 2) }] : []);
 
   const recordMap = new Map();
-  effectiveRecords.forEach(r => recordMap.set(Number(r.minggu), r));
+  effectiveRecords.forEach(r => recordMap.set(parseNum(r.minggu), r));
 
   // Hitung maxFilledWeek: minggu terbawah s.d tertinggi yang terisi data realisasi/kumulatif
   const filledWeeks = effectiveRecords
-    .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) && (Number(r.kumulatif) > 0 || Number(r.realisasi) > 0 || Number(r.minggu) === 1))
-    .map(r => Number(r.minggu));
+    .filter(r => {
+      const rel = parseNum(r.realisasi);
+      const kum = parseNum(r.kumulatif);
+      const w = parseNum(r.minggu);
+      return (rel > 0 || kum > 0 || w === 1);
+    })
+    .map(r => parseNum(r.minggu));
 
-  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => Number(r.minggu))) : 0);
+  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => parseNum(r.minggu))) : 0);
 
   // Hitung minggu terakhir yang terisi data (realisasi atau rencana)
   let maxRencanaWeek = 0;
-  records.forEach(r => {
-    if (r.rencana !== undefined && r.rencana !== null && r.rencana !== '' && Number(r.rencana) > 0) {
-      const w = Number(r.minggu);
+  safeRecords.forEach(r => {
+    const ren = parseNum(r.rencana);
+    if (ren > 0) {
+      const w = parseNum(r.minggu);
       if (w > maxRencanaWeek) maxRencanaWeek = w;
     }
   });
   const maxChartWeek = Math.max(maxFilledWeek, maxRencanaWeek);
 
   // Sumbu X: 0 s/d 24 (M0 = x=110, M24 = x=765)
-  const getX = (w) => padding.left + (w / totalWeeks) * chartW;
-  const getY = (pct) => padding.top + chartH - (Math.min(100, Math.max(0, pct)) / 100) * chartH;
+  const getX = (w) => {
+    const wNum = parseNum(w);
+    return padding.left + (wNum / totalWeeks) * chartW;
+  };
+
+  const getY = (pct) => {
+    const pVal = parseNum(pct);
+    const clamped = Math.min(100, Math.max(0, pVal));
+    return padding.top + chartH - (clamped / 100) * chartH;
+  };
 
   // Kurva Rencana Kumulatif: Mulai dari M0 (0%) s/d maxChartWeek (tidak menggaris datar ke M24)
   let runningRencana = 0;
   const rencanaPoints = [{ w: 0, val: 0 }];
   for (let w = 1; w <= maxChartWeek; w++) {
     const rec = recordMap.get(w);
-    const rPlan = rec ? Number(rec.rencana || 0) : 0;
+    const rPlan = parseNum(rec?.rencana);
     runningRencana += rPlan;
-    rencanaPoints.push({ w, val: Math.min(100, Number(runningRencana.toFixed(3))) });
+    rencanaPoints.push({ w, val: Math.min(100, parseNum(runningRencana.toFixed(3))) });
   }
 
   // Kurva Realisasi Kumulatif: Mulai dari M0 (0%) s/d maxFilledWeek
@@ -105,19 +129,19 @@ function SCurveChart({ records = [], school = {} }) {
   for (let w = 1; w <= (maxFilledWeek > 0 ? maxFilledWeek : 1); w++) {
     const rec = recordMap.get(w);
     if (rec) {
-      realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
+      realisasiPoints.push({ w, val: parseNum(rec.kumulatif || rec.realisasi) });
     }
   }
 
   const rencanaD = rencanaPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.w)} ${getY(p.val)}`).join(' ');
   const realisasiD = realisasiPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.w)} ${getY(p.val)}`).join(' ');
 
-  const sorted = [...effectiveRecords].filter(r => Number(r.minggu) <= maxFilledWeek).sort((a, b) => Number(a.minggu) - Number(b.minggu));
+  const sorted = [...effectiveRecords].filter(r => parseNum(r.minggu) <= maxFilledWeek).sort((a, b) => parseNum(a.minggu) - parseNum(b.minggu));
   const latestRec = sorted[sorted.length - 1];
-  const latestWeek = latestRec ? Number(latestRec.minggu) : (maxFilledWeek > 0 ? maxFilledWeek : 0);
-  const latestRealisasi = latestRec ? Number(latestRec.kumulatif || 0) : schoolProgressVal;
+  const latestWeek = latestRec ? parseNum(latestRec.minggu) : (maxFilledWeek > 0 ? maxFilledWeek : 0);
+  const latestRealisasi = latestRec ? parseNum(latestRec.kumulatif) : schoolProgressVal;
   const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek]?.val || 0) : 0;
-  const latestDeviasi = latestRec ? Number(latestRec.deviasi !== undefined && latestRec.deviasi !== 0 ? latestRec.deviasi : (latestRealisasi - latestRencana)) : (latestRealisasi - latestRencana);
+  const latestDeviasi = latestRec ? parseNum(latestRec.deviasi !== undefined && latestRec.deviasi !== 0 ? latestRec.deviasi : (latestRealisasi - latestRencana)) : (latestRealisasi - latestRencana);
 
   // Hitung posisi vertikal milestone tanggal di sumbu X relatif terhadap M0 (MC-0)
   const milestones = [];
@@ -133,14 +157,14 @@ function SCurveChart({ records = [], school = {} }) {
     return diffDays / 7;
   };
 
-  // 1. Tanggal PKS (Sebelum M0, ditempatkan di posisi khusus x=75 tanpa menimpa sumbu Y)
+  // 1. Tanggal PKS
   if (school?.tanggal_pks && pksDateObj) {
     milestones.push({
       id: 'pks',
       label: 'PKS',
       dateStr: school.tanggal_pks,
       customX: 75,
-      color: '#a855f7' // Purple
+      color: '#a855f7'
     });
   }
 
@@ -153,7 +177,7 @@ function SCurveChart({ records = [], school = {} }) {
       label: 'Cair T-1',
       dateStr: school.tanggal_dana_tahap1,
       weekPos: wPos,
-      color: '#06b6d4' // Cyan
+      color: '#06b6d4'
     });
   }
 
@@ -163,8 +187,8 @@ function SCurveChart({ records = [], school = {} }) {
       id: 'mc0',
       label: 'MC-0 (M0)',
       dateStr: school.tanggal_mc0,
-      weekPos: 0, // Titik M0
-      color: '#f43f5e' // Rose
+      weekPos: 0,
+      color: '#f43f5e'
     });
   }
 
@@ -298,21 +322,21 @@ function SCurveChart({ records = [], school = {} }) {
         {/* 📊 Diagram Batang Mingguan (Rencana Mingguan & Realisasi Mingguan Non-Kumulatif) */}
         {Array.from({ length: maxChartWeek }, (_, i) => i + 1).map((w) => {
           const rec = recordMap.get(w);
-          const rRealisasi = rec ? Math.max(0, Number(rec.realisasi || 0)) : 0;
-          const rRencana = rec ? Math.max(0, Number(rec.rencana || 0)) : 0;
+          const rRealisasi = parseNum(rec?.realisasi);
+          const rRencana = parseNum(rec?.rencana);
           const cx = getX(w);
           const barW = 6.5;
 
-          const renH = (rRencana / 100) * chartH;
+          const renH = Math.max(0, (rRencana / 100) * chartH);
           const renY = padding.top + chartH - renH;
 
-          const reaH = (rRealisasi / 100) * chartH;
+          const reaH = Math.max(0, (rRealisasi / 100) * chartH);
           const reaY = padding.top + chartH - reaH;
 
           return (
             <g key={`bars-${w}`}>
               {/* Batang Rencana Minggu Ini (Indigo) */}
-              {rRencana > 0 && (
+              {rRencana > 0 && !isNaN(renY) && !isNaN(renH) && (
                 <g className="group/bar cursor-pointer">
                   <rect
                     x={cx - barW - 1}
@@ -329,7 +353,7 @@ function SCurveChart({ records = [], school = {} }) {
               )}
 
               {/* Batang Realisasi Minggu Ini (Emerald) */}
-              {rRealisasi > 0 && (
+              {rRealisasi > 0 && !isNaN(reaY) && !isNaN(reaH) && (
                 <g className="group/bar cursor-pointer">
                   <rect
                     x={cx + 1}
