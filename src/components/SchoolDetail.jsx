@@ -251,9 +251,6 @@ function SCurveChart({ records = [], school = {} }) {
           <span className="flex items-center gap-1.5 font-bold text-emerald-300">
             <span className="w-3 h-3 bg-[#10b981] rounded-sm inline-block shadow-sm" /> Realisasi Mingguan (Bar)
           </span>
-          <span className="flex items-center gap-1.5 font-bold text-indigo-300">
-            <span className="w-4 border-b-2 border-dashed border-[#6366f1] inline-block my-auto" /> Rencana Kumulatif (%)
-          </span>
           <span className="flex items-center gap-1.5 font-bold text-emerald-300">
             <span className="w-4 border-b-2 border-solid border-[#10b981] inline-block my-auto" /> Realisasi Kumulatif (%)
           </span>
@@ -391,6 +388,40 @@ function SCurveChart({ records = [], school = {} }) {
           );
         })}
 
+        {/* 🏷️ Label Angka Deviasi Mingguan di Atas Bar Chart */}
+        {Array.from({ length: maxFilledWeek }, (_, i) => i + 1).map((w) => {
+          const rec = recordMap.get(w);
+          const rRealisasi = parseNum(rec?.realisasi);
+          const rRencana = parseNum(rec?.rencana);
+          if (rRealisasi === 0 && rRencana === 0) return null;
+
+          const weeklyDev = rRealisasi - rRencana;
+          const cx = getX(w);
+          const renH = Math.max(0, (rRencana / 100) * chartH);
+          const renY = padding.top + chartH - renH;
+          const reaH = Math.max(0, (rRealisasi / 100) * chartH);
+          const reaY = padding.top + chartH - reaH;
+          const topY = Math.min(renY, reaY);
+          const labelY = Math.max(padding.top + 12, topY - 5);
+
+          const isMinus = weeklyDev < 0;
+          const devText = weeklyDev > 0 ? `+${weeklyDev.toFixed(2)}%` : `${weeklyDev.toFixed(2)}%`;
+
+          return (
+            <g key={`devlabel-${w}`}>
+              <text
+                x={cx}
+                y={labelY}
+                textAnchor="middle"
+                className="text-[8px] font-mono font-extrabold select-none"
+                fill={isMinus ? "#ef4444" : "#047857"}
+              >
+                {devText}
+              </text>
+            </g>
+          );
+        })}
+
         {/* Milestone Vertical Lines & Markers */}
         {milestones.map((m) => {
           const xPos = m.customX !== undefined ? m.customX : getX(m.weekPos);
@@ -418,18 +449,6 @@ function SCurveChart({ records = [], school = {} }) {
             </g>
           );
         })}
-
-        {/* 📈 Kurva Rencana Kumulatif (Dashed Indigo Line) dari M0 (0%) */}
-        {rencanaPoints.length > 0 && (
-          <path
-            d={rencanaD}
-            fill="none"
-            stroke="#6366f1"
-            strokeWidth="2"
-            strokeDasharray="4 3"
-            opacity="0.8"
-          />
-        )}
 
         {/* 📈 Kurva Realisasi Kumulatif (Solid Green Line - DARI M0 SAMPAI maxFilledWeek) */}
         {realisasiPoints.length > 0 && (
