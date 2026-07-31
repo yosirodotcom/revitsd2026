@@ -16,7 +16,9 @@ const SCHEMAS = {
     "npsn", "nama", "alamat", "kabupaten", "kecamatan", "desa", "kepalaSekolah", 
     "hp_kepala_sekolah", "fasilitatorId", "koordinat", "perencanaId", 
     "pengawasId", "progres_fisik", "dokumen_mingguan", "dokumen_bulanan", 
-    "dokumen_progres_50", "dokumen_progres_100", "foto_banner"
+    "dokumen_progres_50", "dokumen_progres_100", "foto_banner",
+    "dinas_pendidikan_nama", "dinas_pendidikan_hp", "tanggal_pks", 
+    "tanggal_dana_tahap1", "tanggal_mc0", "kelengkapan_mc0", "kendala_mc0", "kendala_pelaksanaan"
   ],
   contacts: ["id", "nama", "hp"],
   tasks: ["id", "schoolId", "title", "status"],
@@ -40,7 +42,8 @@ const SCHEMAS = {
   kendala: ["id", "schoolId", "userId", "userName", "tanggal", "isi", "createdAt"],
   kendala_comments: ["id", "kendalaId", "userId", "userName", "userRole", "tanggal", "isi", "createdAt"],
   kendala_docs: ["id", "kendalaId", "fileName", "fileSize", "fileData", "uploadedBy", "uploadedAt"],
-  warnings: ["id", "userId", "message", "schoolId", "kendalaId", "createdAt", "dismissed", "type", "tripId", "facilitatorId", "facilitatorName"]
+  warnings: ["id", "userId", "message", "schoolId", "kendalaId", "createdAt", "dismissed", "type", "tripId", "facilitatorId", "facilitatorName"],
+  weekly_progress: ["id", "schoolId", "minggu", "bulan", "realisasi", "kumulatif", "rencana", "deviasi", "kendala", "rekomendasi", "updatedBy", "updatedAt"]
 };
 
 // Pastikan semua Sheet ada dan memiliki header yang sesuai

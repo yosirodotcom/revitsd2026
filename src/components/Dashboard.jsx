@@ -3095,33 +3095,12 @@ export default function Dashboard({
                 </div>
 
                 <div className="border-t border-slate-850 my-2 pt-2">
-                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Penyimpanan Sheets & Drive</span>
-                  
-                  <div className="space-y-3">
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        URL Google Apps Script Web App
-                      </label>
-                      <input
-                        type="url"
-                        value={dates.googleAppsScriptUrl}
-                        onChange={(e) => setDates({ ...dates, googleAppsScriptUrl: e.target.value })}
-                        placeholder="https://script.google.com/macros/s/.../exec"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                      />
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Backend Database Aktif</span>
+                      <span className="text-xs font-semibold text-slate-200 block mt-0.5">Firebase Firestore (Multi-Program Isolated)</span>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Token Keamanan API
-                      </label>
-                      <input
-                        type="password"
-                        value={dates.googleAppsScriptToken}
-                        onChange={(e) => setDates({ ...dates, googleAppsScriptToken: e.target.value })}
-                        placeholder="REVITSD2026_SECURE_TOKEN"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-                      />
-                    </div>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   </div>
                 </div>
                 <div className="pt-2">
