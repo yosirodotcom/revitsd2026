@@ -58,6 +58,7 @@ const parseNum = (val) => {
 // Grafik Kurva-S Progres Mingguan
 function SCurveChart({ records = [], school = {} }) {
   try {
+    const [hoveredWeek, setHoveredWeek] = useState(null);
     const totalWeeks = 24;
     const width = 800;
     const height = 300;
@@ -430,11 +431,109 @@ function SCurveChart({ records = [], school = {} }) {
               cy={getY(p.val)}
               r={p.w === 0 ? "3.5" : "4.5"}
               className={`${p.w === 0 ? 'fill-emerald-300' : 'fill-emerald-400'} stroke-slate-950 stroke-2 hover:r-6 transition-all`}
+              onMouseEnter={() => setHoveredWeek(p.w)}
+              onMouseLeave={() => setHoveredWeek(null)}
             />
             <title>{`Minggu M-${p.w}: Kumulatif Realisasi ${p.val}%`}</title>
           </g>
         ))}
+
+        {/* Interactive Hover Overlay Line & Highlight Dot */}
+        {hoveredWeek !== null && (
+          <g className="pointer-events-none">
+            <line
+              x1={getX(hoveredWeek)}
+              y1={padding.top - 5}
+              x2={getX(hoveredWeek)}
+              y2={padding.top + chartH}
+              stroke="#6366f1"
+              strokeWidth="1.5"
+              strokeDasharray="3 3"
+            />
+            {hoveredWeek <= maxFilledWeek && (
+              <circle
+                cx={getX(hoveredWeek)}
+                cy={getY(realisasiPoints.find(p => p.w === hoveredWeek)?.val || 0)}
+                r="6"
+                fill="#10b981"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+            )}
+          </g>
+        )}
+
+        {/* Full-height Invisible Column Mouse Triggers */}
+        {Array.from({ length: totalWeeks + 1 }, (_, i) => i).map((w) => {
+          const stepW = chartW / totalWeeks;
+          const colX = w === 0 ? padding.left - 10 : getX(w) - stepW / 2;
+          const colW = w === 0 ? 20 : stepW;
+          return (
+            <rect
+              key={`trigger-${w}`}
+              x={colX}
+              y={padding.top - 10}
+              width={colW}
+              height={chartH + 20}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredWeek(w)}
+              onMouseLeave={() => setHoveredWeek(null)}
+            />
+          );
+        })}
       </svg>
+
+      {/* Dynamic Hover Tooltip Card */}
+      {hoveredWeek !== null && (() => {
+        const rec = recordMap.get(hoveredWeek);
+        const rRealisasi = parseNum(rec?.realisasi);
+        const rRencana = parseNum(rec?.rencana);
+        const rKumulatif = realisasiPoints.find(p => p.w === hoveredWeek)?.val || (rec ? parseNum(rec.kumulatif) : 0);
+        const rRencanaKum = rencanaPoints.find(p => p.w === hoveredWeek)?.val || 0;
+        const rDeviasi = rec?.deviasi !== undefined && rec?.deviasi !== 0 ? parseNum(rec.deviasi) : (rKumulatif - rRencanaKum);
+        const monthNum = Math.ceil(hoveredWeek / 4);
+
+        return (
+          <div className="bg-slate-900 border border-indigo-500/50 rounded-xl p-3 shadow-2xl space-y-2 select-none animate-fade-in border-l-4 border-l-indigo-500">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span className="font-extrabold text-xs text-indigo-300 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                {hoveredWeek === 0 ? 'M0 (Baseline Pelaksanaan MC-0)' : `Minggu M-${hoveredWeek} (Bulan ke-${monthNum})`}
+              </span>
+              <span className="text-[10px] text-indigo-300 font-bold bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                {rec ? '✓ Terisi' : (hoveredWeek === 0 ? 'M0 Baseline' : 'Belum Ada Data')}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Realisasi Mingguan</span>
+                <span className="font-mono font-extrabold text-emerald-400">{rRealisasi.toFixed(3)}%</span>
+              </div>
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Rencana Mingguan</span>
+                <span className="font-mono font-extrabold text-indigo-400">{rRencana.toFixed(3)}%</span>
+              </div>
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Realisasi Kumulatif</span>
+                <span className="font-mono font-extrabold text-emerald-300">{rKumulatif.toFixed(3)}%</span>
+              </div>
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Deviasi</span>
+                <span className={`font-mono font-extrabold ${rDeviasi < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {rDeviasi > 0 ? `+${rDeviasi.toFixed(3)}` : rDeviasi.toFixed(3)}%
+                </span>
+              </div>
+            </div>
+            {(rec?.kendala || rec?.rekomendasi) && (
+              <div className="text-[11px] space-y-1 pt-1.5 border-t border-slate-800/80">
+                {rec?.kendala && <p className="text-amber-300"><span className="font-bold text-slate-400">Kendala:</span> {rec.kendala}</p>}
+                {rec?.rekomendasi && <p className="text-indigo-300"><span className="font-bold text-slate-400">Rekomendasi:</span> {rec.rekomendasi}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
   } catch (err) {
