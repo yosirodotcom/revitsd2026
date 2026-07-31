@@ -49,12 +49,47 @@ function parseCSV(text) {
   return lines;
 }
 
-// Clean percentage number string (e.g. "0.639", "0,639", "6,420" -> 0.639)
-function parsePct(val) {
-  if (val === undefined || val === null) return 0;
-  const str = String(val).trim().replace(',', '.');
-  const num = parseFloat(str);
-  return isNaN(num) ? 0 : num;
+// Normalisasi tanggal (e.g. "25-May-2026", "8-Jun-2026", "2026-05-25" -> "25 Mei 2026")
+function formatDateGSheet(val) {
+  if (!val || typeof val !== 'string') return '';
+  const str = val.trim();
+  if (!str) return '';
+
+  const monthNamesId = {
+    jan: 'Januari', feb: 'Februari', mar: 'Maret', apr: 'April',
+    may: 'Mei', mei: 'Mei', jun: 'Juni', jul: 'Juli',
+    aug: 'Agustus', agu: 'Agustus', ags: 'Agustus', sep: 'September',
+    oct: 'Oktober', okt: 'Oktober', nov: 'November', dec: 'Desember', des: 'Desember'
+  };
+
+  const mmmMatch = str.match(/^(\d{1,2})[-/\s]([a-zA-Z]{3,4})[-/\s](\d{4})$/);
+  if (mmmMatch) {
+    const day = parseInt(mmmMatch[1], 10);
+    const mKey = mmmMatch[2].toLowerCase().substring(0, 3);
+    const year = mmmMatch[3];
+    const mName = monthNamesId[mKey] || mmmMatch[2];
+    return `${day} ${mName} ${year}`;
+  }
+
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const year = isoMatch[1];
+    const monthIndex = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    const mNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${day} ${mNames[monthIndex] || isoMatch[2]} ${year}`;
+  }
+
+  const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const monthIndex = parseInt(dmyMatch[2], 10) - 1;
+    const year = dmyMatch[3];
+    const mNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${day} ${mNames[monthIndex] || dmyMatch[2]} ${year}`;
+  }
+
+  return str;
 }
 
 export const googleSheetsService = {
@@ -79,6 +114,13 @@ export const googleSheetsService = {
     }
 
     // Header ada di baris 0
+    const headerRow = rows[0] || [];
+    const findCol = (predicate) => headerRow.findIndex(h => predicate(String(h || '').toLowerCase().trim()));
+
+    const pksCol = findCol(h => h.includes('tanggal pks')) >= 0 ? findCol(h => h.includes('tanggal pks')) : 12;
+    const danaTahap1Col = findCol(h => h.includes('tanggal dana tahap 1')) >= 0 ? findCol(h => h.includes('tanggal dana tahap 1')) : 13;
+    const mc0Col = findCol(h => (h.includes('tanggal') && h.includes('mc')) || h.includes('mc0')) >= 0 ? findCol(h => (h.includes('tanggal') && h.includes('mc')) || h.includes('mc0')) : 14;
+
     const dataRows = rows.slice(1);
 
     const schoolUpdates = [];
@@ -99,9 +141,14 @@ export const googleSheetsService = {
       const pengawasHp = row[9] || '';
       const dinas_pendidikan_nama = row[10] || '';
       const dinas_pendidikan_hp = row[11] || '';
-      const tanggal_pks = row[12] || '';
-      const tanggal_dana_tahap1 = row[13] || '';
-      const tanggal_mc0 = row[14] || '';
+
+      const rawPks = pksCol >= 0 ? (row[pksCol] || '') : '';
+      const rawDanaTahap1 = danaTahap1Col >= 0 ? (row[danaTahap1Col] || '') : '';
+      const rawMc0 = mc0Col >= 0 ? (row[mc0Col] || '') : '';
+
+      const tanggal_pks = formatDateGSheet(rawPks);
+      const tanggal_dana_tahap1 = formatDateGSheet(rawDanaTahap1);
+      const tanggal_mc0 = formatDateGSheet(rawMc0);
       const kelengkapan_mc0 = row[15] || '';
       const kendala_mc0 = row[16] || '';
       const kendala_pelaksanaan = row[17] || '';
