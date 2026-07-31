@@ -270,8 +270,9 @@ function SCurveChart({ records = [], school = {} }) {
           const scaleX = width / rect.width;
           const svgX = mouseX * scaleX;
           const relativeX = svgX - padding.left;
-          if (relativeX >= -15 && relativeX <= chartW + 15) {
-            const calculatedWeek = Math.max(0, Math.min(totalWeeks, Math.round((relativeX / chartW) * totalWeeks)));
+          const stepW = chartW / totalWeeks;
+          if (relativeX >= -stepW / 2 && relativeX <= chartW + stepW / 2) {
+            const calculatedWeek = Math.max(0, Math.min(totalWeeks, Math.floor((relativeX + stepW / 2) / stepW)));
             setHoveredWeek(calculatedWeek);
           } else {
             setHoveredWeek(null);
@@ -355,7 +356,7 @@ function SCurveChart({ records = [], school = {} }) {
             <g key={`bars-${w}`}>
               {/* Batang Rencana Minggu Ini (Indigo) */}
               {rRencana > 0 && !isNaN(renY) && !isNaN(renH) && (
-                <g className="group/bar cursor-pointer">
+                <g className="group/bar cursor-pointer" onMouseEnter={() => setHoveredWeek(w)}>
                   <rect
                     x={cx - barW - 1}
                     y={renY}
@@ -372,7 +373,7 @@ function SCurveChart({ records = [], school = {} }) {
 
               {/* Batang Realisasi Minggu Ini (Emerald) */}
               {rRealisasi > 0 && !isNaN(reaY) && !isNaN(reaH) && (
-                <g className="group/bar cursor-pointer">
+                <g className="group/bar cursor-pointer" onMouseEnter={() => setHoveredWeek(w)}>
                   <rect
                     x={cx + 1}
                     y={reaY}
