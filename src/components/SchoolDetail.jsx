@@ -504,14 +504,15 @@ function SCurveChart({ records = [], school = {} }) {
           const hX = getX(hoveredWeek);
           const val = realisasiPoints.find(p => p.w === hoveredWeek)?.val || 0;
           const hY = getY(val);
-          const tooltipW = 165;
-          const tooltipH = 54;
+          const tooltipW = 175;
+          const tooltipH = 58;
           const tooltipX = hX > width - tooltipW - 20 ? hX - tooltipW - 10 : hX + 12;
           const tooltipY = Math.max(padding.top + 5, Math.min(height - padding.bottom - tooltipH, hY - 25));
 
           const rec = recordMap.get(hoveredWeek);
           const rRealisasi = parseNum(rec?.realisasi);
           const rRencana = parseNum(rec?.rencana);
+          const rDeviasiMingguan = rRealisasi - rRencana;
 
           return (
             <g className="pointer-events-none select-none">
@@ -530,12 +531,13 @@ function SCurveChart({ records = [], school = {} }) {
                 {hoveredWeek === 0 ? 'M0 (MC-0 Baseline)' : `Minggu M-${hoveredWeek} (Bln.${Math.ceil(hoveredWeek/4)})`}
               </text>
               <text x={tooltipX + 8} y={tooltipY + 31} fill="#34d399" className="text-[9px] font-semibold">
-                Realisasi Ko: <tspan fill="#34d399" className="font-extrabold font-mono">{val.toFixed(3)}%</tspan>
-                {rRealisasi > 0 && <tspan fill="#6ee7b7" className="text-[8px] font-mono"> (+{rRealisasi.toFixed(2)}%)</tspan>}
+                Realisasi M-ini: <tspan fill="#34d399" className="font-extrabold font-mono">{rRealisasi.toFixed(3)}%</tspan>
               </text>
-              <text x={tooltipX + 8} y={tooltipY + 45} fill="#a5b4fc" className="text-[9px] font-semibold">
-                Rencana Ko: <tspan fill="#a5b4fc" className="font-extrabold font-mono">{(rencanaPoints.find(p => p.w === hoveredWeek)?.val || 0).toFixed(3)}%</tspan>
-                {rRencana > 0 && <tspan fill="#c7d2fe" className="text-[8px] font-mono"> (Re:{rRencana.toFixed(2)}%)</tspan>}
+              <text x={tooltipX + 8} y={tooltipY + 46} fill="#a5b4fc" className="text-[9px] font-semibold">
+                Rencana M-ini: <tspan fill="#a5b4fc" className="font-extrabold font-mono">{rRencana.toFixed(3)}%</tspan>
+                <tspan fill={rDeviasiMingguan < 0 ? "#f87171" : "#34d399"} className="font-extrabold font-mono">
+                  {` (${rDeviasiMingguan > 0 ? '+' : ''}${rDeviasiMingguan.toFixed(2)}%)`}
+                </tspan>
               </text>
             </g>
           );
@@ -547,9 +549,8 @@ function SCurveChart({ records = [], school = {} }) {
         const rec = recordMap.get(hoveredWeek);
         const rRealisasi = parseNum(rec?.realisasi);
         const rRencana = parseNum(rec?.rencana);
+        const rDeviasiMingguan = rRealisasi - rRencana;
         const rKumulatif = realisasiPoints.find(p => p.w === hoveredWeek)?.val || (rec ? parseNum(rec.kumulatif) : 0);
-        const rRencanaKum = rencanaPoints.find(p => p.w === hoveredWeek)?.val || 0;
-        const rDeviasi = rec?.deviasi !== undefined && rec?.deviasi !== 0 ? parseNum(rec.deviasi) : (rKumulatif - rRencanaKum);
         const monthNum = Math.ceil(hoveredWeek / 4);
 
         return (
@@ -565,22 +566,22 @@ function SCurveChart({ records = [], school = {} }) {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Realisasi Mingguan</span>
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Realisasi Minggu Ini</span>
                 <span className="font-mono font-extrabold text-emerald-400">{rRealisasi.toFixed(3)}%</span>
               </div>
               <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Rencana Mingguan</span>
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Rencana Minggu Ini</span>
                 <span className="font-mono font-extrabold text-indigo-400">{rRencana.toFixed(3)}%</span>
+              </div>
+              <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Deviasi Minggu Ini</span>
+                <span className={`font-mono font-extrabold ${rDeviasiMingguan < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {rDeviasiMingguan > 0 ? `+${rDeviasiMingguan.toFixed(3)}` : rDeviasiMingguan.toFixed(3)}%
+                </span>
               </div>
               <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
                 <span className="text-[9px] uppercase font-bold text-slate-500 block">Realisasi Kumulatif</span>
                 <span className="font-mono font-extrabold text-emerald-300">{rKumulatif.toFixed(3)}%</span>
-              </div>
-              <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Deviasi</span>
-                <span className={`font-mono font-extrabold ${rDeviasi < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  {rDeviasi > 0 ? `+${rDeviasi.toFixed(3)}` : rDeviasi.toFixed(3)}%
-                </span>
               </div>
             </div>
             {(rec?.kendala || rec?.rekomendasi) && (
