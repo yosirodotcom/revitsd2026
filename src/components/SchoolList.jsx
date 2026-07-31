@@ -60,6 +60,8 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   // Modals state
   const [isAddingMaster, setIsAddingMaster] = useState(false);
   const [tempProgress, setTempProgress] = useState({});
+  const [isCustomKabupaten, setIsCustomKabupaten] = useState(false);
+  const [customKabupatenInput, setCustomKabupatenInput] = useState('');
   
   // Form state
   const [newSchoolData, setNewSchoolData] = useState({
@@ -74,8 +76,20 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   // Base list of schools to display
   const displaySchools = schools;
 
-  // Get unique Kabupatens
-  const kabupatens = ['Semua', ...new Set(displaySchools.filter(Boolean).map((s) => s.kabupaten).filter(Boolean))];
+  const defaultKabupatens = [
+    'Melawi', 'Sintang', 'Sekadau', 'Landak', 'Ketapang', 'Sanggau',
+    'Mempawah', 'Pontianak', 'Bengkayang', 'Sambas', 'Singkawang', 'Kapuas Hulu'
+  ];
+
+  const availableKabupatens = Array.from(
+    new Set([
+      ...defaultKabupatens,
+      ...displaySchools.filter(Boolean).map((s) => s.kabupaten).filter(Boolean)
+    ])
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Get unique Kabupatens for filter
+  const kabupatens = ['Semua', ...availableKabupatens];
 
   // Filters logic
   const filteredSchools = displaySchools.filter((school) => {
@@ -274,8 +288,14 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
       return window.showAlert('Sekolah dengan NPSN tersebut sudah terdaftar');
     }
 
-     const newSchool = {
+    const selectedKabupatenName = isCustomKabupaten ? customKabupatenInput.trim() : newSchoolData.kabupaten;
+    if (!selectedKabupatenName) {
+      return window.showAlert('Kabupaten wajib dipilih atau diisi');
+    }
+
+    const newSchool = {
       ...newSchoolData,
+      kabupaten: selectedKabupatenName,
       desa: '',
       kecamatan: '',
       kepala_sekolah: '',
@@ -293,7 +313,9 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
     onAddSchool(newSchool);
     window.showAlert('Sekolah baru berhasil ditambahkan ke Master Data');
-    setNewSchoolData({ npsn: '', nama_sekolah: '', alamat: '', kabupaten: 'Melawi' });
+    setNewSchoolData({ npsn: '', nama_sekolah: '', alamat: '', kabupaten: availableKabupatens[0] || 'Melawi' });
+    setCustomKabupatenInput('');
+    setIsCustomKabupaten(false);
     setIsAddingMaster(false);
   };
 
@@ -808,27 +830,61 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Kabupaten
-                </label>
-                <select
-                  value={newSchoolData.kabupaten}
-                  onChange={(e) => setNewSchoolData({ ...newSchoolData, kabupaten: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-                >
-                  <option value="Melawi">Melawi</option>
-                  <option value="Sintang">Sintang</option>
-                  <option value="Sekadau">Sekadau</option>
-                  <option value="Landak">Landak</option>
-                  <option value="Ketapang">Ketapang</option>
-                  <option value="Sanggau">Sanggau</option>
-                  <option value="Mempawah">Mempawah</option>
-                  <option value="Pontianak">Pontianak</option>
-                  <option value="Bengkayang">Bengkayang</option>
-                  <option value="Sambas">Sambas</option>
-                  <option value="Singkawang">Singkawang</option>
-                  <option value="Kapuas Hulu">Kapuas Hulu</option>
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Kabupaten
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomKabupaten(!isCustomKabupaten);
+                      if (!isCustomKabupaten) {
+                        setCustomKabupatenInput('');
+                      }
+                    }}
+                    className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                  >
+                    {isCustomKabupaten ? '← Pilih dari Daftar' : '+ Tambah Kabupaten Baru'}
+                  </button>
+                </div>
+
+                {isCustomKabupaten ? (
+                  <div>
+                    <input
+                      type="text"
+                      value={customKabupatenInput}
+                      onChange={(e) => setCustomKabupatenInput(e.target.value)}
+                      placeholder="Masukkan nama kabupaten baru..."
+                      className="w-full bg-slate-950 border border-indigo-500 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      autoFocus
+                      required
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Kabupaten baru akan langsung tersimpan dan muncul di opsi filter.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={newSchoolData.kabupaten}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW__') {
+                        setIsCustomKabupaten(true);
+                      } else {
+                        setNewSchoolData({ ...newSchoolData, kabupaten: e.target.value });
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                  >
+                    {availableKabupatens.map((kab) => (
+                      <option key={kab} value={kab} className="bg-slate-950">
+                        {kab}
+                      </option>
+                    ))}
+                    <option value="__NEW__" className="bg-slate-950 text-indigo-400 font-bold">
+                      + Tambah Kabupaten Baru...
+                    </option>
+                  </select>
+                )}
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-850">
