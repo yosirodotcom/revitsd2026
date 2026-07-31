@@ -215,13 +215,19 @@ function SCurveChart({ records = [], school = {} }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-1 text-xs pt-1 border-t border-slate-850">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 text-xs pt-1 border-t border-slate-850 gap-2">
         <span className="font-bold text-slate-300 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-emerald-400" />
-          <span>Kurva-S Progres Fisik (M-0 s/d M-24)</span>
+          <span>Monitoring Fisik: Batang Mingguan & Kurva-S Kumulatif (M-0 s/d M-24)</span>
         </span>
-        <div className="flex items-center gap-4 text-[10px]">
+        <div className="flex flex-wrap items-center gap-3 text-[10px]">
           <span className="flex items-center gap-1.5 font-medium text-indigo-400">
+            <span className="w-2.5 h-2.5 bg-indigo-500 rounded-sm inline-block opacity-80" /> Rencana Mingguan (Bar)
+          </span>
+          <span className="flex items-center gap-1.5 font-medium text-emerald-400">
+            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm inline-block opacity-90" /> Realisasi Mingguan (Bar)
+          </span>
+          <span className="flex items-center gap-1.5 font-medium text-indigo-300">
             <span className="w-3 h-0.5 bg-indigo-400 rounded-full inline-block border-b-2 border-dashed border-indigo-400" /> Rencana Kumulatif (%)
           </span>
           <span className="flex items-center gap-1.5 font-medium text-emerald-400">
@@ -230,7 +236,7 @@ function SCurveChart({ records = [], school = {} }) {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[320px] select-none">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[330px] select-none">
         {/* Sumbu Y Percentage Grid Lines */}
         {[0, 25, 50, 75, 100].map((pct) => (
           <g key={pct}>
@@ -243,7 +249,7 @@ function SCurveChart({ records = [], school = {} }) {
               strokeDasharray="2 2"
               strokeWidth="0.5"
             />
-            {/* Teks persen sumbu Y di x=42 (tidak akan pernah tertimpa garis tanggal) */}
+            {/* Teks persen sumbu Y di x=42 */}
             <text
               x={yAxisTextX}
               y={getY(pct) + 3}
@@ -289,6 +295,59 @@ function SCurveChart({ records = [], school = {} }) {
           </g>
         ))}
 
+        {/* 📊 Diagram Batang Mingguan (Rencana Mingguan & Realisasi Mingguan Non-Kumulatif) */}
+        {Array.from({ length: maxChartWeek }, (_, i) => i + 1).map((w) => {
+          const rec = recordMap.get(w);
+          const rRealisasi = rec ? Math.max(0, Number(rec.realisasi || 0)) : 0;
+          const rRencana = rec ? Math.max(0, Number(rec.rencana || 0)) : 0;
+          const cx = getX(w);
+          const barW = 6.5;
+
+          const renH = (rRencana / 100) * chartH;
+          const renY = padding.top + chartH - renH;
+
+          const reaH = (rRealisasi / 100) * chartH;
+          const reaY = padding.top + chartH - reaH;
+
+          return (
+            <g key={`bars-${w}`}>
+              {/* Batang Rencana Minggu Ini (Indigo) */}
+              {rRencana > 0 && (
+                <g className="group/bar cursor-pointer">
+                  <rect
+                    x={cx - barW - 1}
+                    y={renY}
+                    width={barW}
+                    height={Math.max(2, renH)}
+                    fill="#6366f1"
+                    rx="2"
+                    opacity="0.8"
+                    className="hover:opacity-100 transition-all"
+                  />
+                  <title>{`Minggu M-${w}: Rencana Minggu Ini ${rRencana}%`}</title>
+                </g>
+              )}
+
+              {/* Batang Realisasi Minggu Ini (Emerald) */}
+              {rRealisasi > 0 && (
+                <g className="group/bar cursor-pointer">
+                  <rect
+                    x={cx + 1}
+                    y={reaY}
+                    width={barW}
+                    height={Math.max(2, reaH)}
+                    fill="#10b981"
+                    rx="2"
+                    opacity="0.9"
+                    className="hover:opacity-100 transition-all"
+                  />
+                  <title>{`Minggu M-${w}: Realisasi Minggu Ini ${rRealisasi}%`}</title>
+                </g>
+              )}
+            </g>
+          );
+        })}
+
         {/* Milestone Vertical Lines & Markers */}
         {milestones.map((m) => {
           const xPos = m.customX !== undefined ? m.customX : getX(m.weekPos);
@@ -317,7 +376,7 @@ function SCurveChart({ records = [], school = {} }) {
           );
         })}
 
-        {/* Kurva Rencana (Dashed Indigo Line) dari M0 (0%) */}
+        {/* 📈 Kurva Rencana Kumulatif (Dashed Indigo Line) dari M0 (0%) */}
         {rencanaPoints.length > 0 && (
           <path
             d={rencanaD}
@@ -329,7 +388,7 @@ function SCurveChart({ records = [], school = {} }) {
           />
         )}
 
-        {/* Kurva Realisasi (Solid Green Line - DARI M0 SAMPAI maxFilledWeek) */}
+        {/* 📈 Kurva Realisasi Kumulatif (Solid Green Line - DARI M0 SAMPAI maxFilledWeek) */}
         {realisasiPoints.length > 0 && (
           <path
             d={realisasiD}
@@ -340,7 +399,7 @@ function SCurveChart({ records = [], school = {} }) {
           />
         )}
 
-        {/* Point Circles Realisasi */}
+        {/* Point Circles Realisasi Kumulatif */}
         {realisasiPoints.map((p) => (
           <g key={p.w} className="group cursor-pointer">
             <circle
@@ -349,7 +408,7 @@ function SCurveChart({ records = [], school = {} }) {
               r={p.w === 0 ? "3.5" : "4.5"}
               className={`${p.w === 0 ? 'fill-emerald-300' : 'fill-emerald-400'} stroke-slate-950 stroke-2 hover:r-6 transition-all`}
             />
-            <title>{`Minggu M-${p.w}: Kumulatif ${p.val}%`}</title>
+            <title>{`Minggu M-${p.w}: Kumulatif Realisasi ${p.val}%`}</title>
           </g>
         ))}
       </svg>
