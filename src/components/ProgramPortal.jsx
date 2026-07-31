@@ -412,28 +412,6 @@ export default function ProgramPortal({
                 </svg>
               </div>
 
-              {/* Floating Task Card (Left Bottom) */}
-              <div className="absolute bottom-[8%] left-[5%] bg-white border border-slate-100 rounded-[24px] p-4 shadow-lg text-left space-y-2 w-48 transition-transform hover:scale-[1.03] duration-300 z-20">
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-extrabold text-slate-900 tracking-tight">Canva Design</h4>
-                  <p className="text-[9px] text-slate-400 font-medium">10 Task</p>
-                </div>
-                
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <span className="inline-flex items-center text-[9px] font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
-                    Design
-                  </span>
-                  
-                  {/* Radial progress 84% */}
-                  <div className="relative w-8 h-8 flex items-center justify-center">
-                    <svg className="w-8 h-8 transform -rotate-90">
-                      <circle cx="16" cy="16" r="12" className="stroke-slate-100" strokeWidth="2.5" fill="transparent" />
-                      <circle cx="16" cy="16" r="12" className="stroke-emerald-500" strokeWidth="2.5" fill="transparent" strokeDasharray="75.3" strokeDashoffset="12" strokeLinecap="round" />
-                    </svg>
-                    <span className="text-[8px] font-extrabold absolute text-slate-700">84%</span>
-                  </div>
-                </div>
-              </div>
 
               {/* Meditating Girl Main Vector Drawing */}
               <svg className="w-64 h-64 text-slate-800" viewBox="0 0 200 200" fill="none">
