@@ -5,8 +5,180 @@ import {
   ChevronRight, Play, CheckCircle, AlertCircle, Phone, User, Pencil,
   Download, FileText, Sparkles, Bold, Italic, List, ListOrdered, AlignLeft, 
   AlignCenter, AlignRight, AlignJustify, Paperclip, MessageSquare, Send,
-  Save, Loader2
+  Save, Loader2, Activity, TrendingUp, BarChart2
 } from 'lucide-react';
+
+// Grafik Kurva-S Progres Mingguan
+function SCurveChart({ records = [] }) {
+  const totalWeeks = 24;
+  const width = 700;
+  const height = 260;
+  const padding = { top: 30, right: 30, bottom: 40, left: 45 };
+
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
+
+  const recordMap = new Map();
+  records.forEach(r => recordMap.set(Number(r.minggu), r));
+
+  const getX = (w) => padding.left + ((w - 1) / (totalWeeks - 1)) * chartW;
+  const getY = (pct) => padding.top + chartH - (Math.min(100, Math.max(0, pct)) / 100) * chartH;
+
+  let runningRencana = 0;
+  const rencanaPoints = [];
+  const realisasiPoints = [];
+
+  for (let w = 1; w <= totalWeeks; w++) {
+    const rec = recordMap.get(w);
+    const rPlan = rec ? Number(rec.rencana || 0) : 0;
+    runningRencana += rPlan;
+    rencanaPoints.push({ w, val: Math.min(100, runningRencana) });
+
+    if (rec) {
+      realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
+    }
+  }
+
+  const rencanaD = rencanaPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.w)} ${getY(p.val)}`).join(' ');
+  const realisasiD = realisasiPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.w)} ${getY(p.val)}`).join(' ');
+
+  const sorted = [...records].sort((a, b) => Number(a.minggu) - Number(b.minggu));
+  const latestRec = sorted[sorted.length - 1];
+  const latestWeek = latestRec ? latestRec.minggu : 0;
+  const latestRealisasi = latestRec ? latestRec.kumulatif : 0;
+  const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek - 1]?.val || 0) : 0;
+  const latestDeviasi = latestRec ? latestRec.deviasi : 0;
+
+  return (
+    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 overflow-x-auto space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 select-none">
+        <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+          <span className="block text-[10px] uppercase font-bold text-slate-500">Realisasi Terakhir</span>
+          <div className="flex items-baseline gap-1.5 mt-0.5">
+            <span className="text-lg font-bold text-emerald-400 font-mono">{latestRealisasi.toFixed(2)}%</span>
+            <span className="text-[10px] text-slate-400 font-semibold">{latestWeek > 0 ? `(Minggu M-${latestWeek})` : 'Belum diisi'}</span>
+          </div>
+        </div>
+        <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+          <span className="block text-[10px] uppercase font-bold text-slate-500">Rencana Terakhir</span>
+          <div className="flex items-baseline gap-1.5 mt-0.5">
+            <span className="text-lg font-bold text-indigo-400 font-mono">{latestRencana.toFixed(2)}%</span>
+            <span className="text-[10px] text-slate-400 font-semibold">{latestWeek > 0 ? `(Minggu M-${latestWeek})` : 'Belum diisi'}</span>
+          </div>
+        </div>
+        <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+          <span className="block text-[10px] uppercase font-bold text-slate-500">Status Deviasi Total</span>
+          <div className="flex items-baseline gap-1.5 mt-0.5">
+            <span className={`text-lg font-bold font-mono ${latestDeviasi < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {latestDeviasi > 0 ? `+${latestDeviasi.toFixed(2)}` : latestDeviasi.toFixed(2)}%
+            </span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+              latestDeviasi < 0 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            }`}>
+              {latestDeviasi < 0 ? 'Terlambat' : 'Sesuai / Lebih Cepat'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-1 text-xs pt-1 border-t border-slate-850">
+        <span className="font-bold text-slate-300 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <span>Kurva-S Progres Fisik (M-1 s/d M-24)</span>
+        </span>
+        <div className="flex items-center gap-4 text-[10px]">
+          <span className="flex items-center gap-1.5 font-medium text-indigo-400">
+            <span className="w-3 h-0.5 bg-indigo-400 rounded-full inline-block border-b-2 border-dashed border-indigo-400" /> Rencana Kumulatif (%)
+          </span>
+          <span className="flex items-center gap-1.5 font-medium text-emerald-400">
+            <span className="w-3 h-0.5 bg-emerald-400 rounded-full inline-block" /> Realisasi Kumulatif (%)
+          </span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[280px] select-none">
+        {[0, 25, 50, 75, 100].map((pct) => (
+          <g key={pct}>
+            <line
+              x1={padding.left}
+              y1={getY(pct)}
+              x2={width - padding.right}
+              y2={getY(pct)}
+              stroke="#334155"
+              strokeDasharray="2 2"
+              strokeWidth="0.5"
+            />
+            <text
+              x={padding.left - 8}
+              y={getY(pct) + 3}
+              textAnchor="end"
+              className="text-[9px] fill-slate-500 font-mono"
+            >
+              {pct}%
+            </text>
+          </g>
+        ))}
+
+        {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
+          <g key={w}>
+            {w % 2 === 1 && (
+              <line
+                x1={getX(w)}
+                y1={padding.top}
+                x2={getX(w)}
+                y2={padding.top + chartH}
+                stroke="#1e293b"
+                strokeWidth="0.5"
+              />
+            )}
+            <text
+              x={getX(w)}
+              y={height - 12}
+              textAnchor="middle"
+              className={`text-[8px] font-mono ${recordMap.has(w) ? 'fill-indigo-400 font-bold' : 'fill-slate-600'}`}
+            >
+              M{w}
+            </text>
+          </g>
+        ))}
+
+        {rencanaPoints.length > 0 && (
+          <path
+            d={rencanaD}
+            fill="none"
+            stroke="#6366f1"
+            strokeWidth="2"
+            strokeDasharray="4 3"
+            opacity="0.8"
+          />
+        )}
+
+        {realisasiPoints.length > 0 && (
+          <path
+            d={realisasiD}
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        )}
+
+        {realisasiPoints.map((p) => (
+          <g key={p.w} className="group cursor-pointer">
+            <circle
+              cx={getX(p.w)}
+              cy={getY(p.val)}
+              r="4"
+              className="fill-emerald-400 stroke-slate-950 stroke-2 hover:r-6 transition-all"
+            />
+            <title>{`Minggu M-${p.w}: Kumulatif ${p.val}%`}</title>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
 
 // Rich Text Editor kustom
 function RichTextEditor({ value, onChange, placeholder = "Tulis isi laporan kendala..." }) {
@@ -201,6 +373,9 @@ export default function SchoolDetail({
   onAddKendalaComment,
   onDeleteKendalaComment,
   onDeleteKendalaDoc,
+  weeklyProgress = [],
+  onUpdateWeeklyProgress,
+  onDeleteWeeklyProgress,
   initialTab = 'profile'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'profile');
@@ -214,6 +389,42 @@ export default function SchoolDetail({
   const [uploadingState, setUploadingState] = useState({});
   const [pendingDocs, setPendingDocs] = useState({});   // { [categoryKey]: newDocObject }
   const [savingDocKey, setSavingDocKey] = useState(null); // key sedang dalam proses simpan
+
+  // Weekly Progress Form State
+  const [selectedMinggu, setSelectedMinggu] = useState(1);
+  const [wpForm, setWpForm] = useState({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
+
+  const schoolWpRecords = weeklyProgress.filter(w => w.schoolId === school?.npsn).sort((a, b) => Number(a.minggu) - Number(b.minggu));
+
+  useEffect(() => {
+    const existing = schoolWpRecords.find(w => Number(w.minggu) === Number(selectedMinggu));
+    if (existing) {
+      setWpForm({
+        realisasi: existing.realisasi !== undefined && existing.realisasi !== null ? String(existing.realisasi) : '',
+        rencana: existing.rencana !== undefined && existing.rencana !== null ? String(existing.rencana) : '',
+        kendala: existing.kendala || '',
+        rekomendasi: existing.rekomendasi || ''
+      });
+    } else {
+      setWpForm({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
+    }
+  }, [selectedMinggu, weeklyProgress, school?.npsn]);
+
+  const handleSaveWpForm = (e) => {
+    e.preventDefault();
+    if (!onUpdateWeeklyProgress || !school) return;
+    onUpdateWeeklyProgress({
+      id: `wp-${school.npsn}-m${selectedMinggu}`,
+      schoolId: school.npsn,
+      minggu: Number(selectedMinggu),
+      bulan: Math.ceil(Number(selectedMinggu) / 4),
+      realisasi: parseFloat(wpForm.realisasi || 0),
+      rencana: parseFloat(wpForm.rencana || 0),
+      kendala: wpForm.kendala,
+      rekomendasi: wpForm.rekomendasi
+    });
+    window.showAlert(`Progres Minggu M-${selectedMinggu} berhasil disimpan!`);
+  };
 
   // Phase 5 Kendala states
   const [isReporting, setIsReporting] = useState(false);
@@ -688,6 +899,33 @@ export default function SchoolDetail({
     }
   };
 
+  const handleExportWpCSV = () => {
+    const headers = ['Minggu', 'Bulan', 'Realisasi (%)', 'Kumulatif (%)', 'Rencana (%)', 'Deviasi (%)', 'Kendala', 'Rekomendasi'];
+    const rows = Array.from({ length: 24 }, (_, i) => {
+      const w = i + 1;
+      const rec = schoolWpRecords.find(r => Number(r.minggu) === w);
+      return [
+        `M-${w}`,
+        `Bulan ${Math.ceil(w / 4)}`,
+        rec ? rec.realisasi : '',
+        rec ? rec.kumulatif : '',
+        rec ? rec.rencana : '',
+        rec ? rec.deviasi : '',
+        rec ? `"${(rec.kendala || '').replace(/"/g, '""')}"` : '""',
+        rec ? `"${(rec.rekomendasi || '').replace(/"/g, '""')}"` : '""'
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Progres_Mingguan_${(school.nama_sekolah || 'sekolah').replace(/[^a-zA-Z0-9]/g, '_')}_${school.npsn}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleUploadBanner = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -904,6 +1142,16 @@ export default function SchoolDetail({
           }`}
         >
           <AlertCircle className="w-4 h-4" /> Laporkan Kendala ({kendala.filter(k => k.schoolId === school.npsn).length})
+        </button>
+        <button
+          onClick={() => setActiveTab('weekly-progress')}
+          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'weekly-progress'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-4 h-4" /> Progres Mingguan ({schoolWpRecords.length}/24)
         </button>
       </div>
 
@@ -1305,7 +1553,374 @@ export default function SchoolDetail({
                     ></iframe>
                   </div>
 
-                </div>                {/* Section: Mitra Pelaksana Lapangan */}
+                </div>
+
+                {/* Section: Kontak Dinas Pendidikan */}
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4 flex items-center justify-between">
+                    <span>Kontak Dinas Pendidikan</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Dinas Pendidikan Nama */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Nama Petugas Dinas</span>
+                      {inlineField === 'dinas_pendidikan_nama' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Nama Petugas Dinas"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.dinas_pendidikan_nama ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 text-slate-500" />
+                              {school.dinas_pendidikan_nama}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('dinas_pendidikan_nama')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.dinas_pendidikan_nama ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Nama Petugas Dinas"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dinas Pendidikan HP */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">No HP Petugas Dinas</span>
+                      {inlineField === 'dinas_pendidikan_hp' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value.replace(/[^0-9+-]/g, ''))}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="08xxxxxxxxxx"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.dinas_pendidikan_hp ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-slate-500" />
+                              {school.dinas_pendidikan_hp}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('dinas_pendidikan_hp')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.dinas_pendidikan_hp ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit No HP Dinas"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Informasi Administratif & MC-0 */}
+                <div>
+                  <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4 flex items-center justify-between">
+                    <span>Informasi Administratif & MC-0</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Tanggal PKS */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Tanggal PKS</span>
+                      {inlineField === 'tanggal_pks' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Contoh: 25 Mei 2026"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.tanggal_pks ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                              {school.tanggal_pks}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('tanggal_pks')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.tanggal_pks ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Tanggal PKS"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tanggal Dana Tahap 1 Cair */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Tanggal Dana Tahap 1 Cair</span>
+                      {inlineField === 'tanggal_dana_tahap1' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Contoh: 17 Juni 2026"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.tanggal_dana_tahap1 ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                              {school.tanggal_dana_tahap1}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('tanggal_dana_tahap1')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.tanggal_dana_tahap1 ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Tanggal Dana Tahap 1"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tanggal Pelaksanaan MC-0 */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Tanggal Pelaksanaan MC-0</span>
+                      {inlineField === 'tanggal_mc0' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <input
+                            ref={inlineInputRef}
+                            type="text"
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onKeyDown={handleInlineKeyDown}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                            placeholder="Contoh: 24 Juni 2026 atau Belum"
+                          />
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.tanggal_mc0 ? (
+                            <span className="text-sm font-medium text-slate-200 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                              {school.tanggal_mc0}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('tanggal_mc0')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.tanggal_mc0 ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Tanggal MC-0"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Kelengkapan & Kesesuaian Dokumen MC-0 */}
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-slate-500">Kelengkapan Dokumen MC-0</span>
+                      {inlineField === 'kelengkapan_mc0' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <select
+                            value={inlineValue}
+                            onChange={(e) => setInlineValue(e.target.value)}
+                            onBlur={saveInlineField}
+                            className="flex-1 bg-slate-950 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                          >
+                            <option value="">-- Pilih Status --</option>
+                            <option value="Dokumen Belum dikirim">Dokumen Belum dikirim</option>
+                            <option value="Dokumen sudah ada, namun belum lengkap">Dokumen sudah ada, namun belum lengkap</option>
+                            <option value="Dokumen sudah dikirim namun belum sesuai & lengkap">Dokumen sudah dikirim namun belum sesuai & lengkap</option>
+                            <option value="Sesuai & lengkap">Sesuai & lengkap</option>
+                          </select>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={saveInlineField} className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onMouseDown={(e) => e.preventDefault()} onClick={cancelInlineEdit} className="p-1 rounded-lg text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group/field mt-0.5">
+                          {school.kelengkapan_mc0 ? (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-md border ${
+                              school.kelengkapan_mc0 === 'Sesuai & lengkap'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                : school.kelengkapan_mc0?.includes('belum lengkap') || school.kelengkapan_mc0?.includes('Belum')
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                : 'bg-slate-800 text-slate-300 border-slate-700'
+                            }`}>
+                              {school.kelengkapan_mc0}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-slate-600 italic">Belum diisi</span>
+                          )}
+                          {isAuthorizedToEdit && (
+                            <button
+                              onClick={() => startInlineEdit('kelengkapan_mc0')}
+                              className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer ${!school.kelengkapan_mc0 ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                              title="Edit Kelengkapan Dokumen MC-0"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Kendala & Hambatan MC-0 (Full Width Textarea) */}
+                  <div className="mt-4">
+                    <span className="block text-[10px] uppercase font-semibold text-slate-500">Kendala & Hambatan MC-0</span>
+                    {inlineField === 'kendala_mc0' ? (
+                      <div className="mt-1 space-y-2">
+                        <textarea
+                          ref={inlineInputRef}
+                          rows={3}
+                          value={inlineValue}
+                          onChange={(e) => setInlineValue(e.target.value)}
+                          className="w-full bg-slate-950 border border-indigo-500/50 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                          placeholder="Tulis kendala & hambatan MC-0..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={cancelInlineEdit} className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">Batal</button>
+                          <button onClick={saveInlineField} className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm cursor-pointer">Simpan</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-2 group/field mt-1 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                        <p className={`text-xs leading-relaxed ${school.kendala_mc0 ? 'text-slate-300' : 'text-slate-600 italic'}`}>
+                          {school.kendala_mc0 || 'Tidak ada catatan kendala MC-0.'}
+                        </p>
+                        {isAuthorizedToEdit && (
+                          <button
+                            onClick={() => startInlineEdit('kendala_mc0')}
+                            className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer shrink-0 ${!school.kendala_mc0 ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                            title="Edit Kendala MC-0"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Kendala & Hambatan Pelaksanaan Lainnya (Full Width Textarea) */}
+                  <div className="mt-4">
+                    <span className="block text-[10px] uppercase font-semibold text-slate-500">Kendala & Hambatan Pelaksanaan Lainnya</span>
+                    {inlineField === 'kendala_pelaksanaan' ? (
+                      <div className="mt-1 space-y-2">
+                        <textarea
+                          ref={inlineInputRef}
+                          rows={3}
+                          value={inlineValue}
+                          onChange={(e) => setInlineValue(e.target.value)}
+                          className="w-full bg-slate-950 border border-indigo-500/50 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                          placeholder="Tulis kendala & hambatan pelaksanaan lainnya..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={cancelInlineEdit} className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 cursor-pointer">Batal</button>
+                          <button onClick={saveInlineField} className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm cursor-pointer">Simpan</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-2 group/field mt-1 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                        <p className={`text-xs leading-relaxed ${school.kendala_pelaksanaan ? 'text-slate-300' : 'text-slate-600 italic'}`}>
+                          {school.kendala_pelaksanaan || 'Tidak ada catatan kendala pelaksanaan.'}
+                        </p>
+                        {isAuthorizedToEdit && (
+                          <button
+                            onClick={() => startInlineEdit('kendala_pelaksanaan')}
+                            className={`p-1 rounded-lg hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer shrink-0 ${!school.kendala_pelaksanaan ? 'opacity-100 text-amber-500/60 hover:text-amber-400' : 'opacity-0 group-hover/field:opacity-100 text-slate-600'}`}
+                            title="Edit Kendala Pelaksanaan"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section: Mitra Pelaksana Lapangan */}
                 <div>
                   <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider border-b border-slate-800 pb-2 mb-4">
                     Mitra Pelaksana Lapangan
@@ -2262,6 +2877,316 @@ export default function SchoolDetail({
               </div>
             );
           })()}
+
+          {/* Tab 5: Progres Mingguan (M-1 s/d M-24) */}
+          {activeTab === 'weekly-progress' && (
+            <div className="space-y-6">
+
+              {/* Tab Header Actions */}
+              <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800 rounded-2xl p-4">
+                <div>
+                  <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                    <Activity className="w-4.5 h-4.5 text-indigo-400" />
+                    <span>Laporan & Monitoring Progres Fisik Mingguan (24 Minggu)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Memantau realisasi vs rencana progres fisik proyek minggu ke-1 sampai minggu ke-24.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportWpCSV}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer border-0 flex items-center gap-1.5 shrink-0"
+                >
+                  <Download className="w-4 h-4 text-indigo-400" /> Export CSV
+                </button>
+              </div>
+
+              {/* Section 1: S-Curve Chart */}
+              <SCurveChart records={schoolWpRecords} />
+
+              {/* Section 2: Form Input / Edit Progres Mingguan */}
+              {isAuthorizedToEdit && (
+                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                    <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-indigo-400" />
+                      <span>Form Input / Edit Progres Mingguan</span>
+                    </h3>
+                    <span className="text-[10px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700 font-medium">
+                      {schoolWpRecords.some(w => Number(w.minggu) === Number(selectedMinggu)) ? `Mode Edit Minggu M-${selectedMinggu}` : `Input Baru Minggu M-${selectedMinggu}`}
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleSaveWpForm} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      
+                      {/* Dropdown Pilih Minggu */}
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                          Pilih Minggu Ke- (M-1 s/d M-24)
+                        </label>
+                        <select
+                          value={selectedMinggu}
+                          onChange={(e) => setSelectedMinggu(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-indigo-500/40 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                        >
+                          {Array.from({ length: 24 }, (_, i) => i + 1).map((w) => {
+                            const hasData = schoolWpRecords.some(r => Number(r.minggu) === w);
+                            const month = Math.ceil(w / 4);
+                            return (
+                              <option key={w} value={w}>
+                                Minggu M-{w} (Bulan ke-{month}) {hasData ? '✓ Terisi' : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Input Realisasi (%) */}
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                          Realisasi Minggu Ini (%)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          max="100"
+                          value={wpForm.realisasi}
+                          onChange={(e) => setWpForm({ ...wpForm, realisasi: e.target.value })}
+                          placeholder="Contoh: 1.031"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono font-bold focus:outline-none focus:border-indigo-500 transition-colors"
+                          required
+                        />
+                      </div>
+
+                      {/* Input Rencana (%) */}
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                          Rencana Minggu Ini (%)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          max="100"
+                          value={wpForm.rencana}
+                          onChange={(e) => setWpForm({ ...wpForm, rencana: e.target.value })}
+                          placeholder="Contoh: 2.494"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono font-bold focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+
+                    </div>
+
+                    {/* Computed Preview Badges */}
+                    {wpForm.realisasi !== '' && (
+                      <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Estimasi Kalkulasi Otomatis:</span>
+                        {(() => {
+                          const rel = parseFloat(wpForm.realisasi || 0);
+                          const ren = parseFloat(wpForm.rencana || 0);
+                          const prevRecords = schoolWpRecords.filter(w => Number(w.minggu) < Number(selectedMinggu));
+                          const prevSum = prevRecords.reduce((acc, curr) => acc + Number(curr.realisasi || 0), 0);
+                          const estKumulatif = prevSum + rel;
+                          const estDeviasi = rel - ren;
+
+                          return (
+                            <>
+                              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                                Kumulatif: {estKumulatif.toFixed(3)}%
+                              </span>
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                                estDeviasi < 0 ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                              }`}>
+                                Deviasi: {estDeviasi > 0 ? `+${estDeviasi.toFixed(3)}` : estDeviasi.toFixed(3)}%
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Textareas: Kendala & Rekomendasi */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                          Kendala / Masalah Minggu M-{selectedMinggu}
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={wpForm.kendala}
+                          onChange={(e) => setWpForm({ ...wpForm, kendala: e.target.value })}
+                          placeholder="Catatan kendala atau masalah yang dihadapi di lapangan..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                          Rekomendasi Minggu M-{selectedMinggu}
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={wpForm.rekomendasi}
+                          onChange={(e) => setWpForm({ ...wpForm, rekomendasi: e.target.value })}
+                          placeholder="Rekomendasi atau langkah tindak lanjut..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2">
+                      {schoolWpRecords.some(r => Number(r.minggu) === Number(selectedMinggu)) ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (await window.showConfirm(`Hapus data progres Minggu M-${selectedMinggu}?`)) {
+                              const rec = schoolWpRecords.find(r => Number(r.minggu) === Number(selectedMinggu));
+                              if (rec && onDeleteWeeklyProgress) {
+                                onDeleteWeeklyProgress(rec.id);
+                                setWpForm({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
+                              }
+                            }
+                          }}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-all cursor-pointer border-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 inline mr-1" /> Hapus Minggu Ini
+                        </button>
+                      ) : <div />}
+
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all cursor-pointer border-0 flex items-center gap-1.5"
+                      >
+                        <Save className="w-4 h-4 text-white" /> Simpan Progres Minggu M-{selectedMinggu}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Section 3: Tabel Progres Mingguan Grouped by Month */}
+              <div className="space-y-6">
+                {[1, 2, 3, 4, 5, 6].map((monthNum) => {
+                  const monthWeeks = [
+                    (monthNum - 1) * 4 + 1,
+                    (monthNum - 1) * 4 + 2,
+                    (monthNum - 1) * 4 + 3,
+                    (monthNum - 1) * 4 + 4
+                  ];
+                  const monthRecords = schoolWpRecords.filter(r => monthWeeks.includes(Number(r.minggu)));
+
+                  return (
+                    <div key={monthNum} className="bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+                      <div className="bg-slate-950/80 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                        <span className="font-bold text-xs text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5" /> BULAN KE-{monthNum} (Minggu M-{monthWeeks[0]} s/d M-{monthWeeks[3]})
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-semibold">
+                          {monthRecords.length} / 4 minggu terisi
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[700px]">
+                          <thead>
+                            <tr className="bg-slate-900/60 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                              <th className="py-2.5 px-4 w-20">Minggu</th>
+                              <th className="py-2.5 px-3 w-24 text-right">Re (%)</th>
+                              <th className="py-2.5 px-3 w-24 text-right">Ko (%)</th>
+                              <th className="py-2.5 px-3 w-24 text-right">Rencana (%)</th>
+                              <th className="py-2.5 px-3 w-24 text-right">Deviasi</th>
+                              <th className="py-2.5 px-4">Kendala / Masalah</th>
+                              <th className="py-2.5 px-4">Rekomendasi</th>
+                              {isAuthorizedToEdit && <th className="py-2.5 px-3 w-16 text-center">Aksi</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60 text-xs">
+                            {monthWeeks.map((wNum) => {
+                              const rec = schoolWpRecords.find(r => Number(r.minggu) === wNum);
+
+                              return (
+                                <tr key={wNum} className={`hover:bg-slate-800/30 transition-colors ${!rec ? 'opacity-40' : ''}`}>
+                                  <td className="py-2.5 px-4 font-bold text-indigo-300 font-mono">
+                                    M-{wNum}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-200">
+                                    {rec ? `${Number(rec.realisasi).toFixed(3)}%` : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-400">
+                                    {rec ? `${Number(rec.kumulatif).toFixed(3)}%` : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono text-slate-400">
+                                    {rec && rec.rencana !== undefined ? `${Number(rec.rencana).toFixed(3)}%` : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold">
+                                    {rec && rec.deviasi !== undefined ? (
+                                      <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                        Number(rec.deviasi) < 0 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      }`}>
+                                        {Number(rec.deviasi) > 0 ? `+${Number(rec.deviasi).toFixed(3)}` : Number(rec.deviasi).toFixed(3)}%
+                                      </span>
+                                    ) : '-'}
+                                  </td>
+                                  <td className="py-2.5 px-4 text-slate-300 max-w-[200px] truncate" title={rec?.kendala}>
+                                    {rec?.kendala || '-'}
+                                  </td>
+                                  <td className="py-2.5 px-4 text-slate-300 max-w-[200px] truncate" title={rec?.rekomendasi}>
+                                    {rec?.rekomendasi || '-'}
+                                  </td>
+                                  {isAuthorizedToEdit && (
+                                    <td className="py-2.5 px-3 text-center">
+                                      {rec ? (
+                                        <div className="flex items-center justify-center gap-1">
+                                          <button
+                                            onClick={() => {
+                                              setSelectedMinggu(wNum);
+                                              window.scrollTo({ top: 300, behavior: 'smooth' });
+                                            }}
+                                            className="p-1 rounded text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer border-0"
+                                            title="Edit Minggu Ini"
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            onClick={async () => {
+                                              if (await window.showConfirm(`Hapus progres Minggu M-${wNum}?`)) {
+                                                onDeleteWeeklyProgress(rec.id);
+                                              }
+                                            }}
+                                            className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer border-0"
+                                            title="Hapus Minggu Ini"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            setSelectedMinggu(wNum);
+                                            window.scrollTo({ top: 300, behavior: 'smooth' });
+                                          }}
+                                          className="p-1 rounded text-slate-500 hover:text-indigo-400 transition-colors cursor-pointer border-0 text-[10px] font-semibold"
+                                          title="Isi Progres Minggu Ini"
+                                        >
+                                          + Isi
+                                        </button>
+                                      )}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          )}
       </div>
     </div>
   );

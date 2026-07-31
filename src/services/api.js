@@ -170,7 +170,8 @@ export const syncService = {
         warnings: (dirtyTables && dirtyTables.warnings === false) ? null : (state.warnings || []).map(w => ({
           ...w,
           dismissed: w.dismissed ? 'true' : 'false'
-        }))
+        })),
+        weekly_progress: (dirtyTables && dirtyTables.weekly_progress === false) ? null : (state.weeklyProgress || [])
       }
     };
 

@@ -43,7 +43,7 @@ const getSchoolCoordinates = (school) => {
   return [base[0] + latOffset, base[1] + lngOffset];
 };
 
-export default function SchoolList({ schools, users, activeUser, onClaimSchool, onAddSchool, onSelectSchool, onUpdateSchool, tasks = [], schoolDocs = [] }) {
+export default function SchoolList({ schools, users, activeUser, onClaimSchool, onAddSchool, onSelectSchool, onUpdateSchool, tasks = [], schoolDocs = [], weeklyProgress = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKabupaten, setSelectedKabupaten] = useState('Semua');
   const [selectedFacilitatorFilter, setSelectedFacilitatorFilter] = useState(
@@ -452,9 +452,30 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                     >
                       {/* Name & NPSN */}
                       <td className="px-6 py-4">
-                        <span className="font-bold text-slate-200 block hover:text-indigo-400 hover:underline transition-all">
-                          {school.nama_sekolah}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-200 block hover:text-indigo-400 hover:underline transition-all">
+                            {school.nama_sekolah}
+                          </span>
+                          {school.tanggal_mc0 && school.tanggal_mc0 !== 'Belum' && !String(school.tanggal_mc0).toLowerCase().startsWith('belum') ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" title={`MC-0 dilaksanakan: ${school.tanggal_mc0}`}>
+                              ✓ MC-0
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20" title="MC-0 Belum dilaksanakan">
+                              ⏳ MC-0 Belum
+                            </span>
+                          )}
+                          {(() => {
+                            const schWp = weeklyProgress.filter(w => w.schoolId === school.npsn).sort((a, b) => Number(a.minggu) - Number(b.minggu));
+                            const latestWp = schWp[schWp.length - 1];
+                            if (!latestWp) return null;
+                            return (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20" title={`Progres Mingguan M-${latestWp.minggu}: Kumulatif ${latestWp.kumulatif}%`}>
+                                📈 M-{latestWp.minggu}: {latestWp.kumulatif}%
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">NPSN {school.npsn}</span>
                       </td>
 

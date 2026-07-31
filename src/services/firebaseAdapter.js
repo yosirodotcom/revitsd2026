@@ -81,7 +81,7 @@ const normalizeRemoteData = (raw) => {
     logs = [], reports = [], duty_reports = [], expenses = [], payments = [],
     school_docs = [], personnel_docs = [], meetings = [], meeting_docs = [],
     meeting_photos = [], trip_docs = [], activity_logs = [], kendala = [],
-    kendala_comments = [], kendala_docs = [], warnings = [],
+    kendala_comments = [], kendala_docs = [], warnings = [], weekly_progress = [],
   } = raw;
 
   const strip = (arr) => arr.map(({ _updatedAt, ...rest }) => rest);
@@ -123,6 +123,7 @@ const normalizeRemoteData = (raw) => {
     trip_docs: strip(trip_docs), activity_logs: cleanActivityLogs,
     kendala: strip(kendala), kendala_comments: strip(kendala_comments),
     kendala_docs: strip(kendala_docs), warnings: cleanWarnings,
+    weekly_progress: strip(weekly_progress),
   };
 };
 
@@ -263,6 +264,9 @@ export const syncService = {
 
     if (isDirty('warnings') && state.warnings?.length)
       tasks.push(saveDocumentsBatch(programId, 'warnings', state.warnings));
+
+    if (isDirty('weekly_progress') && state.weeklyProgress?.length)
+      tasks.push(saveDocumentsBatch(programId, 'weekly_progress', state.weeklyProgress));
 
     await Promise.all(tasks);
     console.log('[Firebase Adapter] ✓ pushData selesai');

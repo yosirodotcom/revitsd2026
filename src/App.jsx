@@ -26,6 +26,7 @@ import HonorBatchSettings from './components/HonorBatchSettings';
 import MigrationTool from './components/MigrationTool';
 import { syncService } from './services/firebaseAdapter';
 import ProgramPortal from './components/ProgramPortal';
+import { googleSheetsService } from './services/googleSheetsService';
 
 // Shadowing helper to dynamically prefix localStorage operations for multi-program isolation
 const storageHelper = {
@@ -255,6 +256,7 @@ export default function App() {
   const [kendalaComments, setKendalaComments] = useState([]);
   const [kendalaDocs, setKendalaDocs] = useState([]);
   const [warnings, setWarnings] = useState([]);
+  const [weeklyProgress, setWeeklyProgress] = useState([]);
   const [activeSchoolTab, setActiveSchoolTab] = useState('profile');
 
   // Session & Nav States
@@ -534,7 +536,7 @@ export default function App() {
       warnings,
       settings
     };
-  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, personnelDocs, meetings, meetingDocs, meetingPhotos, tripDocs, activityLogs, kendala, kendalaComments, kendalaDocs, warnings, settings]);
+  }, [users, schools, contacts, tasks, trips, logs, reports, dutyReports, expenses, payments, schoolDocs, personnelDocs, meetings, meetingDocs, meetingPhotos, tripDocs, activityLogs, kendala, kendalaComments, kendalaDocs, warnings, weeklyProgress, settings]);
 
   // NOTE: useEffect sinkronisasi manual_log → daily logs telah DIHAPUS.
   // useEffect tersebut menyebabkan bug di mana log harian yang dihapus langsung dibuat ulang
@@ -569,6 +571,7 @@ export default function App() {
     setKendalaComments([]);
     setKendalaDocs([]);
     setWarnings([]);
+    setWeeklyProgress([]);
 
     // Clear operational data from localStorage to free space and prevent local cache reliance
     const keysToClear = [
@@ -576,7 +579,7 @@ export default function App() {
       'revit_logs', 'revit_reports', 'revit_duty_reports', 'revit_expenses', 'revit_payments',
       'revit_school_docs', 'revit_personnel_docs', 'revit_meetings', 'revit_meeting_docs',
       'revit_meeting_photos', 'revit_trip_docs', 'revit_activity_logs', 'revit_kendala',
-      'revit_kendala_comments', 'revit_kendala_docs', 'revit_warnings', 'revit_is_dirty'
+      'revit_kendala_comments', 'revit_kendala_docs', 'revit_warnings', 'revit_weekly_progress', 'revit_is_dirty'
     ];
     keysToClear.forEach(key => localStorage.removeItem(key));
 
@@ -991,6 +994,20 @@ export default function App() {
             }));
             setWarnings(clean);
             localStorage.setItem('revit_warnings', JSON.stringify(clean));
+          }
+          if (remoteData.weekly_progress) {
+            const clean = remoteData.weekly_progress.filter(w => w && isValidId(w.id)).map(w => ({
+              ...w,
+              schoolId: String(w.schoolId || w.sekolahId || '').trim(),
+              minggu: Number(w.minggu || 1),
+              bulan: Number(w.bulan || Math.ceil((w.minggu || 1) / 4)),
+              realisasi: Number(w.realisasi || 0),
+              kumulatif: Number(w.kumulatif || 0),
+              rencana: Number(w.rencana || 0),
+              deviasi: Number(w.deviasi || 0)
+            }));
+            setWeeklyProgress(clean);
+            localStorage.setItem('revit_weekly_progress', JSON.stringify(clean));
           }
 
           if (remoteData.settings) {
@@ -1438,6 +1455,20 @@ export default function App() {
         setWarnings(clean);
         localStorage.setItem('revit_warnings', JSON.stringify(clean));
       }
+      if (remoteData.weekly_progress) {
+        const clean = remoteData.weekly_progress.filter(w => w && isValidId(w.id)).map(w => ({
+          ...w,
+          schoolId: String(w.schoolId || w.sekolahId || '').trim(),
+          minggu: Number(w.minggu || 1),
+          bulan: Number(w.bulan || Math.ceil((w.minggu || 1) / 4)),
+          realisasi: Number(w.realisasi || 0),
+          kumulatif: Number(w.kumulatif || 0),
+          rencana: Number(w.rencana || 0),
+          deviasi: Number(w.deviasi || 0)
+        }));
+        setWeeklyProgress(clean);
+        localStorage.setItem('revit_weekly_progress', JSON.stringify(clean));
+      }
 
       if (remoteData.settings) {
         const parsedSettings = parseSettings(remoteData.settings);
@@ -1798,6 +1829,222 @@ export default function App() {
       syncState.activityLogs = updatedLogs;
     }
     syncWithNewState(syncState, true, true);
+  };
+
+  const handleUpdateWeeklyProgress = (record) => {
+    const schoolId = String(record.schoolId || '').trim();
+    if (!schoolId) return;
+
+    const existingSchoolRecords = weeklyProgress.filter(w => w.schoolId === schoolId && w.id !== record.id);
+    const updatedRecord = {
+      ...record,
+      id: record.id || `wp-${schoolId}-m${record.minggu}`,
+      schoolId: schoolId,
+      minggu: Number(record.minggu || 1),
+      bulan: Number(record.bulan || Math.ceil((record.minggu || 1) / 4)),
+      realisasi: Number(record.realisasi || 0),
+      rencana: Number(record.rencana || 0),
+      kendala: record.kendala || '',
+      rekomendasi: record.rekomendasi || '',
+      updatedBy: activeUser?.id || '',
+      updatedAt: new Date().toISOString()
+    };
+
+    const allSchoolRecords = [...existingSchoolRecords, updatedRecord].sort((a, b) => a.minggu - b.minggu);
+    let runningKumulatif = 0;
+    const recalculatedSchoolRecords = allSchoolRecords.map(w => {
+      runningKumulatif += Number(w.realisasi || 0);
+      const rel = Number(w.realisasi || 0);
+      const ren = Number(w.rencana || 0);
+      return {
+        ...w,
+        kumulatif: Number(runningKumulatif.toFixed(3)),
+        deviasi: Number((rel - ren).toFixed(3))
+      };
+    });
+
+    const otherRecords = weeklyProgress.filter(w => w.schoolId !== schoolId);
+    const finalWeeklyProgress = [...otherRecords, ...recalculatedSchoolRecords];
+
+    setWeeklyProgress(finalWeeklyProgress);
+    localStorage.setItem('revit_weekly_progress', JSON.stringify(finalWeeklyProgress));
+    
+    // Juga update progres_fisik pada objek sekolah jika kumulatif minggu terakhir berubah
+    const latestRecord = recalculatedSchoolRecords[recalculatedSchoolRecords.length - 1];
+    let updatedSchools = schools;
+    if (latestRecord) {
+      const targetSch = schools.find(s => s.npsn === schoolId);
+      if (targetSch) {
+        const newProg = Math.round(latestRecord.kumulatif);
+        if (targetSch.progres_fisik !== newProg) {
+          updatedSchools = schools.map(s => s.npsn === schoolId ? { ...s, progres_fisik: newProg } : s);
+          setSchools(updatedSchools);
+          localStorage.setItem('revit_schools', JSON.stringify(updatedSchools));
+        }
+      }
+    }
+
+    syncWithNewState({ weekly_progress: finalWeeklyProgress, schools: updatedSchools }, true, true);
+  };
+
+  const handleDeleteWeeklyProgress = (id) => {
+    const target = weeklyProgress.find(w => w.id === id);
+    if (!target) return;
+    const schoolId = target.schoolId;
+    const remaining = weeklyProgress.filter(w => w.id !== id);
+
+    const schoolRecords = remaining.filter(w => w.schoolId === schoolId).sort((a, b) => a.minggu - b.minggu);
+    let runningKumulatif = 0;
+    const recalculatedSchoolRecords = schoolRecords.map(w => {
+      runningKumulatif += Number(w.realisasi || 0);
+      const rel = Number(w.realisasi || 0);
+      const ren = Number(w.rencana || 0);
+      return {
+        ...w,
+        kumulatif: Number(runningKumulatif.toFixed(3)),
+        deviasi: Number((rel - ren).toFixed(3))
+      };
+    });
+
+    const otherRecords = remaining.filter(w => w.schoolId !== schoolId);
+    const finalWeeklyProgress = [...otherRecords, ...recalculatedSchoolRecords];
+
+    setWeeklyProgress(finalWeeklyProgress);
+    localStorage.setItem('revit_weekly_progress', JSON.stringify(finalWeeklyProgress));
+    
+    // Update progres_fisik sekolah
+    const latestRecord = recalculatedSchoolRecords[recalculatedSchoolRecords.length - 1];
+    let updatedSchools = schools;
+    const targetSch = schools.find(s => s.npsn === schoolId);
+    if (targetSch) {
+      const newProg = latestRecord ? Math.round(latestRecord.kumulatif) : 0;
+      if (targetSch.progres_fisik !== newProg) {
+        updatedSchools = schools.map(s => s.npsn === schoolId ? { ...s, progres_fisik: newProg } : s);
+        setSchools(updatedSchools);
+        localStorage.setItem('revit_schools', JSON.stringify(updatedSchools));
+      }
+    }
+
+    syncWithNewState({ weekly_progress: finalWeeklyProgress, schools: updatedSchools }, true, true);
+  };
+
+  const handleRefreshGSheetData = async (spreadsheetId) => {
+    try {
+      const result = await googleSheetsService.fetchMonitoringData(spreadsheetId);
+      const { schoolUpdates, weeklyProgressRecords } = result;
+
+      // 1. Merge schoolUpdates: non-destructive merge by NPSN
+      let schoolsUpdatedCount = 0;
+      const nextSchools = schools.map(sch => {
+        const update = schoolUpdates.find(u => u.npsn === sch.npsn);
+        if (!update) return sch;
+
+        let hasChanges = false;
+        const merged = { ...sch };
+        const isEmpty = (val) => val === undefined || val === null || String(val).trim() === '';
+
+        const fieldsToMerge = [
+          'kepala_sekolah', 'hp_kepala_sekolah', 'dinas_pendidikan_nama',
+          'dinas_pendidikan_hp', 'tanggal_pks', 'tanggal_dana_tahap1',
+          'tanggal_mc0', 'kelengkapan_mc0', 'kendala_mc0', 'kendala_pelaksanaan'
+        ];
+
+        fieldsToMerge.forEach(f => {
+          if (isEmpty(merged[f]) && !isEmpty(update[f])) {
+            merged[f] = update[f];
+            hasChanges = true;
+          }
+        });
+
+        if (hasChanges) schoolsUpdatedCount++;
+        return merged;
+      });
+
+      // 2. Merge contacts (Perencana & Pengawas) conditionally
+      let updatedContacts = [...contacts];
+      schoolUpdates.forEach(u => {
+        const sch = nextSchools.find(s => s.npsn === u.npsn);
+        if (!sch) return;
+
+        if (!sch.perencanaId && u.perencanaNama && u.perencanaNama.trim() !== '') {
+          let existingContact = updatedContacts.find(c => c.nama.toLowerCase() === u.perencanaNama.trim().toLowerCase());
+          if (!existingContact) {
+            existingContact = { id: `contact-${Date.now()}-p-${u.npsn}`, nama: u.perencanaNama.trim(), hp: u.perencanaHp || '' };
+            updatedContacts.push(existingContact);
+          }
+          sch.perencanaId = existingContact.id;
+        }
+
+        if (!sch.pengawasId && u.pengawasNama && u.pengawasNama.trim() !== '') {
+          let existingContact = updatedContacts.find(c => c.nama.toLowerCase() === u.pengawasNama.trim().toLowerCase());
+          if (!existingContact) {
+            existingContact = { id: `contact-${Date.now()}-w-${u.npsn}`, nama: u.pengawasNama.trim(), hp: u.pengawasHp || '' };
+            updatedContacts.push(existingContact);
+          }
+          sch.pengawasId = existingContact.id;
+        }
+      });
+
+      // 3. Merge weeklyProgressRecords: add new records that do NOT exist in current weeklyProgress
+      let wpAddedCount = 0;
+      const nextWp = [...weeklyProgress];
+
+      weeklyProgressRecords.forEach(rec => {
+        const existing = nextWp.find(w => w.id === rec.id || (w.schoolId === rec.schoolId && Number(w.minggu) === Number(rec.minggu)));
+        if (!existing) {
+          nextWp.push(rec);
+          wpAddedCount++;
+        }
+      });
+
+      // Recalculate cumulative & deviasi
+      const schoolIds = new Set(nextWp.map(w => w.schoolId));
+      let finalWp = [];
+
+      schoolIds.forEach(sId => {
+        const sRecords = nextWp.filter(w => w.schoolId === sId).sort((a, b) => Number(a.minggu) - Number(b.minggu));
+        let runningKumulatif = 0;
+        const recalculated = sRecords.map(w => {
+          runningKumulatif += Number(w.realisasi || 0);
+          const rel = Number(w.realisasi || 0);
+          const ren = Number(w.rencana || 0);
+          return {
+            ...w,
+            kumulatif: Number((w.kumulatif || runningKumulatif).toFixed(3)),
+            deviasi: Number((rel - ren).toFixed(3))
+          };
+        });
+        finalWp = [...finalWp, ...recalculated];
+
+        const latest = recalculated[recalculated.length - 1];
+        if (latest) {
+          const targetSch = nextSchools.find(s => s.npsn === sId);
+          if (targetSch && targetSch.progres_fisik === 0) {
+            targetSch.progres_fisik = Math.round(latest.kumulatif);
+          }
+        }
+      });
+
+      setSchools(nextSchools);
+      setContacts(updatedContacts);
+      setWeeklyProgress(finalWp);
+
+      localStorage.setItem('revit_schools', JSON.stringify(nextSchools));
+      localStorage.setItem('revit_contacts', JSON.stringify(updatedContacts));
+      localStorage.setItem('revit_weekly_progress', JSON.stringify(finalWp));
+
+      addActivityLog('gsheet_sync', `Bulk-import data monitoring Google Sheets: ${result.totalSchoolsProcessed} sekolah diproses, ${wpAddedCount} record progres mingguan baru.`, null, false);
+
+      syncWithNewState({ schools: nextSchools, contacts: updatedContacts, weekly_progress: finalWp }, true, true);
+
+      return {
+        success: true,
+        message: `Sinkronisasi berhasil! ${result.totalSchoolsProcessed} sekolah diproses (${schoolsUpdatedCount} profil diperbarui), ${wpAddedCount} record progres mingguan baru ditambahkan.`
+      };
+    } catch (err) {
+      console.error('[GSheet Sync] Error:', err);
+      throw err;
+    }
   };
 
   const handleClaimSchool = (npsn, fasilitatorId) => {
@@ -3168,6 +3415,7 @@ export default function App() {
               }}
               onViewChange={handleViewChange}
               onUpdateSchool={handleUpdateSchool}
+              onRefreshGSheetData={handleRefreshGSheetData}
               expenses={expenses}
               payments={payments}
               onDeleteLog={handleDeleteLog}
@@ -3191,6 +3439,7 @@ export default function App() {
               onUpdateSchool={handleUpdateSchool}
               tasks={tasks}
               schoolDocs={schoolDocs}
+              weeklyProgress={weeklyProgress}
             />
           )}
 
@@ -3509,6 +3758,9 @@ export default function App() {
               onAddKendalaComment={handleAddKendalaComment}
               onDeleteKendalaComment={handleDeleteKendalaComment}
               onDeleteKendalaDoc={handleDeleteKendalaDoc}
+              weeklyProgress={weeklyProgress}
+              onUpdateWeeklyProgress={handleUpdateWeeklyProgress}
+              onDeleteWeeklyProgress={handleDeleteWeeklyProgress}
               initialTab={activeSchoolTab}
             />
           </div>

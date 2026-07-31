@@ -226,7 +226,8 @@ export default function Dashboard({
   onEditLog,
   warnings = [],
   onDismissWarning,
-  onResetDatabase
+  onResetDatabase,
+  onRefreshGSheetData
 }) {
   const [dates, setDates] = useState({
     projectStartDate: settings.projectStartDate || '2026-06-12',
@@ -235,6 +236,27 @@ export default function Dashboard({
     googleAppsScriptToken: settings.googleAppsScriptToken || 'REVITSD2026_SECURE_TOKEN',
     simulatedToday: ''
   });
+
+  // Google Sheets Monitoring Sync State (Khusus SD)
+  const [gsheetId, setGsheetId] = useState(import.meta.env.VITE_GSHEET_MONITORING_ID || '1vGgWEtjKwVAAOv0gE60PCp57909RabkDZ55pYsODKaU');
+  const [isSyncingGsheet, setIsSyncingGsheet] = useState(false);
+  const [gsheetSyncResult, setGsheetSyncResult] = useState(null);
+  const activePrefix = typeof window !== 'undefined' ? (window.localStorage.getItem('active_program_prefix') || 'revit') : 'revit';
+  const isSDProgram = activePrefix === 'revit';
+
+  const handleGsheetSync = async () => {
+    if (!onRefreshGSheetData) return;
+    setIsSyncingGsheet(true);
+    setGsheetSyncResult(null);
+    try {
+      const res = await onRefreshGSheetData(gsheetId);
+      setGsheetSyncResult({ type: 'success', message: res.message });
+    } catch (err) {
+      setGsheetSyncResult({ type: 'error', message: err.message || 'Gagal sinkronisasi data dari Google Sheets.' });
+    } finally {
+      setIsSyncingGsheet(false);
+    }
+  };
 
   const [selectedFacilitator, setSelectedFacilitator] = useState(null);
   const [facModalId, setFacModalId] = useState(null);
@@ -1854,6 +1876,67 @@ export default function Dashboard({
           </div>
         );
       })()}
+
+      {/* Panel Sinkronisasi Google Sheets (Khusus SD + Super Admin) */}
+      {isSDProgram && isSuperAdmin && (
+        <div className="bg-slate-900/40 border border-indigo-500/30 rounded-3xl p-6 shadow-xl space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <RefreshCw className={`w-5 h-5 text-indigo-400 ${isSyncingGsheet ? 'animate-spin' : ''}`} />
+              <h3 className="font-bold text-white text-sm uppercase tracking-wide">
+                Sinkronisasi Data Monitoring Google Sheets
+              </h3>
+            </div>
+            <span className="text-[10px] text-indigo-300 font-bold bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+              Khusus SD • Bulk-Import
+            </span>
+          </div>
+
+          <p className="text-slate-300 text-xs leading-relaxed">
+            Tarik data kelengkapan administratif (PKS, Dana Tahap 1, MC-0, Dinas) dan progres mingguan (M-1 s/d M-24) dari spreadsheet Google Sheets. Data lokal yang sudah diisi manual <strong className="text-indigo-300">TIDAK akan ditimpa</strong>.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                Spreadsheet ID
+              </label>
+              <input
+                type="text"
+                value={gsheetId}
+                onChange={(e) => setGsheetId(e.target.value)}
+                placeholder="ID Spreadsheet Google Sheets..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="sm:self-end">
+              <button
+                onClick={handleGsheetSync}
+                disabled={isSyncingGsheet || !gsheetId.trim()}
+                className={`w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+                  isSyncingGsheet
+                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20 border-0'
+                }`}
+              >
+                <RefreshCw className={`w-4 h-4 text-white ${isSyncingGsheet ? 'animate-spin' : ''}`} />
+                <span>{isSyncingGsheet ? 'Memproses GSheet...' : 'Refresh Data Sekarang'}</span>
+              </button>
+            </div>
+          </div>
+
+          {gsheetSyncResult && (
+            <div className={`p-3 rounded-xl border text-xs font-semibold ${
+              gsheetSyncResult.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+            }`}>
+              {gsheetSyncResult.message}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Super Admin Travel Approval Notifications */}
       {activeUser?.jabatanTim === 'Super Admin' && (() => {
