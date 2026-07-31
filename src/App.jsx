@@ -3265,6 +3265,90 @@ export default function App() {
       if (stored) paudCount = JSON.parse(stored).length;
     } catch (e) {}
 
+    const handlePortalLogin = (user, targetProg = null) => {
+      window.localStorage.setItem('global_active_user', JSON.stringify(user));
+      setGlobalActiveUser(user);
+      setShowLoginModal(false);
+
+      const activeProg = targetProg || publicProgram;
+      if (activeProg) {
+        const prefix = activeProg.prefix;
+        window.localStorage.setItem('active_program_id', activeProg.id);
+        window.localStorage.setItem('active_program_prefix', activeProg.prefix);
+
+        const storedUsers = window.localStorage.getItem(`${prefix}_users`);
+        let programUsers = [];
+        if (storedUsers) {
+          try {
+            programUsers = JSON.parse(storedUsers);
+          } catch (e) {}
+        } else {
+          programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
+        }
+
+        const matchingUser = programUsers.find(u => u.id === user.id) || programUsers.find(u => u.nama === user.nama);
+        if (matchingUser) {
+          window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
+        } else if (user.jabatanTim === 'Super Admin' || user.role === 'admin' || user.id === 'yosi-ronadi') {
+          const adminUser = {
+            id: "yosi-ronadi",
+            nama: "Yosi Ronadi",
+            jabatanKepegawaian: "Super Admin",
+            jabatanTim: "Super Admin",
+            pendidikan: "Strata 2",
+            statusPegawai: "PNS",
+            role: "admin",
+            password: "4051"
+          };
+          window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(adminUser));
+        } else {
+          window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(user));
+        }
+
+        window.location.reload();
+      }
+    };
+
+    const handlePortalSelectProgram = (prog) => {
+      window.localStorage.setItem('active_program_id', prog.id);
+      window.localStorage.setItem('active_program_prefix', prog.prefix);
+      
+      const prefix = prog.prefix;
+      const stored = window.localStorage.getItem(`${prefix}_users`);
+      let programUsers = [];
+      if (stored) {
+        try {
+          programUsers = JSON.parse(stored);
+        } catch (e) {}
+      } else {
+        programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
+      }
+
+      const activeUserToMatch = globalActiveUser || (window.localStorage.getItem('global_active_user') ? JSON.parse(window.localStorage.getItem('global_active_user')) : null);
+
+      const matchingUser = activeUserToMatch ? (programUsers.find(u => u.id === activeUserToMatch.id) || programUsers.find(u => u.nama === activeUserToMatch.nama)) : null;
+
+      if (matchingUser) {
+        window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
+      } else if (activeUserToMatch?.jabatanTim === 'Super Admin' || activeUserToMatch?.role === 'admin' || activeUserToMatch?.id === 'yosi-ronadi') {
+        const adminUser = {
+          id: "yosi-ronadi",
+          nama: "Yosi Ronadi",
+          jabatanKepegawaian: "Super Admin",
+          jabatanTim: "Super Admin",
+          pendidikan: "Strata 2",
+          statusPegawai: "PNS",
+          role: "admin",
+          password: "4051"
+        };
+        window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(adminUser));
+      } else if (activeUserToMatch) {
+        window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(activeUserToMatch));
+      }
+
+      window.location.reload();
+    };
+
     if (publicProgram) {
       const dashSchools = publicProgram.prefix === 'revit' ? portalSdSchools : portalPaudSchools;
       const dashUsers = publicProgram.prefix === 'revit' ? sdUsersList : paudUsersList;
@@ -3296,11 +3380,7 @@ export default function App() {
                   loggedInUser={globalActiveUser}
                   isLoginModal={true}
                   onClose={() => setShowLoginModal(false)}
-                  onLogin={(user) => {
-                    window.localStorage.setItem('global_active_user', JSON.stringify(user));
-                    setGlobalActiveUser(user);
-                    setShowLoginModal(false);
-                  }}
+                  onLogin={(user) => handlePortalLogin(user)}
                   onLogout={() => {
                     window.localStorage.removeItem('global_active_user');
                     window.localStorage.removeItem('active_program_id');
@@ -3308,40 +3388,7 @@ export default function App() {
                     setGlobalActiveUser(null);
                     setActiveProgram(null);
                   }}
-                  onSelectProgram={(prog) => {
-                    window.localStorage.setItem('active_program_id', prog.id);
-                    window.localStorage.setItem('active_program_prefix', prog.prefix);
-                    
-                    const prefix = prog.prefix;
-                    const stored = window.localStorage.getItem(`${prefix}_users`);
-                    let programUsers = [];
-                    if (stored) {
-                      try {
-                        programUsers = JSON.parse(stored);
-                      } catch (e) {}
-                    } else {
-                      programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
-                    }
-
-                    const matchingUser = programUsers.find(u => u.id === globalActiveUser?.id) || programUsers.find(u => u.nama === globalActiveUser?.nama);
-                    if (matchingUser) {
-                      window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
-                    } else if (globalActiveUser?.jabatanTim === 'Super Admin' || globalActiveUser?.role === 'admin') {
-                      const adminUser = {
-                        id: "yosi-ronadi",
-                        nama: "Yosi Ronadi",
-                        jabatanKepegawaian: "Super Admin",
-                        jabatanTim: "Super Admin",
-                        pendidikan: "Strata 2",
-                        statusPegawai: "PNS",
-                        role: "admin",
-                        password: "4051"
-                      };
-                      window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(adminUser));
-                    }
-
-                    window.location.reload();
-                  }}
+                  onSelectProgram={handlePortalSelectProgram}
                 />
               </div>
             </div>
@@ -3362,11 +3409,7 @@ export default function App() {
         isLoginModal={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onSelectPublicProgram={(prog) => setPublicProgram(prog)}
-        onLogin={(user) => {
-          window.localStorage.setItem('global_active_user', JSON.stringify(user));
-          setGlobalActiveUser(user);
-          setShowLoginModal(false);
-        }}
+        onLogin={(user) => handlePortalLogin(user)}
         onLogout={() => {
           window.localStorage.removeItem('global_active_user');
           window.localStorage.removeItem('active_program_id');
@@ -3374,40 +3417,7 @@ export default function App() {
           setGlobalActiveUser(null);
           setActiveProgram(null);
         }}
-        onSelectProgram={(prog) => {
-          window.localStorage.setItem('active_program_id', prog.id);
-          window.localStorage.setItem('active_program_prefix', prog.prefix);
-          
-          const prefix = prog.prefix;
-          const stored = window.localStorage.getItem(`${prefix}_users`);
-          let programUsers = [];
-          if (stored) {
-            try {
-              programUsers = JSON.parse(stored);
-            } catch (e) {}
-          } else {
-            programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
-          }
-
-          const matchingUser = programUsers.find(u => u.id === globalActiveUser?.id) || programUsers.find(u => u.nama === globalActiveUser?.nama);
-          if (matchingUser) {
-            window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
-          } else if (globalActiveUser?.jabatanTim === 'Super Admin' || globalActiveUser?.role === 'admin') {
-            const adminUser = {
-              id: "yosi-ronadi",
-              nama: "Yosi Ronadi",
-              jabatanKepegawaian: "Super Admin",
-              jabatanTim: "Super Admin",
-              pendidikan: "Strata 2",
-              statusPegawai: "PNS",
-              role: "admin",
-              password: "4051"
-            };
-            window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(adminUser));
-          }
-
-          window.location.reload();
-        }}
+        onSelectProgram={handlePortalSelectProgram}
       />
     );
   }
