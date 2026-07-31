@@ -664,10 +664,12 @@ export default function SchoolDetail({
   const [selectedMinggu, setSelectedMinggu] = useState(1);
   const [wpForm, setWpForm] = useState({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
 
-  const schoolWpRecords = weeklyProgress.filter(w => w.schoolId === school?.npsn).sort((a, b) => Number(a.minggu) - Number(b.minggu));
+  const schoolWpRecords = (Array.isArray(weeklyProgress) ? weeklyProgress : [])
+    .filter(w => w && String(w.schoolId) === String(school?.npsn))
+    .sort((a, b) => parseNum(a?.minggu) - parseNum(b?.minggu));
 
   useEffect(() => {
-    const existing = schoolWpRecords.find(w => Number(w.minggu) === Number(selectedMinggu));
+    const existing = schoolWpRecords.find(w => w && parseNum(w.minggu) === parseNum(selectedMinggu));
     if (existing) {
       setWpForm({
         realisasi: existing.realisasi !== undefined && existing.realisasi !== null ? String(existing.realisasi) : '',
@@ -3234,7 +3236,7 @@ export default function SchoolDetail({
                       <span>Form Input / Edit Progres Mingguan</span>
                     </h3>
                     <span className="text-[10px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700 font-medium">
-                      {schoolWpRecords.some(w => Number(w.minggu) === Number(selectedMinggu)) ? `Mode Edit Minggu M-${selectedMinggu}` : `Input Baru Minggu M-${selectedMinggu}`}
+                      {schoolWpRecords.some(w => w && parseNum(w.minggu) === parseNum(selectedMinggu)) ? `Mode Edit Minggu M-${selectedMinggu}` : `Input Baru Minggu M-${selectedMinggu}`}
                     </span>
                   </div>
 
@@ -3248,11 +3250,11 @@ export default function SchoolDetail({
                         </label>
                         <select
                           value={selectedMinggu}
-                          onChange={(e) => setSelectedMinggu(Number(e.target.value))}
+                          onChange={(e) => setSelectedMinggu(parseNum(e.target.value))}
                           className="w-full bg-slate-950 border border-indigo-500/40 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                         >
                           {Array.from({ length: 24 }, (_, i) => i + 1).map((w) => {
-                            const hasData = schoolWpRecords.some(r => Number(r.minggu) === w);
+                            const hasData = schoolWpRecords.some(r => r && parseNum(r.minggu) === w);
                             const month = Math.ceil(w / 4);
                             return (
                               <option key={w} value={w}>
@@ -3305,10 +3307,10 @@ export default function SchoolDetail({
                       <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
                         <span className="text-[10px] uppercase font-bold text-slate-500">Estimasi Kalkulasi Otomatis:</span>
                         {(() => {
-                          const rel = parseFloat(wpForm.realisasi || 0);
-                          const ren = parseFloat(wpForm.rencana || 0);
-                          const prevRecords = schoolWpRecords.filter(w => Number(w.minggu) < Number(selectedMinggu));
-                          const prevSum = prevRecords.reduce((acc, curr) => acc + Number(curr.realisasi || 0), 0);
+                          const rel = parseNum(wpForm.realisasi);
+                          const ren = parseNum(wpForm.rencana);
+                          const prevRecords = schoolWpRecords.filter(w => w && parseNum(w.minggu) < parseNum(selectedMinggu));
+                          const prevSum = prevRecords.reduce((acc, curr) => acc + parseNum(curr?.realisasi), 0);
                           const estKumulatif = prevSum + rel;
                           const estDeviasi = rel - ren;
 
@@ -3357,12 +3359,12 @@ export default function SchoolDetail({
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
-                      {schoolWpRecords.some(r => Number(r.minggu) === Number(selectedMinggu)) ? (
+                      {schoolWpRecords.some(r => r && parseNum(r.minggu) === parseNum(selectedMinggu)) ? (
                         <button
                           type="button"
                           onClick={async () => {
                             if (await window.showConfirm(`Hapus data progres Minggu M-${selectedMinggu}?`)) {
-                              const rec = schoolWpRecords.find(r => Number(r.minggu) === Number(selectedMinggu));
+                              const rec = schoolWpRecords.find(r => r && parseNum(r.minggu) === parseNum(selectedMinggu));
                               if (rec && onDeleteWeeklyProgress) {
                                 onDeleteWeeklyProgress(rec.id);
                                 setWpForm({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
