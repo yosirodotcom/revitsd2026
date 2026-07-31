@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Baby, GraduationCap, Lock, ArrowRight, LogOut, KeyRound, ShieldCheck, School, Eye, EyeOff, ChevronDown, Search } from 'lucide-react';
+import { Baby, GraduationCap, Lock, ArrowRight, LogOut, KeyRound, ShieldCheck, School, Eye, EyeOff, ChevronDown, Search, LogIn, X } from 'lucide-react';
 
 export default function ProgramPortal({ 
   sdUsers = [], 
@@ -11,17 +11,28 @@ export default function ProgramPortal({
   onLogin, 
   onLogout,
   loggedInUser, 
-  onSelectProgram 
+  onSelectProgram,
+  onSelectPublicProgram,
+  isLoginModal = false,
+  onClose
 }) {
   const [password, setPassword] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [showLoginForm, setShowLoginForm] = useState(isLoginModal);
 
   // States untuk Custom Combobox (Pencarian User)
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Sync isLoginModal state change from parent
+  useEffect(() => {
+    if (isLoginModal !== undefined) {
+      setShowLoginForm(isLoginModal);
+    }
+  }, [isLoginModal]);
 
   // 1. Dapatkan daftar seluruh personil unik gabungan
   const allUsersMap = new Map();
@@ -107,37 +118,37 @@ export default function ProgramPortal({
     return '';
   };
 
-  const programs = [];
+  const sdProgram = {
+    id: 'revitsd2026',
+    prefix: 'revit',
+    name: 'Revitalisasi Sekolah Dasar 2026',
+    subtitle: 'Sekolah Dasar Negeri & Swasta pelaksana Swakelola',
+    theme: 'indigo',
+    icon: GraduationCap,
+    schoolCount: sdSchoolsCount,
+    budget: formatRupiah(sdSettings?.totalProjectContract) || 'Rp 1.500.000.000',
+    timeline: getTimeline(sdSettings) || '12 Jun - 12 Des 2026',
+    agency: 'Teknik Sipil & Arsitektur'
+  };
+
+  const paudProgram = {
+    id: 'revitpaud2026',
+    prefix: 'revitpaud',
+    name: 'Revitalisasi PAUD 2026',
+    subtitle: 'Pendidikan Anak Usia Dini, KB, & TK',
+    theme: 'emerald',
+    icon: Baby,
+    schoolCount: paudSchoolsCount,
+    budget: formatRupiah(paudSettings?.totalProjectContract) || 'Rp 800.000.000',
+    timeline: getTimeline(paudSettings) || '12 Jun - 12 Des 2026',
+    agency: 'Kependidikan PAUD & Arsitektur'
+  };
+
+  const loggedInPrograms = [];
   if (loggedInUser) {
     const { hasSD, hasPAUD } = checkUserPrograms(loggedInUser);
-    if (hasSD) {
-      programs.push({
-        id: 'revitsd2026',
-        prefix: 'revit',
-        name: 'Revitalisasi SD 2026',
-        subtitle: 'Sekolah Dasar Negeri & Swasta pelaksana Swakelola',
-        theme: 'indigo',
-        icon: GraduationCap,
-        schoolCount: sdSchoolsCount,
-        budget: formatRupiah(sdSettings?.totalProjectContract) || 'Rp 1.500.000.000',
-        timeline: getTimeline(sdSettings) || '12 Jun - 12 Des 2026',
-        agency: 'Teknik Sipil & Arsitektur'
-      });
-    }
-    if (hasPAUD) {
-      programs.push({
-        id: 'revitpaud2026',
-        prefix: 'revitpaud',
-        name: 'Revitalisasi PAUD 2026',
-        subtitle: 'Pendidikan Anak Usia Dini, KB, & TK',
-        theme: 'emerald',
-        icon: Baby,
-        schoolCount: paudSchoolsCount,
-        budget: formatRupiah(paudSettings?.totalProjectContract) || 'Rp 800.000.000',
-        timeline: getTimeline(paudSettings) || '12 Jun - 12 Des 2026',
-        agency: 'Kependidikan PAUD & Arsitektur'
-      });
-    }
+    if (hasSD) loggedInPrograms.push(sdProgram);
+    if (hasPAUD) loggedInPrograms.push(paudProgram);
   }
 
   // 3. Handle Submit Login
@@ -147,7 +158,6 @@ export default function ProgramPortal({
 
     let userToLogin = selectedUser;
     if (!userToLogin && searchQuery) {
-      // Coba cari nama user yang sama persis (case-insensitive)
       userToLogin = uniqueUsers.find(
         u => u.nama.toLowerCase() === searchQuery.trim().toLowerCase()
       );
@@ -176,6 +186,7 @@ export default function ProgramPortal({
       setSelectedUser(null);
       setPassword('');
       setSearchQuery('');
+      if (onClose) onClose();
     } else {
       setError('Kata sandi yang Anda masukkan salah!');
     }
@@ -198,11 +209,34 @@ export default function ProgramPortal({
       .toUpperCase();
   };
 
-  // TAMPILAN 1: Login Form (Split Screen)
-  if (!loggedInUser) {
+  const handleProgramClick = (prog) => {
+    if (onSelectPublicProgram) {
+      onSelectPublicProgram(prog);
+    } else if (onSelectProgram) {
+      onSelectProgram(prog);
+    }
+  };
+
+  // MODE 1: Login Form (Modal / Standalone)
+  if (showLoginForm || isLoginModal) {
     return (
-      <div className="min-h-screen bg-white text-slate-800 font-['Outfit',sans-serif] grid grid-cols-1 lg:grid-cols-12 overflow-hidden select-none" style={{ backgroundColor: '#ffffff', color: '#1f2937' }}>
+      <div className="min-h-screen bg-white text-slate-800 font-['Outfit',sans-serif] grid grid-cols-1 lg:grid-cols-12 overflow-hidden select-none w-full relative" style={{ backgroundColor: '#ffffff', color: '#1f2937' }}>
         
+        {/* Close Button if opened as Modal */}
+        {(onClose || (!loggedInUser && !isLoginModal)) && (
+          <button 
+            type="button"
+            onClick={() => {
+              if (onClose) onClose();
+              else setShowLoginForm(false);
+            }}
+            className="absolute top-5 right-5 z-50 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer border-0"
+            title="Tutup Login"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
         {/* LEFT SIDE: Form Login */}
         <div className="lg:col-span-5 flex flex-col justify-between p-8 md:p-12 lg:p-16 relative z-10 bg-white" style={{ backgroundColor: '#ffffff' }}>
           {/* Top Logo */}
@@ -218,7 +252,7 @@ export default function ProgramPortal({
             <div className="space-y-2 text-left">
               <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight font-sans" style={{ color: '#151c27' }}>Welcome back!</h1>
               <p className="text-xs text-slate-500 leading-relaxed font-sans font-medium">
-                Simplify your workflow and boost your productivity with Tuga's App. Get started for free.
+                Silakan pilih akun dan masukkan kata sandi untuk masuk ke sistem monitoring internal.
               </p>
             </div>
 
@@ -240,7 +274,7 @@ export default function ProgramPortal({
                       setSelectedUser(null);
                     }
                   }}
-                  placeholder="Username"
+                  placeholder="Pilih / Cari Nama Pengguna"
                   className="w-full bg-white border border-slate-250 hover:border-slate-350 focus:border-black rounded-full px-5 py-3.5 text-xs text-slate-850 focus:outline-none transition-all placeholder-slate-400 shadow-sm"
                   style={{ borderRadius: '9999px', backgroundColor: '#ffffff', color: '#151c27', borderColor: '#c4c7c7' }}
                 />
@@ -303,7 +337,7 @@ export default function ProgramPortal({
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
+                  placeholder="Kata Sandi"
                   className="w-full bg-white border border-slate-250 hover:border-slate-350 focus:border-black rounded-full px-5 py-3.5 text-xs text-slate-850 focus:outline-none transition-all placeholder-slate-400 shadow-sm"
                   style={{ borderRadius: '9999px', backgroundColor: '#ffffff', color: '#151c27', borderColor: '#c4c7c7' }}
                   required={selectedUser ? !!selectedUser.password : false}
@@ -331,7 +365,7 @@ export default function ProgramPortal({
                   }}
                   className="text-[11px] font-bold text-slate-500 hover:text-black cursor-pointer transition-colors"
                 >
-                  Forgot Password?
+                  Lupa Password?
                 </span>
               </div>
 
@@ -347,11 +381,19 @@ export default function ProgramPortal({
                 className="w-full py-3.5 rounded-full bg-black text-white hover:bg-slate-800 font-bold text-xs transition-all shadow-md cursor-pointer mt-2"
                 style={{ borderRadius: '9999px', backgroundColor: '#000000', color: '#ffffff' }}
               >
-                Login
+                Masuk ke Sistem
               </button>
+
+              {!loggedInUser && !isLoginModal && (
+                <button
+                  type="button"
+                  onClick={() => setShowLoginForm(false)}
+                  className="w-full py-2.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold text-xs transition-all cursor-pointer mt-1"
+                >
+                  Kembali ke Pilihan Program
+                </button>
+              )}
             </form>
-
-
           </div>
 
           {/* Bottom Copyright */}
@@ -362,95 +404,56 @@ export default function ProgramPortal({
 
         {/* RIGHT SIDE: Visual Panel */}
         <div className="hidden lg:col-span-7 lg:flex items-center justify-center p-8 relative bg-white">
-          {/* Inner Light Mint Box */}
           <div className="w-full max-w-2xl bg-[#f4fbf7] p-8 lg:p-12 rounded-[40px] shadow-sm relative overflow-hidden flex flex-col items-center justify-between text-center min-h-[550px] border border-emerald-100/30">
             
-            {/* Illustration Container */}
             <div className="flex-1 flex flex-col items-center justify-center relative w-full my-6 select-none">
-              
-              {/* Green Aura Clouds (Dotted and loops in background) */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <svg className="w-80 h-80 text-[#a2e0b8]/40" viewBox="0 0 200 200" fill="none">
-                  {/* Green Aura clouds loop behind head */}
                   <path d="M 60,65 C 50,45 80,30 100,35 C 120,30 150,45 140,65 C 150,85 130,110 100,105 C 70,110 50,85 60,65 Z" 
                         stroke="currentColor" strokeWidth="2.5" strokeDasharray="6 4" fill="none" className="animate-pulse" />
                 </svg>
               </div>
 
-              {/* Floating Avatar 1 (Left Top) */}
               <div className="absolute top-[8%] left-[10%] w-12 h-12 rounded-full border border-emerald-100 bg-[#e3f4e9] flex items-center justify-center shadow-md animate-bounce" style={{ animationDuration: '4s' }}>
-                {/* SVG Drawing of Boy with spiky hair */}
                 <svg className="w-10 h-10 text-slate-800" viewBox="0 0 40 40" fill="none">
-                  {/* Face */}
                   <circle cx="20" cy="22" r="8" stroke="currentColor" strokeWidth="1.8" fill="white" />
-                  {/* Eyes & Smile */}
                   <path d="M 17,21 A 0.5,0.5 0 0,1 18,21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   <path d="M 22,21 A 0.5,0.5 0 0,1 23,21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   <path d="M 17,25 C 18,27 22,27 23,25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  {/* Spiky Hair */}
                   <path d="M 11,18 L 13,13 L 16,16 L 20,11 L 24,15 L 27,12 L 29,18 C 29,18 20,15 11,18 Z" fill="currentColor" />
-                  {/* Shirt */}
                   <path d="M 14,30 C 14,27 26,27 26,30" stroke="currentColor" strokeWidth="1.8" />
                 </svg>
               </div>
 
-              {/* Floating Avatar 2 (Right Middle/Bottom) */}
               <div className="absolute bottom-[22%] right-[8%] w-12 h-12 rounded-full border border-emerald-100 bg-[#e3f4e9] flex items-center justify-center shadow-md animate-pulse">
-                {/* SVG Drawing of Girl surprised */}
                 <svg className="w-10 h-10 text-slate-800" viewBox="0 0 40 40" fill="none">
-                  {/* Face */}
                   <circle cx="20" cy="22" r="8" stroke="currentColor" strokeWidth="1.8" fill="white" />
-                  {/* Eyes (Surprised, small circles) */}
                   <circle cx="17.5" cy="21" r="1" fill="currentColor" />
                   <circle cx="22.5" cy="21" r="1" fill="currentColor" />
-                  {/* Surprised Mouth */}
                   <circle cx="20" cy="25" r="2.2" stroke="currentColor" strokeWidth="1.5" fill="white" />
-                  {/* Bob Hair */}
                   <path d="M 11,24 C 11,16 13,13 20,13 C 27,13 29,16 29,24 L 27,24 L 27,20 L 13,20 L 13,24 Z" fill="currentColor" />
-                  {/* Shirt */}
                   <path d="M 14,30 C 14,27 26,27 26,30" stroke="currentColor" strokeWidth="1.8" />
                 </svg>
               </div>
 
-
-              {/* Meditating Girl Main Vector Drawing */}
               <svg className="w-64 h-64 text-slate-800" viewBox="0 0 200 200" fill="none">
-                {/* Head */}
                 <circle cx="100" cy="80" r="15" stroke="currentColor" strokeWidth="2.2" fill="white" />
-                {/* Closed Eyes */}
                 <path d="M 94,80 Q 96,82 98,80" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 <path d="M 102,80 Q 104,82 106,80" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                {/* Hair - Bob with bangs */}
                 <path d="M 82,82 C 82,62 86,59 100,59 C 114,59 118,62 118,82 L 115,82 L 115,74 C 115,74 100,72 85,74 L 85,82 Z" fill="currentColor" />
-                
-                {/* Sweater (Green with white heart) */}
-                {/* Body/Torso */}
                 <path d="M 85,96 C 85,96 76,108 76,118 L 124,118 C 124,108 115,96 115,96 Z" fill="#c2e7cc" stroke="currentColor" strokeWidth="2.2" />
-                {/* Heart icon on chest */}
                 <path d="M 100,103 C 98,100 94,100 94,103 C 94,107 100,111 100,111 C 100,111 106,107 106,103 C 106,100 102,100 100,103 Z" fill="white" stroke="white" strokeWidth="1" />
-                
-                {/* Arms (Meditating, palms up) */}
                 <path d="M 77,100 Q 64,118 72,126" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                 <path d="M 123,100 Q 136,118 128,126" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                
-                {/* Hands */}
-                {/* Left hand (fingers touching) */}
                 <circle cx="73" cy="128" r="3" stroke="currentColor" strokeWidth="1.8" fill="white" />
-                {/* Right hand (fingers touching) */}
                 <circle cx="127" cy="128" r="3" stroke="currentColor" strokeWidth="1.8" fill="white" />
-                
-                {/* Legs folded cross-legged */}
                 <path d="M 72,118 C 65,118 55,130 65,142 C 75,150 125,150 135,142 C 145,130 135,118 128,118 C 122,125 78,125 72,118 Z" fill="white" stroke="currentColor" strokeWidth="2.2" />
-                {/* Feet details */}
                 <path d="M 80,140 Q 85,135 90,140" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 <path d="M 120,140 Q 115,135 110,140" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
-
             </div>
 
-            {/* Title & Carousel indicators */}
             <div className="space-y-4 w-full">
-              {/* Dots Indicator */}
               <div className="flex justify-center gap-1.5 select-none">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
@@ -459,10 +462,10 @@ export default function ProgramPortal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-base font-extrabold text-slate-900 leading-normal tracking-tight font-sans" style={{ color: '#151c27' }}>
-                  Make your work easier and organized
+                  Monitoring Revitalisasi Swakelola
                 </h3>
                 <p className="text-[11px] text-slate-500 leading-normal font-medium max-w-xs mx-auto">
-                  Monitor all school revitalization progress, daily logs, meetings, and payroll payouts in one clean client-side dashboard.
+                  Pantau seluruh progres fisik sekolah, laporan bulanan, perjalanan dinas, dan payroll honorarium secara real-time.
                 </p>
               </div>
             </div>
@@ -472,84 +475,215 @@ export default function ProgramPortal({
     );
   }
 
-  // TAMPILAN 2: Portal Pilihan Programm
+  // MODE 2: Logged-in User Program Selection
+  if (loggedInUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 font-['Outfit',sans-serif] flex flex-col justify-between p-6 relative overflow-hidden select-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/10 rounded-full blur-[150px] pointer-events-none"></div>
+
+        <div className="flex items-center justify-between bg-slate-900/30 backdrop-blur-md border border-slate-900 rounded-2xl px-5 py-3 max-w-6xl mx-auto w-full mt-4 select-none">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-md">
+              {getInitials(loggedInUser.nama)}
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pengguna Aktif</span>
+              <h3 className="text-xs md:text-sm font-extrabold text-slate-100">{loggedInUser.nama}</h3>
+            </div>
+          </div>
+
+          <button
+            onClick={onLogout}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-800 hover:border-rose-900/30 bg-slate-950/40 hover:bg-rose-950/15 text-slate-400 hover:text-rose-450 flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Keluar Sesi</span>
+          </button>
+        </div>
+
+        <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col items-center justify-center py-10">
+          <div className="text-center max-w-xl mb-10 select-none">
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              Pilih Program Monitoring Aktif
+            </h2>
+            <p className="text-xs text-slate-400 mt-2">
+              Anda terdaftar di beberapa program revitalisasi swakelola berikut. Pilih kartu program untuk mengelola data operasionalnya.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+            {loggedInPrograms.map(program => {
+              const Icon = program.icon;
+              const isIndigo = program.theme === 'indigo';
+              
+              return (
+                <div
+                  key={program.id}
+                  onClick={() => onSelectProgram(program)}
+                  className={`bg-slate-900/30 backdrop-blur-md border rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer relative group flex flex-col justify-between shadow-xl min-h-[300px] ${
+                    isIndigo 
+                      ? 'border-slate-850 hover:border-indigo-650 hover:shadow-indigo-600/[0.03]' 
+                      : 'border-slate-850 hover:border-emerald-650 hover:shadow-emerald-600/[0.03]'
+                  }`}
+                >
+                  <div className="absolute top-4 right-4">
+                    <span className={`text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border tracking-wide whitespace-nowrap ${
+                      isIndigo 
+                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    }`}>
+                      Program Aktif
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${
+                      isIndigo 
+                        ? 'bg-gradient-to-tr from-indigo-600 to-indigo-400 shadow-indigo-600/10' 
+                        : 'bg-gradient-to-tr from-emerald-600 to-emerald-400 shadow-emerald-600/10'
+                    }`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-extrabold text-slate-100 group-hover:text-white transition-colors">
+                        {program.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 leading-normal">
+                        {program.subtitle}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-3 border-t border-slate-900 select-none">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                          <School className="w-3.5 h-3.5" /> Binaan Sekolah
+                        </span>
+                        <span className="text-slate-300 font-bold">{program.schoolCount} Lokasi</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-500 font-medium">Anggaran Proyek</span>
+                        <span className="text-slate-300 font-bold">{program.budget}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-500 font-medium">Linimasa Waktu</span>
+                        <span className="text-slate-300 font-bold">{program.timeline}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectProgram(program);
+                      }}
+                      className={`w-full py-3 rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all border-0 shadow-md ${
+                        isIndigo 
+                          ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/15' 
+                          : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/15'
+                      }`}
+                    >
+                      <span>Masuk ke Dashboard</span>
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="text-center text-[10px] text-slate-650 py-4 select-none">
+          Portal Sistem Monitoring Swakelola Pendidikan © 2026.
+        </div>
+      </div>
+    );
+  }
+
+  // MODE 3: Public Unauthenticated Program Selection Page
+  const publicPrograms = [sdProgram, paudProgram];
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-['Outfit',sans-serif] flex flex-col justify-between p-6 relative overflow-hidden select-none">
-      {/* Glow Effects */}
+      {/* Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/10 rounded-full blur-[150px] pointer-events-none"></div>
 
-      {/* Top Profile Header */}
-      <div className="flex items-center justify-between bg-slate-900/30 backdrop-blur-md border border-slate-900 rounded-2xl px-5 py-3 max-w-6xl mx-auto w-full mt-4 select-none">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between bg-slate-900/40 backdrop-blur-xl border border-slate-800/80 rounded-2xl px-6 py-3.5 max-w-6xl mx-auto w-full mt-2 select-none shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-md">
-            {getInitials(loggedInUser.nama)}
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-500/20">
+            R
           </div>
           <div>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pengguna Aktif</span>
-            <h3 className="text-xs md:text-sm font-extrabold text-slate-100">{loggedInUser.nama}</h3>
+            <h1 className="text-xs font-black tracking-wider uppercase text-white font-sans">REVIT APP</h1>
+            <p className="text-[10px] text-slate-400 font-medium">Portal Monitoring Publik</p>
           </div>
         </div>
 
         <button
-          onClick={onLogout}
-          className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-800 hover:border-rose-900/30 bg-slate-950/40 hover:bg-rose-950/15 text-slate-400 hover:text-rose-450 flex items-center gap-1.5 transition-all cursor-pointer"
+          onClick={() => setShowLoginForm(true)}
+          className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 border-0 cursor-pointer active:scale-95"
         >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Keluar Sesi</span>
+          <LogIn className="w-4 h-4" />
+          <span>Masuk ke Sistem</span>
         </button>
       </div>
 
-      {/* Main Selection Area */}
+      {/* Main Public Program Selector */}
       <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col items-center justify-center py-10">
-        <div className="text-center max-w-xl mb-10 select-none">
-          <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            Pilih Program Monitoring Aktif
+        <div className="text-center max-w-xl mb-10 select-none space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] font-bold">
+            <School className="w-3.5 h-3.5" />
+            <span>Dashboard Publik Transparan</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            Pilih Program Monitoring
           </h2>
-          <p className="text-xs text-slate-400 mt-2">
-            Anda terdaftar di beberapa program revitalisasi swakelola berikut. Pilih kartu program untuk mengelola data operasionalnya.
+          <p className="text-xs md:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+            Silakan pilih program revitalisasi sekolah di bawah ini untuk melihat ringkasan progres fisik, status PKS, MC-0, dan peta sebaran secara publik.
           </p>
         </div>
 
         {/* Programs Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
-          {programs.map(program => {
+          {publicPrograms.map(program => {
             const Icon = program.icon;
             const isIndigo = program.theme === 'indigo';
             
             return (
               <div
                 key={program.id}
-                onClick={() => onSelectProgram(program)}
-                className={`bg-slate-900/30 backdrop-blur-md border rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer relative group flex flex-col justify-between shadow-xl min-h-[300px] ${
+                onClick={() => handleProgramClick(program)}
+                className={`bg-slate-900/40 backdrop-blur-xl border rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer relative group flex flex-col justify-between shadow-2xl min-h-[310px] ${
                   isIndigo 
-                    ? 'border-slate-850 hover:border-indigo-650 hover:shadow-indigo-600/[0.03]' 
-                    : 'border-slate-850 hover:border-emerald-650 hover:shadow-emerald-600/[0.03]'
+                    ? 'border-slate-800/80 hover:border-indigo-500/60 hover:shadow-indigo-500/10' 
+                    : 'border-slate-800/80 hover:border-emerald-500/60 hover:shadow-emerald-500/10'
                 }`}
               >
-                {/* Active Indicator Badge */}
-                <div className="absolute top-4 right-4">
-                  <span className={`text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border tracking-wide whitespace-nowrap ${
-                    isIndigo 
-                      ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
-                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  }`}>
-                    Program Aktif
-                  </span>
-                </div>
-
-                {/* Content */}
                 <div className="space-y-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${
-                    isIndigo 
-                      ? 'bg-gradient-to-tr from-indigo-600 to-indigo-400 shadow-indigo-600/10' 
-                      : 'bg-gradient-to-tr from-emerald-600 to-emerald-400 shadow-emerald-600/10'
-                  }`}>
-                    <Icon className="w-6 h-6" />
+                  <div className="flex items-center justify-between">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${
+                      isIndigo 
+                        ? 'bg-gradient-to-tr from-indigo-600 to-indigo-400 shadow-indigo-600/20' 
+                        : 'bg-gradient-to-tr from-emerald-600 to-emerald-400 shadow-emerald-600/20'
+                    }`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+
+                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${
+                      isIndigo 
+                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    }`}>
+                      Akses Publik
+                    </span>
                   </div>
                   
                   <div className="space-y-1">
-                    <h3 className="text-lg font-extrabold text-slate-100 group-hover:text-white transition-colors">
+                    <h3 className="text-xl font-extrabold text-white group-hover:text-indigo-300 transition-colors">
                       {program.name}
                     </h3>
                     <p className="text-xs text-slate-400 leading-normal">
@@ -558,20 +692,20 @@ export default function ProgramPortal({
                   </div>
 
                   {/* Program Metadata List */}
-                  <div className="space-y-2 pt-3 border-t border-slate-900 select-none">
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                        <School className="w-3.5 h-3.5" /> Binaan Sekolah
+                  <div className="space-y-2 pt-3 border-t border-slate-800/60 select-none">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium flex items-center gap-1.5">
+                        <School className="w-3.5 h-3.5 text-slate-500" /> Total Sekolah
                       </span>
-                      <span className="text-slate-300 font-bold">{program.schoolCount} Lokasi</span>
+                      <span className="text-slate-200 font-bold">{program.schoolCount} Lokasi</span>
                     </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-500 font-medium">Anggaran Proyek</span>
-                      <span className="text-slate-300 font-bold">{program.budget}</span>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium">Anggaran Proyek</span>
+                      <span className="text-slate-200 font-bold">{program.budget}</span>
                     </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-500 font-medium">Linimasa Waktu</span>
-                      <span className="text-slate-300 font-bold">{program.timeline}</span>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium">Linimasa Waktu</span>
+                      <span className="text-slate-200 font-bold">{program.timeline}</span>
                     </div>
                   </div>
                 </div>
@@ -579,17 +713,18 @@ export default function ProgramPortal({
                 {/* Enter Button */}
                 <div className="pt-5">
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectProgram(program);
+                      handleProgramClick(program);
                     }}
-                    className={`w-full py-3 rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all border-0 shadow-md ${
+                    className={`w-full py-3 rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-2 transition-all border-0 shadow-lg cursor-pointer ${
                       isIndigo 
-                        ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/15' 
-                        : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/15'
+                        ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20' 
+                        : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
                     }`}
                   >
-                    <span>Masuk ke Dashboard</span>
+                    <span>Lihat Dashboard Publik</span>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   </button>
                 </div>
@@ -600,8 +735,8 @@ export default function ProgramPortal({
       </div>
 
       {/* Footer */}
-      <div className="text-center text-[10px] text-slate-650 py-4 select-none">
-        Portal Sistem Monitoring Swakelola Pendidikan © 2026. Dikembangkan untuk efisiensi monitoring progres fisik & payroll keuangan.
+      <div className="text-center text-[11px] text-slate-500 py-4 select-none">
+        Portal Sistem Monitoring Swakelola Revitalisasi Sekolah © 2026. Kemendikbudristek RI.
       </div>
     </div>
   );

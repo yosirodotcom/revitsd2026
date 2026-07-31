@@ -26,6 +26,7 @@ import HonorBatchSettings from './components/HonorBatchSettings';
 import MigrationTool from './components/MigrationTool';
 import { syncService } from './services/firebaseAdapter';
 import ProgramPortal from './components/ProgramPortal';
+import PublicDashboard from './components/PublicDashboard';
 import { googleSheetsService } from './services/googleSheetsService';
 
 // Shadowing helper to dynamically prefix localStorage operations for multi-program isolation
@@ -320,20 +321,61 @@ export default function App() {
     }
   });
 
+  const [portalSdSchools, setPortalSdSchools] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revit_schools');
+      return stored ? JSON.parse(stored) : initialSchools;
+    } catch (e) {
+      return initialSchools;
+    }
+  });
+
+  const [portalPaudSchools, setPortalPaudSchools] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revitpaud_schools');
+      return stored ? JSON.parse(stored) : initialPaudSchools;
+    } catch (e) {
+      return initialPaudSchools;
+    }
+  });
+
+  const [portalSdWeeklyProgress, setPortalSdWeeklyProgress] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revit_weekly_progress');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [portalPaudWeeklyProgress, setPortalPaudWeeklyProgress] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('revitpaud_weekly_progress');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [publicProgram, setPublicProgram] = useState(null); // null | { id, prefix, name }
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   useEffect(() => {
     if (activeProgram) {
       document.title = `Monitoring ${activeProgram.name}`;
+    } else if (publicProgram) {
+      document.title = `Monitoring ${publicProgram.name}`;
     } else {
       document.title = "Portal Monitoring Revitalisasi";
     }
-  }, [activeProgram]);
+  }, [activeProgram, publicProgram]);
 
-  // Background fetch users on portal login mount — menggunakan Firebase Firestore
+  // Background fetch users, schools, and weekly_progress on portal login mount — menggunakan Firebase Firestore
   useEffect(() => {
     if (globalActiveUser && activeProgram) return;
 
     const fetchPortalUsers = async () => {
-      // 1. Fetch SD Users dari Firebase
+      // 1. Fetch SD Data dari Firebase
       try {
         const { fetchAllData: fetchFirestore } = await import('./services/firestoreService');
         const sdData = await fetchFirestore('revitsd2026');
@@ -355,11 +397,19 @@ export default function App() {
           window.localStorage.setItem('revit_settings', JSON.stringify(merged));
           setPortalSdSettings(merged);
         }
+        if (sdData.schools && sdData.schools.length > 0) {
+          window.localStorage.setItem('revit_schools', JSON.stringify(sdData.schools));
+          setPortalSdSchools(sdData.schools);
+        }
+        if (sdData.weekly_progress && sdData.weekly_progress.length > 0) {
+          window.localStorage.setItem('revit_weekly_progress', JSON.stringify(sdData.weekly_progress));
+          setPortalSdWeeklyProgress(sdData.weekly_progress);
+        }
       } catch (err) {
-        console.warn('[Portal Sync] Gagal memuat user SD dari Firebase:', err);
+        console.warn('[Portal Sync] Gagal memuat data SD dari Firebase:', err);
       }
 
-      // 2. Fetch PAUD Users dari Firebase
+      // 2. Fetch PAUD Data dari Firebase
       try {
         const { fetchAllData: fetchFirestore } = await import('./services/firestoreService');
         const paudData = await fetchFirestore('revitpaud2026');
@@ -381,8 +431,16 @@ export default function App() {
           window.localStorage.setItem('revitpaud_settings', JSON.stringify(merged));
           setPortalPaudSettings(merged);
         }
+        if (paudData.schools && paudData.schools.length > 0) {
+          window.localStorage.setItem('revitpaud_schools', JSON.stringify(paudData.schools));
+          setPortalPaudSchools(paudData.schools);
+        }
+        if (paudData.weekly_progress && paudData.weekly_progress.length > 0) {
+          window.localStorage.setItem('revitpaud_weekly_progress', JSON.stringify(paudData.weekly_progress));
+          setPortalPaudWeeklyProgress(paudData.weekly_progress);
+        }
       } catch (err) {
-        console.warn('[Portal Sync] Gagal memuat user PAUD dari Firebase:', err);
+        console.warn('[Portal Sync] Gagal memuat data PAUD dari Firebase:', err);
       }
     };
 
@@ -3207,6 +3265,91 @@ export default function App() {
       if (stored) paudCount = JSON.parse(stored).length;
     } catch (e) {}
 
+    if (publicProgram) {
+      const dashSchools = publicProgram.prefix === 'revit' ? portalSdSchools : portalPaudSchools;
+      const dashUsers = publicProgram.prefix === 'revit' ? sdUsersList : paudUsersList;
+      const dashWp = publicProgram.prefix === 'revit' ? portalSdWeeklyProgress : portalPaudWeeklyProgress;
+      const dashSettings = publicProgram.prefix === 'revit' ? portalSdSettings : portalPaudSettings;
+
+      return (
+        <>
+          <PublicDashboard
+            schools={dashSchools}
+            users={dashUsers}
+            weeklyProgress={dashWp}
+            settings={dashSettings}
+            programName={publicProgram.name}
+            onBack={() => setPublicProgram(null)}
+            onLogin={() => setShowLoginModal(true)}
+          />
+
+          {showLoginModal && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl relative">
+                <ProgramPortal
+                  sdUsers={sdUsersList}
+                  paudUsers={paudUsersList}
+                  sdSchoolsCount={sdCount}
+                  paudSchoolsCount={paudCount}
+                  sdSettings={portalSdSettings}
+                  paudSettings={portalPaudSettings}
+                  loggedInUser={globalActiveUser}
+                  isLoginModal={true}
+                  onClose={() => setShowLoginModal(false)}
+                  onLogin={(user) => {
+                    window.localStorage.setItem('global_active_user', JSON.stringify(user));
+                    setGlobalActiveUser(user);
+                    setShowLoginModal(false);
+                  }}
+                  onLogout={() => {
+                    window.localStorage.removeItem('global_active_user');
+                    window.localStorage.removeItem('active_program_id');
+                    window.localStorage.removeItem('active_program_prefix');
+                    setGlobalActiveUser(null);
+                    setActiveProgram(null);
+                  }}
+                  onSelectProgram={(prog) => {
+                    window.localStorage.setItem('active_program_id', prog.id);
+                    window.localStorage.setItem('active_program_prefix', prog.prefix);
+                    
+                    const prefix = prog.prefix;
+                    const stored = window.localStorage.getItem(`${prefix}_users`);
+                    let programUsers = [];
+                    if (stored) {
+                      try {
+                        programUsers = JSON.parse(stored);
+                      } catch (e) {}
+                    } else {
+                      programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
+                    }
+
+                    const matchingUser = programUsers.find(u => u.id === globalActiveUser?.id) || programUsers.find(u => u.nama === globalActiveUser?.nama);
+                    if (matchingUser) {
+                      window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
+                    } else if (globalActiveUser?.jabatanTim === 'Super Admin' || globalActiveUser?.role === 'admin') {
+                      const adminUser = {
+                        id: "yosi-ronadi",
+                        nama: "Yosi Ronadi",
+                        jabatanKepegawaian: "Super Admin",
+                        jabatanTim: "Super Admin",
+                        pendidikan: "Strata 2",
+                        statusPegawai: "PNS",
+                        role: "admin",
+                        password: "4051"
+                      };
+                      window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(adminUser));
+                    }
+
+                    window.location.reload();
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
     return (
       <ProgramPortal
         sdUsers={sdUsersList}
@@ -3216,9 +3359,13 @@ export default function App() {
         sdSettings={portalSdSettings}
         paudSettings={portalPaudSettings}
         loggedInUser={globalActiveUser}
+        isLoginModal={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSelectPublicProgram={(prog) => setPublicProgram(prog)}
         onLogin={(user) => {
           window.localStorage.setItem('global_active_user', JSON.stringify(user));
           setGlobalActiveUser(user);
+          setShowLoginModal(false);
         }}
         onLogout={() => {
           window.localStorage.removeItem('global_active_user');
@@ -3242,10 +3389,10 @@ export default function App() {
             programUsers = prefix === 'revitpaud' ? initialPaudUsers : initialUsers;
           }
 
-          const matchingUser = programUsers.find(u => u.id === globalActiveUser.id) || programUsers.find(u => u.nama === globalActiveUser.nama);
+          const matchingUser = programUsers.find(u => u.id === globalActiveUser?.id) || programUsers.find(u => u.nama === globalActiveUser?.nama);
           if (matchingUser) {
             window.localStorage.setItem(`${prefix}_active_user`, JSON.stringify(matchingUser));
-          } else if (globalActiveUser.jabatanTim === 'Super Admin' || globalActiveUser.role === 'admin') {
+          } else if (globalActiveUser?.jabatanTim === 'Super Admin' || globalActiveUser?.role === 'admin') {
             const adminUser = {
               id: "yosi-ronadi",
               nama: "Yosi Ronadi",
