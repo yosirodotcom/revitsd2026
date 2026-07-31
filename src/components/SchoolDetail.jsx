@@ -3397,7 +3397,7 @@ export default function SchoolDetail({
                     (monthNum - 1) * 4 + 3,
                     (monthNum - 1) * 4 + 4
                   ];
-                  const monthRecords = schoolWpRecords.filter(r => monthWeeks.includes(Number(r.minggu)));
+                  const monthRecords = schoolWpRecords.filter(r => r && monthWeeks.includes(parseNum(r.minggu)));
 
                   return (
                     <div key={monthNum} className="bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
@@ -3426,7 +3426,7 @@ export default function SchoolDetail({
                           </thead>
                           <tbody className="divide-y divide-slate-800/60 text-xs">
                             {monthWeeks.map((wNum) => {
-                              const rec = schoolWpRecords.find(r => Number(r.minggu) === wNum);
+                              const rec = schoolWpRecords.find(r => r && parseNum(r.minggu) === wNum);
 
                               return (
                                 <tr key={wNum} className={`hover:bg-slate-800/30 transition-colors ${!rec ? 'opacity-40' : ''}`}>
@@ -3434,20 +3434,20 @@ export default function SchoolDetail({
                                     M-{wNum}
                                   </td>
                                   <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-200">
-                                    {rec ? `${Number(rec.realisasi).toFixed(3)}%` : '-'}
+                                    {rec ? `${parseNum(rec.realisasi).toFixed(3)}%` : '-'}
                                   </td>
                                   <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-400">
-                                    {rec ? `${Number(rec.kumulatif).toFixed(3)}%` : '-'}
+                                    {rec ? `${parseNum(rec.kumulatif).toFixed(3)}%` : '-'}
                                   </td>
                                   <td className="py-2.5 px-3 text-right font-mono text-slate-400">
-                                    {rec && rec.rencana !== undefined ? `${Number(rec.rencana).toFixed(3)}%` : '-'}
+                                    {rec && rec.rencana !== undefined && rec.rencana !== '' ? `${parseNum(rec.rencana).toFixed(3)}%` : '-'}
                                   </td>
                                   <td className="py-2.5 px-3 text-right font-mono font-bold">
-                                    {rec && rec.deviasi !== undefined ? (
+                                    {rec && rec.deviasi !== undefined && rec.deviasi !== '' ? (
                                       <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                                        Number(rec.deviasi) < 0 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                        parseNum(rec.deviasi) < 0 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                       }`}>
-                                        {Number(rec.deviasi) > 0 ? `+${Number(rec.deviasi).toFixed(3)}` : Number(rec.deviasi).toFixed(3)}%
+                                        {parseNum(rec.deviasi) > 0 ? `+${parseNum(rec.deviasi).toFixed(3)}` : parseNum(rec.deviasi).toFixed(3)}%
                                       </span>
                                     ) : '-'}
                                   </td>
