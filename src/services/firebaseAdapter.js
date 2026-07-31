@@ -153,19 +153,19 @@ export const syncService = {
     if (isDirty('settings') && state.settings)
       tasks.push(saveSettings(programId, state.settings));
 
-    if (isDirty('users') && state.users?.length)
+    if (isDirty('users') && Array.isArray(state.users))
       tasks.push(saveDocumentsBatch(programId, 'users', state.users));
 
-    if (isDirty('schools') && state.schools?.length)
+    if (isDirty('schools') && Array.isArray(state.schools))
       tasks.push(
         processFilesInDocs(programId, 'schools', state.schools, ['foto_banner'])
           .then(d => saveDocumentsBatch(programId, 'schools', d))
       );
 
-    if (isDirty('contacts') && state.contacts?.length)
+    if (isDirty('contacts') && Array.isArray(state.contacts))
       tasks.push(saveDocumentsBatch(programId, 'contacts', state.contacts));
 
-    if (isDirty('tasks') && state.tasks?.length)
+    if (isDirty('tasks') && Array.isArray(state.tasks))
       tasks.push(saveDocumentsBatch(programId, 'tasks',
         state.tasks.map(t => ({
           ...t,
@@ -174,46 +174,45 @@ export const syncService = {
         }))
       ));
 
-    if (isDirty('trips') && state.trips?.length)
+    if (isDirty('trips') && Array.isArray(state.trips))
       tasks.push(saveDocumentsBatch(programId, 'trips', state.trips));
 
-    if (isDirty('logs') && state.logs?.length) {
+    if (isDirty('logs') && Array.isArray(state.logs)) {
       const realLogs = state.logs.filter(l => !l.id?.startsWith('log-meeting-'));
-      if (realLogs.length)
-        tasks.push(
-          processFilesInDocs(programId, 'logs', realLogs, ['foto', 'photoBase64'])
-            .then(d => saveDocumentsBatch(programId, 'logs', d))
-        );
+      tasks.push(
+        processFilesInDocs(programId, 'logs', realLogs, ['foto', 'photoBase64'])
+          .then(d => saveDocumentsBatch(programId, 'logs', d))
+      );
     }
 
-    if (isDirty('reports') && state.reports?.length)
+    if (isDirty('reports') && Array.isArray(state.reports))
       tasks.push(
         processFilesInDocs(programId, 'reports', state.reports, ['fileData', 'base64Data'])
           .then(d => saveDocumentsBatch(programId, 'reports', d))
       );
 
-    if (isDirty('duty_reports') && state.dutyReports?.length)
+    if (isDirty('duty_reports') && Array.isArray(state.dutyReports))
       tasks.push(saveDocumentsBatch(programId, 'duty_reports', state.dutyReports));
 
-    if (isDirty('expenses') && state.expenses?.length)
+    if (isDirty('expenses') && Array.isArray(state.expenses))
       tasks.push(saveDocumentsBatch(programId, 'expenses', state.expenses));
 
-    if (isDirty('payments') && state.payments?.length)
+    if (isDirty('payments') && Array.isArray(state.payments))
       tasks.push(saveDocumentsBatch(programId, 'payments', state.payments));
 
-    if (isDirty('school_docs') && state.schoolDocs?.length)
+    if (isDirty('school_docs') && Array.isArray(state.schoolDocs))
       tasks.push(
         processFilesInDocs(programId, 'school_docs', state.schoolDocs, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'school_docs', d))
       );
 
-    if (isDirty('personnel_docs') && state.personnelDocs?.length)
+    if (isDirty('personnel_docs') && Array.isArray(state.personnelDocs))
       tasks.push(
         processFilesInDocs(programId, 'personnel_docs', state.personnelDocs, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'personnel_docs', d))
       );
 
-    if (isDirty('meetings') && state.meetings?.length) {
+    if (isDirty('meetings') && Array.isArray(state.meetings)) {
       const norm = state.meetings.map(m => ({
         ...m,
         pesertaIds: Array.isArray(m.pesertaIds) ? m.pesertaIds : [],
@@ -224,48 +223,47 @@ export const syncService = {
       );
     }
 
-    if (isDirty('meeting_docs') && state.meetingDocs?.length)
+    if (isDirty('meeting_docs') && Array.isArray(state.meetingDocs))
       tasks.push(
         processFilesInDocs(programId, 'meeting_docs', state.meetingDocs, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'meeting_docs', d))
       );
 
-    if (isDirty('meeting_photos') && state.meetingPhotos?.length)
+    if (isDirty('meeting_photos') && Array.isArray(state.meetingPhotos))
       tasks.push(
         processFilesInDocs(programId, 'meeting_photos', state.meetingPhotos, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'meeting_photos', d))
       );
 
-    if (isDirty('trip_docs') && state.tripDocs?.length)
+    if (isDirty('trip_docs') && Array.isArray(state.tripDocs))
       tasks.push(
         processFilesInDocs(programId, 'trip_docs', state.tripDocs, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'trip_docs', d))
       );
 
-    if (isDirty('activity_logs') && state.activityLogs?.length) {
+    if (isDirty('activity_logs') && Array.isArray(state.activityLogs)) {
       const real = state.activityLogs
         .filter(l => l && !l.id?.startsWith('act-meeting-'))
         .slice(0, 100);
-      if (real.length)
-        tasks.push(saveDocumentsBatch(programId, 'activity_logs', real));
+      tasks.push(saveDocumentsBatch(programId, 'activity_logs', real));
     }
 
-    if (isDirty('kendala') && state.kendala?.length)
+    if (isDirty('kendala') && Array.isArray(state.kendala))
       tasks.push(saveDocumentsBatch(programId, 'kendala', state.kendala));
 
-    if (isDirty('kendala_comments') && state.kendalaComments?.length)
+    if (isDirty('kendala_comments') && Array.isArray(state.kendalaComments))
       tasks.push(saveDocumentsBatch(programId, 'kendala_comments', state.kendalaComments));
 
-    if (isDirty('kendala_docs') && state.kendalaDocs?.length)
+    if (isDirty('kendala_docs') && Array.isArray(state.kendalaDocs))
       tasks.push(
         processFilesInDocs(programId, 'kendala_docs', state.kendalaDocs, ['fileData'])
           .then(d => saveDocumentsBatch(programId, 'kendala_docs', d))
       );
 
-    if (isDirty('warnings') && state.warnings?.length)
+    if (isDirty('warnings') && Array.isArray(state.warnings))
       tasks.push(saveDocumentsBatch(programId, 'warnings', state.warnings));
 
-    if (isDirty('weekly_progress') && state.weeklyProgress?.length)
+    if (isDirty('weekly_progress') && Array.isArray(state.weeklyProgress))
       tasks.push(saveDocumentsBatch(programId, 'weekly_progress', state.weeklyProgress));
 
     await Promise.all(tasks);

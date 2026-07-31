@@ -98,22 +98,54 @@ export const saveDocument = async (programId, collectionName, docData) => {
 };
 
 // ============================================================
-// 3. Simpan banyak dokumen sekaligus (batch write, auto-chunk)
+// 3. Simpan banyak dokumen sekaligus (batch write, auto-chunk & auto-delete removed docs)
 // ============================================================
 export const saveDocumentsBatch = async (programId, collectionName, docs) => {
-  if (!docs || docs.length === 0) return;
+  const safeDocs = Array.isArray(docs) ? docs : [];
+  
+  // 1. Fetch existing doc IDs from Firestore to identify deletions
+  let existingDocIds = [];
+  try {
+    const colRef = programCollection(programId, collectionName);
+    const snapshot = await getDocs(colRef);
+    existingDocIds = snapshot.docs.map(d => d.id);
+  } catch (err) {
+    console.warn(`[Firestore] Failed to read existing doc IDs for ${collectionName}:`, err.message);
+  }
+
+  // 2. Identify removed document IDs that need to be deleted from Firestore
+  const newIds = new Set(safeDocs.map(d => String(d.id)).filter(Boolean));
+  const idsToDelete = existingDocIds.filter(id => !newIds.has(id));
+
   const CHUNK_SIZE = 400;
-  for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
-    const chunk = docs.slice(i, i + CHUNK_SIZE);
-    const batch = writeBatch(db);
-    chunk.forEach((docData) => {
-      const { id, ...data } = docData;
-      if (!id) return;
-      const docRef = programDoc(programId, collectionName, String(id));
-      batch.set(docRef, { id, ...data, _updatedAt: serverTimestamp() }, { merge: true });
-    });
-    await batch.commit();
-    console.log(`[Firestore] ✓ Batch ${collectionName} chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${chunk.length} docs`);
+
+  // 3. Batch delete removed docs from Firestore
+  if (idsToDelete.length > 0) {
+    for (let i = 0; i < idsToDelete.length; i += CHUNK_SIZE) {
+      const chunk = idsToDelete.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach(id => {
+        batch.delete(programDoc(programId, collectionName, id));
+      });
+      await batch.commit();
+      console.log(`[Firestore] ✗ Deleted ${chunk.length} removed docs from ${collectionName}`);
+    }
+  }
+
+  // 4. Batch set/update current docs in Firestore
+  if (safeDocs.length > 0) {
+    for (let i = 0; i < safeDocs.length; i += CHUNK_SIZE) {
+      const chunk = safeDocs.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach((docData) => {
+        const { id, ...data } = docData;
+        if (!id) return;
+        const docRef = programDoc(programId, collectionName, String(id));
+        batch.set(docRef, { id, ...data, _updatedAt: serverTimestamp() }, { merge: true });
+      });
+      await batch.commit();
+      console.log(`[Firestore] ✓ Batch ${collectionName} chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${chunk.length} docs`);
+    }
   }
 };
 
