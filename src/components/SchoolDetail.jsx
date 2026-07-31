@@ -1081,13 +1081,13 @@ export default function SchoolDetail({
             <span className="text-xs font-medium bg-slate-950 border border-slate-850 px-3 py-1.5 rounded-xl text-slate-400">
               Desa: {school.desa || <span className="text-slate-600 italic">Belum diisi</span>}
             </span>
-            <div className="inline-flex items-center gap-2 bg-indigo-950/80 border-2 border-indigo-500/40 px-3.5 py-1.5 rounded-xl shadow-lg shadow-indigo-950/40 transition-all hover:border-indigo-400/60">
-              <div className="p-1 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0">
+            <div className="inline-flex items-center gap-2 bg-indigo-50 border-2 border-indigo-200 px-3.5 py-1.5 rounded-full shadow-sm">
+              <div className="p-1 rounded-full bg-indigo-100 text-indigo-600 shrink-0">
                 <User className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-indigo-300/90 uppercase tracking-wider">Fasilitator:</span>
-                <span className="text-base font-bold text-white tracking-wide">
+                <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Fasilitator:</span>
+                <span className="text-base font-extrabold text-indigo-950 tracking-wide">
                   {getFacilitatorName(school.fasilitatorId)}
                 </span>
               </div>
@@ -1251,15 +1251,15 @@ export default function SchoolDetail({
                     </div>
 
                     {/* Fasilitator Lapangan (read-only highlight) */}
-                    <div className="sm:col-span-2 bg-indigo-500/10 border border-indigo-500/25 p-3 rounded-xl flex items-center justify-between">
+                    <div className="sm:col-span-2 bg-indigo-50/90 border border-indigo-200 p-3.5 rounded-xl flex items-center justify-between shadow-sm">
                       <div>
-                        <span className="block text-[10px] uppercase font-bold text-indigo-400 tracking-wider">Fasilitator Lapangan</span>
-                        <span className="text-base font-bold text-white flex items-center gap-2 mt-0.5">
-                          <User className="w-4 h-4 text-indigo-400" />
+                        <span className="block text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Fasilitator Lapangan</span>
+                        <span className="text-base font-extrabold text-indigo-950 flex items-center gap-2 mt-0.5">
+                          <User className="w-4.5 h-4.5 text-indigo-600" />
                           {getFacilitatorName(school.fasilitatorId)}
                         </span>
                       </div>
-                      <span className="text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-500/30">
+                      <span className="text-[11px] font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-200">
                         {school.fasilitatorId ? 'Terhubung' : 'Belum Diklaim'}
                       </span>
                     </div>

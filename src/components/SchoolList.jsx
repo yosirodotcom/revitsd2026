@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, Plus, Check, MapPin, UserCheck, ShieldAlert, Award, School, X, AlertCircle, Table } from 'lucide-react';
+import { Search, Filter, Plus, Check, MapPin, UserCheck, ShieldAlert, Award, School, X, AlertCircle, Table, TrendingUp } from 'lucide-react';
 
 const parseCoordinates = (school) => {
   if (!school.koordinat) return null;
@@ -50,6 +50,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
     activeUser?.jabatanTim === 'Fasilitator' ? 'Saya' : 'Semua'
   );
   const [viewMode, setViewMode] = useState('table');
+  const [sortConfig, setSortConfig] = useState({ key: 'progres_fisik', direction: 'desc' });
   
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -98,10 +99,39 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
     return matchesSearch && matchesKabupaten && matchesFacilitator;
   });
 
+  // Sort logic (Default: Progres Fisik terbesar ke kecil)
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'desc' ? 'asc' : 'desc' };
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
+  const sortedSchools = [...filteredSchools].sort((a, b) => {
+    if (!a || !b) return 0;
+    if (sortConfig.key === 'progres_fisik') {
+      const valA = Number(a.progres_fisik || 0);
+      const valB = Number(b.progres_fisik || 0);
+      if (valA !== valB) {
+        return sortConfig.direction === 'desc' ? valB - valA : valA - valB;
+      }
+      return (a.nama_sekolah || '').localeCompare(b.nama_sekolah || '');
+    } else if (sortConfig.key === 'nama_sekolah') {
+      const cmp = (a.nama_sekolah || '').localeCompare(b.nama_sekolah || '');
+      return sortConfig.direction === 'desc' ? -cmp : cmp;
+    } else if (sortConfig.key === 'kabupaten') {
+      const cmp = (a.kabupaten || '').localeCompare(b.kabupaten || '');
+      return sortConfig.direction === 'desc' ? -cmp : cmp;
+    }
+    return 0;
+  });
+
   // Reset fitBounds flag when filters change
   useEffect(() => {
     isInitialFitBoundsRef.current = true;
-  }, [searchTerm, selectedKabupaten, selectedFacilitatorFilter]);
+  }, [searchTerm, selectedKabupaten, selectedFacilitatorFilter, sortConfig]);
 
   // Effect 1: Initialize map instance once when entering map mode
   useEffect(() => {
@@ -159,7 +189,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
     const markers = [];
     
-    filteredSchools.forEach((school) => {
+    sortedSchools.forEach((school) => {
       const coords = getSchoolCoordinates(school);
       
       let pulseColor = 'bg-indigo-400';
@@ -229,7 +259,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
       map.fitBounds(group.getBounds().pad(0.15));
       isInitialFitBoundsRef.current = false;
     }
-  }, [filteredSchools, onSelectSchool]);
+  }, [sortedSchools, onSelectSchool]);
 
 
   // Handle Add Master School (Admin only)
@@ -324,74 +354,91 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
         </div>
       </div>
 
-      {/* Filter Bar */}
-      {!isFacilitator && (
-        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Cari Nama Sekolah / NPSN..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
-            />
-          </div>
+      {/* Filter & Sort Bar */}
+      <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Cari Nama Sekolah / NPSN..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+        </div>
 
-          {/* Kabupaten Filter */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
-            <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
-            <div className="flex-1">
-              <span className="block text-[8px] uppercase font-semibold text-slate-500">Kabupaten</span>
-              <select
-                value={selectedKabupaten}
-                onChange={(e) => setSelectedKabupaten(e.target.value)}
-                className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
-              >
-                {kabupatens.map((kab) => (
-                  <option key={kab} value={kab} className="bg-slate-950">{kab}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Facilitator Assignment Filter */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
-            <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
-            <div className="flex-1">
-              <span className="block text-[8px] uppercase font-semibold text-slate-500">Fasilitator</span>
-              <select
-                value={selectedFacilitatorFilter}
-                onChange={(e) => setSelectedFacilitatorFilter(e.target.value)}
-                className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
-              >
-                {isFacilitator ? (
-                  <>
-                    <option value="Saya" className="bg-slate-950">Sekolah Saya</option>
-                    <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
-                    <option value="Semua" className="bg-slate-950">Semua Sekolah</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="Semua" className="bg-slate-950">Semua</option>
-                    {users
-                      .filter((u) => u && u.jabatanTim === 'Fasilitator')
-                      .map((f) => (
-                        <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
-                      ))}
-                  </>
-                )}
-              </select>
-            </div>
-          </div>
-
-          {/* Stats Helper */}
-          <div className="flex items-center justify-center sm:justify-end text-xs text-slate-400 font-semibold px-2">
-            Terfilter: {filteredSchools.length} dari {displaySchools.length} Sekolah
+        {/* Kabupaten Filter */}
+        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
+          <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
+          <div className="flex-1">
+            <span className="block text-[8px] uppercase font-semibold text-slate-500">Kabupaten</span>
+            <select
+              value={selectedKabupaten}
+              onChange={(e) => setSelectedKabupaten(e.target.value)}
+              className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
+            >
+              {kabupatens.map((kab) => (
+                <option key={kab} value={kab} className="bg-slate-950">{kab}</option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
+
+        {/* Facilitator Assignment Filter */}
+        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1">
+          <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
+          <div className="flex-1">
+            <span className="block text-[8px] uppercase font-semibold text-slate-500">Fasilitator</span>
+            <select
+              value={selectedFacilitatorFilter}
+              onChange={(e) => setSelectedFacilitatorFilter(e.target.value)}
+              className="w-full bg-transparent border-0 text-slate-200 text-xs font-semibold focus:outline-none py-0.5 cursor-pointer"
+            >
+              {isFacilitator ? (
+                <>
+                  <option value="Saya" className="bg-slate-950">Sekolah Saya</option>
+                  <option value="Belum Ada" className="bg-slate-950">Belum Ditugaskan</option>
+                  <option value="Semua" className="bg-slate-950">Semua Sekolah</option>
+                </>
+              ) : (
+                <>
+                  <option value="Semua" className="bg-slate-950">Semua</option>
+                  {users
+                    .filter((u) => u && u.jabatanTim === 'Fasilitator')
+                    .map((f) => (
+                      <option key={f.id} value={f.id} className="bg-slate-950">{f.nama}</option>
+                    ))}
+                </>
+              )}
+            </select>
+          </div>
+        </div>
+
+        {/* Sorting Filter (Default: Progres Terbesar ke Terkecil) */}
+        <div className="flex items-center gap-2 bg-slate-950 border border-indigo-500/30 rounded-xl px-3 py-1 shadow-sm">
+          <TrendingUp className="w-4 h-4 text-indigo-400 shrink-0" />
+          <div className="flex-1">
+            <span className="block text-[8px] uppercase font-bold text-indigo-400 tracking-wider">Urutan Progres</span>
+            <select
+              value={`${sortConfig.key}_${sortConfig.direction}`}
+              onChange={(e) => {
+                const val = e.target.value;
+                const parts = val.split('_');
+                const direction = parts.pop();
+                const key = parts.join('_');
+                setSortConfig({ key, direction });
+              }}
+              className="w-full bg-transparent border-0 text-indigo-200 text-xs font-bold focus:outline-none py-0.5 cursor-pointer"
+            >
+              <option value="progres_fisik_desc" className="bg-slate-950">Progres: Terbesar → Terkecil</option>
+              <option value="progres_fisik_asc" className="bg-slate-950">Progres: Terkecil → Terbesar</option>
+              <option value="nama_sekolah_asc" className="bg-slate-950">Nama Sekolah: A → Z</option>
+              <option value="nama_sekolah_desc" className="bg-slate-950">Nama Sekolah: Z → A</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* Grid List / Map View */}
       {viewMode === 'map' ? (
@@ -413,7 +460,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
               <span className="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
               <span className="text-slate-300">Belum Mulai (0%)</span>
             </div>
-            {filteredSchools.length === 0 && (
+            {sortedSchools.length === 0 && (
               <div className="pt-2 border-t border-slate-850 text-amber-400 font-semibold text-[10px]">
                 Tidak ada titik sekolah terfilter.
               </div>
@@ -422,20 +469,59 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+          <div className="px-6 py-3 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-medium">
+            <span>Terfilter: <strong className="text-slate-200">{sortedSchools.length}</strong> dari {displaySchools.length} Sekolah</span>
+            <span className="text-[11px] text-indigo-400 italic">Diurutkan: Progres Fisik ({sortConfig.direction === 'desc' ? 'Terbesar ke Kecil' : 'Kecil ke Terbesar'})</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-900/60 border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider select-none">
+              <thead className="bg-slate-900/80 border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider select-none">
                 <tr>
-                  <th className="px-6 py-4">Nama Sekolah Dasar / NPSN</th>
-                  <th className="px-6 py-4">Kabupaten</th>
+                  <th 
+                    className="px-6 py-4 cursor-pointer hover:text-white transition-colors"
+                    onClick={() => handleSort('nama_sekolah')}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Nama Sekolah Dasar / NPSN</span>
+                      {sortConfig.key === 'nama_sekolah' && (
+                        <span className="text-indigo-400 font-bold">{sortConfig.direction === 'desc' ? '↓' : '↑'}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-4 cursor-pointer hover:text-white transition-colors"
+                    onClick={() => handleSort('kabupaten')}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Kabupaten</span>
+                      {sortConfig.key === 'kabupaten' && (
+                        <span className="text-indigo-400 font-bold">{sortConfig.direction === 'desc' ? '↓' : '↑'}</span>
+                      )}
+                    </div>
+                  </th>
                   {!isFacilitator && <th className="px-6 py-4">Fasilitator</th>}
-                  <th className="px-6 py-4">Progres Fisik</th>
+                  <th 
+                    className="px-6 py-4 cursor-pointer hover:text-white transition-colors bg-indigo-500/10 text-indigo-300 font-bold border-x border-indigo-500/20"
+                    onClick={() => handleSort('progres_fisik')}
+                    title="Klik untuk mengubah urutan progres fisik"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>PROGRES FISIK</span>
+                      {sortConfig.key === 'progres_fisik' ? (
+                        <span className="text-indigo-400 font-bold text-xs bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">
+                          {sortConfig.direction === 'desc' ? '↓ Terbesar' : '↑ Terkecil'}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 font-normal text-xs">↕</span>
+                      )}
+                    </div>
+                  </th>
                   <th className="px-6 py-4">Kelengkapan Data</th>
                   <th className="px-6 py-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                {filteredSchools.map((school) => {
+                {sortedSchools.map((school) => {
                   if (!school) return null;
                   const isMySchool = school.fasilitatorId === activeUser?.id;
                   const isAuthorizedToEdit = activeUser?.role === 'admin' || (activeUser?.jabatanTim === 'Fasilitator' && school.fasilitatorId === activeUser?.id);
@@ -651,9 +737,9 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
                   );
                 })}
 
-                {filteredSchools.length === 0 && (
+                {sortedSchools.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-semibold italic">
+                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500 font-semibold italic">
                       Tidak ada sekolah yang cocok dengan filter atau pencarian Anda.
                     </td>
                   </tr>
