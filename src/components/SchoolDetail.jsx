@@ -80,8 +80,7 @@ function SCurveChart({ records = [], school = {} }) {
     const filledWeeks = effectiveRecords
       .filter(r => {
         const rel = parseNum(r?.realisasi);
-        const kum = parseNum(r?.kumulatif);
-        return (rel > 0 || kum > 0);
+        return rel > 0;
       })
       .map(r => parseNum(r?.minggu));
 
@@ -121,10 +120,15 @@ function SCurveChart({ records = [], school = {} }) {
 
   // Kurva Realisasi Kumulatif: Mulai dari M0 (0%) s/d maxFilledWeek
   const realisasiPoints = [{ w: 0, val: 0 }];
-  for (let w = 1; w <= (maxFilledWeek > 0 ? maxFilledWeek : 1); w++) {
+  let runningRealisasi = 0;
+  for (let w = 1; w <= maxFilledWeek; w++) {
     const rec = recordMap.get(w);
     if (rec) {
-      realisasiPoints.push({ w, val: parseNum(rec.kumulatif || rec.realisasi) });
+      const kumVal = rec.kumulatif !== undefined && rec.kumulatif !== null && parseNum(rec.kumulatif) > 0 
+        ? parseNum(rec.kumulatif) 
+        : (runningRealisasi + parseNum(rec.realisasi));
+      runningRealisasi = kumVal;
+      realisasiPoints.push({ w, val: kumVal });
     }
   }
 
@@ -234,23 +238,23 @@ function SCurveChart({ records = [], school = {} }) {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 text-xs pt-1 border-t border-slate-850 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 text-xs pt-1 border-t border-slate-850 gap-2 select-none">
         <span className="font-bold text-slate-300 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-emerald-400" />
           <span>Monitoring Fisik: Batang Mingguan & Kurva-S Kumulatif (M-0 s/d M-24)</span>
         </span>
-        <div className="flex flex-wrap items-center gap-3 text-[10px]">
-          <span className="flex items-center gap-1.5 font-medium text-indigo-400">
-            <span className="w-2.5 h-2.5 bg-indigo-500 rounded-sm inline-block opacity-80" /> Rencana Mingguan (Bar)
+        <div className="flex flex-wrap items-center gap-4 text-[10px]">
+          <span className="flex items-center gap-1.5 font-bold text-indigo-300">
+            <span className="w-3 h-3 bg-[#6366f1] rounded-sm inline-block shadow-sm" /> Rencana Mingguan (Bar)
           </span>
-          <span className="flex items-center gap-1.5 font-medium text-emerald-400">
-            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm inline-block opacity-90" /> Realisasi Mingguan (Bar)
+          <span className="flex items-center gap-1.5 font-bold text-emerald-300">
+            <span className="w-3 h-3 bg-[#10b981] rounded-sm inline-block shadow-sm" /> Realisasi Mingguan (Bar)
           </span>
-          <span className="flex items-center gap-1.5 font-medium text-indigo-300">
-            <span className="w-3 h-0.5 bg-indigo-400 rounded-full inline-block border-b-2 border-dashed border-indigo-400" /> Rencana Kumulatif (%)
+          <span className="flex items-center gap-1.5 font-bold text-indigo-300">
+            <span className="w-4 border-b-2 border-dashed border-[#6366f1] inline-block my-auto" /> Rencana Kumulatif (%)
           </span>
-          <span className="flex items-center gap-1.5 font-medium text-emerald-400">
-            <span className="w-3 h-0.5 bg-emerald-400 rounded-full inline-block" /> Realisasi Kumulatif (%)
+          <span className="flex items-center gap-1.5 font-bold text-emerald-300">
+            <span className="w-4 border-b-2 border-solid border-[#10b981] inline-block my-auto" /> Realisasi Kumulatif (%)
           </span>
         </div>
       </div>
