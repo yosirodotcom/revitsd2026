@@ -238,10 +238,10 @@ export default function MonthlyPdfReports({
         {canUpload && subTab === 'my' && !isAdding && (
           <button
             onClick={() => {
-              const uploaded = reports.filter(r => r.userId === activeUser.id).map(r => r.bulanKe);
-              const available = [1, 2, 3, 4, 5, 6].filter(m => !uploaded.includes(m));
+              const approvedMonths = reports.filter(r => r.userId === activeUser.id && r.status === 'approved').map(r => r.bulanKe);
+              const available = [1, 2, 3, 4, 5, 6].filter(m => !approvedMonths.includes(m));
               if (available.length === 0) {
-                window.showAlert('Semua laporan bulanan (Bulan 1 s/d 6) sudah diunggah.');
+                window.showAlert('Semua laporan bulanan (Bulan 1 s/d 6) sudah disetujui.');
                 return;
               }
               setFormData({ bulanKe: available[0], fileName: '', fileData: '' });
@@ -337,10 +337,16 @@ export default function MonthlyPdfReports({
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                 >
                   {[1, 2, 3, 4, 5, 6].map((num) => {
-                    const isUploaded = uploadedMonths.includes(num);
+                    const existingRep = reports.find(r => r.userId === activeUser.id && r.bulanKe === num);
+                    const isApproved = existingRep?.status === 'approved';
+                    let labelSuffix = '';
+                    if (isApproved) labelSuffix = '(Sudah Disetujui)';
+                    else if (existingRep?.status === 'rejected') labelSuffix = '(Perlu Perbaikan - Siap Unggah Ulang)';
+                    else if (existingRep) labelSuffix = '(Pending - Tindih)';
+
                     return (
-                      <option key={num} value={num} disabled={isUploaded}>
-                        Laporan Bulan Ke-{num} {isUploaded ? '(Sudah diunggah)' : ''}
+                      <option key={num} value={num} disabled={isApproved}>
+                        Laporan Bulan Ke-{num} {labelSuffix}
                       </option>
                     );
                   })}
@@ -552,19 +558,34 @@ export default function MonthlyPdfReports({
                       {((subTab === 'my' && rep.userId === activeUser.id) || (!canReview && rep.userId === activeUser.id)) && (
                         <div className="flex items-center gap-2">
                           {(rep.status === 'rejected' || rep.status === 'pending' || !rep.status) && (
-                            <button
-                              onClick={async () => {
-                                const label = rep.status === 'rejected' ? 'yang ditolak' : 'ini';
-                                if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe} ${label}? Data juga akan dihapus dari Google Sheets.`)) {
-                                  onDeleteReport(rep.id);
-                                  window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
-                                }
-                              }}
-                              className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 hover:text-rose-400 transition-all cursor-pointer"
-                              title="Hapus Laporan"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <>
+                              <label
+                                className="p-2 rounded-xl bg-slate-950 hover:bg-indigo-950/40 border border-slate-850 hover:border-indigo-500/30 text-indigo-400 transition-all cursor-pointer flex items-center justify-center"
+                                title="Unggah Berkas Revisi / Edit Laporan"
+                              >
+                                <CloudUpload className="w-4 h-4" />
+                                <input
+                                  type="file"
+                                  accept=".pdf"
+                                  className="hidden"
+                                  onChange={(e) => handleEditReportFileChange(rep.id, e)}
+                                />
+                              </label>
+
+                              <button
+                                onClick={async () => {
+                                  const label = rep.status === 'rejected' ? 'yang ditolak' : 'ini';
+                                  if (await window.showConfirm(`Apakah Anda yakin ingin menghapus Laporan Bulan Ke-${rep.bulanKe} ${label}? Data juga akan dihapus dari Google Sheets.`)) {
+                                    onDeleteReport(rep.id);
+                                    window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil dihapus.`);
+                                  }
+                                }}
+                                className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950/40 border border-slate-850 hover:border-rose-500/30 text-rose-450 hover:text-rose-400 transition-all cursor-pointer"
+                                title="Hapus Laporan"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                         </div>
                       )}

@@ -1073,8 +1073,6 @@ export default function App() {
     };
   }, [activeProgram]);
 
-
-
   const handleViewChange = (viewId) => {
     if (!activeUser && viewId !== 'dashboard' && viewId !== 'sekolah') {
       if (window.showAlert) {
@@ -3682,7 +3680,15 @@ export default function App() {
       {/* Custom Global Dialog Modal */}
       {dialog && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in select-none">
-          <div className="absolute inset-0" onClick={() => dialog.type === 'alert' && handleDialogConfirm()} />
+          <div 
+            className="absolute inset-0" 
+            onClick={() => {
+              if (dialog.type === 'alert') {
+                if (dialog.resolve) dialog.resolve(true);
+                setDialog(null);
+              }
+            }} 
+          />
           <div className="relative w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-center items-center backdrop-blur-md">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
               dialog.type === 'confirm' 
@@ -3706,14 +3712,20 @@ export default function App() {
             <div className="flex gap-2.5 w-full mt-2">
               {dialog.type === 'confirm' && (
                 <button
-                  onClick={handleDialogCancel}
+                  onClick={() => {
+                    if (dialog.resolve) dialog.resolve(false);
+                    setDialog(null);
+                  }}
                   className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-slate-200 transition-all cursor-pointer border-0"
                 >
                   Batal
                 </button>
               )}
               <button
-                onClick={handleDialogConfirm}
+                onClick={() => {
+                  if (dialog.resolve) dialog.resolve(true);
+                  setDialog(null);
+                }}
                 className="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer shadow-lg shadow-indigo-650/10 border-0"
               >
                 {dialog.type === 'confirm' ? 'Ya, Lanjutkan' : 'Mengerti'}
