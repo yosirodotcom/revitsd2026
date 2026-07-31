@@ -191,8 +191,8 @@ export const googleSheetsService = {
         const kendala = row[baseCol + 4] || '';
         const rekomendasi = row[baseCol + 5] || '';
 
-        // Hanya buat record jika ada data realisasi minggu ini, rencana, kendala, atau rekomendasi
-        const hasValue = reStr !== '' || renStr !== '' || (kendala !== '' && kendala !== '-') || (rekomendasi !== '' && rekomendasi !== '-');
+        // Hanya buat record jika ada data realisasi, kumulatif, rencana, deviasi, kendala, atau rekomendasi
+        const hasValue = reStr !== '' || koStr !== '' || renStr !== '' || devStr !== '' || (kendala !== '' && kendala !== '-') || (rekomendasi !== '' && rekomendasi !== '-');
         if (hasValue) {
           const realisasi = parsePct(reStr);
           const kumulatif = parsePct(koStr);

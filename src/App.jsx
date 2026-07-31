@@ -1983,13 +1983,15 @@ export default function App() {
         }
       });
 
-      // 3. Merge weeklyProgressRecords: add new records that do NOT exist in current weeklyProgress
+      // 3. Merge weeklyProgressRecords: update existing records or add new records from GSheet
       let wpAddedCount = 0;
       const nextWp = [...weeklyProgress];
 
       weeklyProgressRecords.forEach(rec => {
-        const existing = nextWp.find(w => w.id === rec.id || (w.schoolId === rec.schoolId && Number(w.minggu) === Number(rec.minggu)));
-        if (!existing) {
+        const idx = nextWp.findIndex(w => w.id === rec.id || (w.schoolId === rec.schoolId && Number(w.minggu) === Number(rec.minggu)));
+        if (idx >= 0) {
+          nextWp[idx] = { ...nextWp[idx], ...rec };
+        } else {
           nextWp.push(rec);
           wpAddedCount++;
         }
@@ -2002,14 +2004,17 @@ export default function App() {
       schoolIds.forEach(sId => {
         const sRecords = nextWp.filter(w => w.schoolId === sId).sort((a, b) => Number(a.minggu) - Number(b.minggu));
         let runningKumulatif = 0;
+        let runningRencana = 0;
         const recalculated = sRecords.map(w => {
-          runningKumulatif += Number(w.realisasi || 0);
-          const rel = Number(w.realisasi || 0);
-          const ren = Number(w.rencana || 0);
+          runningKumulatif = w.kumulatif !== undefined && w.kumulatif !== null && Number(w.kumulatif) > 0 ? Number(w.kumulatif) : (runningKumulatif + Number(w.realisasi || 0));
+          runningRencana += Number(w.rencana || 0);
+          const kum = Number(runningKumulatif.toFixed(3));
+          const ren = Number(runningRencana.toFixed(3));
+          const dev = Number((kum - ren).toFixed(3));
           return {
             ...w,
-            kumulatif: Number((w.kumulatif || runningKumulatif).toFixed(3)),
-            deviasi: Number((rel - ren).toFixed(3))
+            kumulatif: kum,
+            deviasi: w.deviasi !== undefined && w.deviasi !== 0 ? Number(w.deviasi) : dev
           };
         });
         finalWp = [...finalWp, ...recalculated];
@@ -2017,7 +2022,7 @@ export default function App() {
         const latest = recalculated[recalculated.length - 1];
         if (latest) {
           const targetSch = nextSchools.find(s => s.npsn === sId);
-          if (targetSch && targetSch.progres_fisik === 0) {
+          if (targetSch) {
             targetSch.progres_fisik = Math.round(latest.kumulatif);
           }
         }

@@ -49,46 +49,47 @@ function parseDateStrToObj(dateStr) {
 // Grafik Kurva-S Progres Mingguan
 function SCurveChart({ records = [], school = {} }) {
   const totalWeeks = 24;
-  const width = 760;
-  const height = 290;
-  const padding = { top: 45, right: 35, bottom: 45, left: 45 };
+  const width = 800;
+  const height = 300;
 
-  const chartW = width - padding.left - padding.right;
+  // Margin kiri diset 110px agar teks sumbu Y (0%-100%) tidak menimpa garis PKS (x=75) atau M0 (x=110)
+  const padding = { top: 50, right: 35, bottom: 45, left: 110 };
+  const yAxisTextX = 42; // Teks persen 0%, 25%, dst. di sebelah kiri
+  const yAxisLineX = 52; // Garis vertikal sumbu Y
+
+  const chartW = width - padding.left - padding.right; // 800 - 110 - 35 = 655px
   const chartH = height - padding.top - padding.bottom;
 
   const recordMap = new Map();
   records.forEach(r => recordMap.set(Number(r.minggu), r));
 
-  // Hitung maxFilledWeek: minggu terbawah s.d tertinggi yang terisi data realisasi/kumulatif
+  // Hitung maxFilledWeek: minggu tertinggi yang terisi data realisasi/kumulatif
   const filledWeeks = records
-    .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) && (Number(r.kumulatif) > 0 || Number(r.realisasi) > 0 || Number(r.minggu) === 1))
+    .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) || (r.kumulatif !== undefined && r.kumulatif !== null && Number(r.kumulatif) > 0))
     .map(r => Number(r.minggu));
 
-  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (records.length > 0 ? Math.max(...records.map(r => Number(r.minggu))) : 0);
+  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : 0;
 
-  // Sumbu X: 0 s/d 24 (M0 = titik awal MC-0)
+  // Sumbu X: 0 s/d 24 (M0 = x=110, M24 = x=765)
   const getX = (w) => padding.left + (w / totalWeeks) * chartW;
   const getY = (pct) => padding.top + chartH - (Math.min(100, Math.max(0, pct)) / 100) * chartH;
 
-  // Kurva Rencana: Mulai dari M0 (0%) s/d M24 (100%)
+  // Kurva Rencana Kumulatif: Mulai dari M0 (0%) s/d M24
   let runningRencana = 0;
   const rencanaPoints = [{ w: 0, val: 0 }];
   for (let w = 1; w <= totalWeeks; w++) {
     const rec = recordMap.get(w);
     const rPlan = rec ? Number(rec.rencana || 0) : 0;
     runningRencana += rPlan;
-    rencanaPoints.push({ w, val: Math.min(100, runningRencana) });
+    rencanaPoints.push({ w, val: Math.min(100, Number(runningRencana.toFixed(3))) });
   }
 
-  // Kurva Realisasi: Mulai dari M0 (0%) s/d maxFilledWeek
-  const realisasiPoints = [];
-  if (maxFilledWeek > 0 || records.length > 0) {
-    realisasiPoints.push({ w: 0, val: 0 }); // Mulai dari M0 = 0%
-    for (let w = 1; w <= maxFilledWeek; w++) {
-      const rec = recordMap.get(w);
-      if (rec) {
-        realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
-      }
+  // Kurva Realisasi Kumulatif: Mulai dari M0 (0%) s/d maxFilledWeek
+  const realisasiPoints = [{ w: 0, val: 0 }];
+  for (let w = 1; w <= maxFilledWeek; w++) {
+    const rec = recordMap.get(w);
+    if (rec) {
+      realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
     }
   }
 
@@ -97,10 +98,10 @@ function SCurveChart({ records = [], school = {} }) {
 
   const sorted = [...records].filter(r => Number(r.minggu) <= maxFilledWeek).sort((a, b) => Number(a.minggu) - Number(b.minggu));
   const latestRec = sorted[sorted.length - 1];
-  const latestWeek = latestRec ? latestRec.minggu : (maxFilledWeek > 0 ? maxFilledWeek : 0);
-  const latestRealisasi = latestRec ? latestRec.kumulatif : 0;
+  const latestWeek = latestRec ? Number(latestRec.minggu) : 0;
+  const latestRealisasi = latestRec ? Number(latestRec.kumulatif || 0) : Number(school?.progres_fisik || 0);
   const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek]?.val || 0) : 0;
-  const latestDeviasi = latestRec ? latestRec.deviasi : 0;
+  const latestDeviasi = latestRec ? Number(latestRec.deviasi !== undefined && latestRec.deviasi !== 0 ? latestRec.deviasi : (latestRealisasi - latestRencana)) : (latestRealisasi - latestRencana);
 
   // Hitung posisi vertikal milestone tanggal di sumbu X relatif terhadap M0 (MC-0)
   const milestones = [];
@@ -108,24 +109,21 @@ function SCurveChart({ records = [], school = {} }) {
   const danaDateObj = parseDateStrToObj(school?.tanggal_dana_tahap1);
   const mc0DateObj = parseDateStrToObj(school?.tanggal_mc0);
 
-  // M0 = Pelaksanaan MC-0 (atau Tanggal PKS jika MC-0 belum)
   const baseDateObj = mc0DateObj || pksDateObj || new Date(2026, 4, 25);
 
   const calcWeekPos = (targetDateObj) => {
     if (!targetDateObj || !baseDateObj) return null;
     const diffDays = (targetDateObj.getTime() - baseDateObj.getTime()) / (1000 * 3600 * 24);
-    return diffDays / 7; // minggu relatif terhadap M0 (bisa negatif jika sebelum M0)
+    return diffDays / 7;
   };
 
-  // 1. Tanggal PKS (Sebelum M0)
+  // 1. Tanggal PKS (Sebelum M0, ditempatkan di posisi khusus x=75 tanpa menimpa sumbu Y)
   if (school?.tanggal_pks && pksDateObj) {
-    const relPos = calcWeekPos(pksDateObj);
-    const wPos = relPos !== null ? Math.max(-1.5, Math.min(24, relPos)) : -1.0;
     milestones.push({
       id: 'pks',
       label: 'PKS',
       dateStr: school.tanggal_pks,
-      weekPos: wPos,
+      customX: 75,
       color: '#a855f7' // Purple
     });
   }
@@ -133,7 +131,7 @@ function SCurveChart({ records = [], school = {} }) {
   // 2. Cair Dana Tahap 1
   if (school?.tanggal_dana_tahap1 && danaDateObj) {
     const relPos = calcWeekPos(danaDateObj);
-    const wPos = relPos !== null ? Math.max(-1.0, Math.min(24, relPos)) : 0.5;
+    const wPos = relPos !== null ? Math.max(0.2, Math.min(24, relPos)) : 0.5;
     milestones.push({
       id: 'dana1',
       label: 'Cair T-1',
@@ -143,7 +141,7 @@ function SCurveChart({ records = [], school = {} }) {
     });
   }
 
-  // 3. Pelaksanaan MC-0 (M0)
+  // 3. Pelaksanaan MC-0 (M0 - x=110)
   if (school?.tanggal_mc0 && mc0DateObj) {
     milestones.push({
       id: 'mc0',
@@ -216,11 +214,12 @@ function SCurveChart({ records = [], school = {} }) {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[310px] select-none">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[320px] select-none">
+        {/* Sumbu Y Percentage Grid Lines */}
         {[0, 25, 50, 75, 100].map((pct) => (
           <g key={pct}>
             <line
-              x1={padding.left}
+              x1={yAxisLineX}
               y1={getY(pct)}
               x2={width - padding.right}
               y2={getY(pct)}
@@ -228,16 +227,27 @@ function SCurveChart({ records = [], school = {} }) {
               strokeDasharray="2 2"
               strokeWidth="0.5"
             />
+            {/* Teks persen sumbu Y di x=42 (tidak akan pernah tertimpa garis tanggal) */}
             <text
-              x={padding.left - 8}
+              x={yAxisTextX}
               y={getY(pct) + 3}
               textAnchor="end"
-              className="text-[9px] fill-slate-500 font-mono"
+              className="text-[9px] fill-slate-400 font-mono font-semibold"
             >
               {pct}%
             </text>
           </g>
         ))}
+
+        {/* Garis batas sumbu Y di x=52 */}
+        <line
+          x1={yAxisLineX}
+          y1={padding.top}
+          x2={yAxisLineX}
+          y2={padding.top + chartH}
+          stroke="#475569"
+          strokeWidth="1"
+        />
 
         {/* Ticks Sumbu X: M0 s/d M24 */}
         {Array.from({ length: totalWeeks + 1 }, (_, i) => i).map((w) => (
@@ -265,7 +275,7 @@ function SCurveChart({ records = [], school = {} }) {
 
         {/* Milestone Vertical Lines & Markers */}
         {milestones.map((m) => {
-          const xPos = getX(m.weekPos);
+          const xPos = m.customX !== undefined ? m.customX : getX(m.weekPos);
           return (
             <g key={m.id}>
               <line
@@ -320,7 +330,7 @@ function SCurveChart({ records = [], school = {} }) {
             <circle
               cx={getX(p.w)}
               cy={getY(p.val)}
-              r={p.w === 0 ? "3" : "4"}
+              r={p.w === 0 ? "3.5" : "4.5"}
               className={`${p.w === 0 ? 'fill-emerald-300' : 'fill-emerald-400'} stroke-slate-950 stroke-2 hover:r-6 transition-all`}
             />
             <title>{`Minggu M-${p.w}: Kumulatif ${p.val}%`}</title>
