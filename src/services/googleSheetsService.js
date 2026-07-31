@@ -49,6 +49,14 @@ function parseCSV(text) {
   return lines;
 }
 
+// Clean percentage number string (e.g. "0.639", "0,639", "6,420" -> 0.639)
+function parsePct(val) {
+  if (val === undefined || val === null) return 0;
+  const str = String(val).trim().replace(',', '.');
+  const num = parseFloat(str);
+  return isNaN(num) ? 0 : num;
+}
+
 // Normalisasi tanggal (e.g. "25-May-2026", "8-Jun-2026", "2026-05-25" -> "25 Mei 2026")
 function formatDateGSheet(val) {
   if (!val || typeof val !== 'string') return '';
