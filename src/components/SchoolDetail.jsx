@@ -52,11 +52,7 @@ function SCurveChart({ records = [], school = {} }) {
   const width = 800;
   const height = 300;
 
-<<<<<<< HEAD
   // Margin kiri diset 110px agar teks sumbu Y (0%-100%) tidak menimpa garis PKS (x=75) atau M0 (x=110)
-=======
-  // Margin kiri diset 75px agar teks sumbu Y (0%-100%) memiliki area khusus di sebelah kiri (x=45) dan tidak menimpa garis PKS (x=75) atau M0 (x=110)
->>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
   const padding = { top: 50, right: 35, bottom: 45, left: 110 };
   const yAxisTextX = 42; // Teks persen 0%, 25%, dst. di sebelah kiri
   const yAxisLineX = 52; // Garis vertikal sumbu Y
@@ -73,21 +69,12 @@ function SCurveChart({ records = [], school = {} }) {
   const recordMap = new Map();
   effectiveRecords.forEach(r => recordMap.set(Number(r.minggu), r));
 
-<<<<<<< HEAD
-  // Hitung maxFilledWeek: minggu tertinggi yang terisi data realisasi/kumulatif
-  const filledWeeks = records
-    .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) || (r.kumulatif !== undefined && r.kumulatif !== null && Number(r.kumulatif) > 0))
-    .map(r => Number(r.minggu));
-
-  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : 0;
-=======
   // Hitung maxFilledWeek: minggu terbawah s.d tertinggi yang terisi data realisasi/kumulatif
   const filledWeeks = effectiveRecords
     .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) && (Number(r.kumulatif) > 0 || Number(r.realisasi) > 0 || Number(r.minggu) === 1))
     .map(r => Number(r.minggu));
 
   const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => Number(r.minggu))) : 0);
->>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
 
   // Sumbu X: 0 s/d 24 (M0 = x=110, M24 = x=765)
   const getX = (w) => padding.left + (w / totalWeeks) * chartW;
@@ -103,23 +90,12 @@ function SCurveChart({ records = [], school = {} }) {
     rencanaPoints.push({ w, val: Math.min(100, Number(runningRencana.toFixed(3))) });
   }
 
-<<<<<<< HEAD
   // Kurva Realisasi Kumulatif: Mulai dari M0 (0%) s/d maxFilledWeek
   const realisasiPoints = [{ w: 0, val: 0 }];
-  for (let w = 1; w <= maxFilledWeek; w++) {
+  for (let w = 1; w <= (maxFilledWeek > 0 ? maxFilledWeek : 1); w++) {
     const rec = recordMap.get(w);
     if (rec) {
       realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
-=======
-  // Kurva Realisasi: Mulai dari M0 (0%) s/d maxFilledWeek
-  const realisasiPoints = [{ w: 0, val: 0 }]; // Mulai dari M0 = 0%
-  if (maxFilledWeek > 0 || effectiveRecords.length > 0) {
-    for (let w = 1; w <= (maxFilledWeek > 0 ? maxFilledWeek : 1); w++) {
-      const rec = recordMap.get(w);
-      if (rec) {
-        realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
-      }
->>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
     }
   }
 
@@ -128,17 +104,10 @@ function SCurveChart({ records = [], school = {} }) {
 
   const sorted = [...effectiveRecords].filter(r => Number(r.minggu) <= maxFilledWeek).sort((a, b) => Number(a.minggu) - Number(b.minggu));
   const latestRec = sorted[sorted.length - 1];
-<<<<<<< HEAD
-  const latestWeek = latestRec ? Number(latestRec.minggu) : 0;
-  const latestRealisasi = latestRec ? Number(latestRec.kumulatif || 0) : Number(school?.progres_fisik || 0);
-  const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek]?.val || 0) : 0;
-  const latestDeviasi = latestRec ? Number(latestRec.deviasi !== undefined && latestRec.deviasi !== 0 ? latestRec.deviasi : (latestRealisasi - latestRencana)) : (latestRealisasi - latestRencana);
-=======
-  const latestWeek = latestRec ? latestRec.minggu : (maxFilledWeek > 0 ? maxFilledWeek : 0);
+  const latestWeek = latestRec ? Number(latestRec.minggu) : (maxFilledWeek > 0 ? maxFilledWeek : 0);
   const latestRealisasi = latestRec ? Number(latestRec.kumulatif || 0) : schoolProgressVal;
   const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek]?.val || 0) : 0;
-  const latestDeviasi = latestRec ? Number(latestRec.deviasi || 0) : (latestRealisasi - latestRencana);
->>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
+  const latestDeviasi = latestRec ? Number(latestRec.deviasi !== undefined && latestRec.deviasi !== 0 ? latestRec.deviasi : (latestRealisasi - latestRencana)) : (latestRealisasi - latestRencana);
 
   // Hitung posisi vertikal milestone tanggal di sumbu X relatif terhadap M0 (MC-0)
   const milestones = [];
@@ -574,6 +543,7 @@ export default function SchoolDetail({
   weeklyProgress = [],
   onUpdateWeeklyProgress,
   onDeleteWeeklyProgress,
+  onRefreshGSheetData,
   initialTab = 'profile'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'profile');
@@ -584,6 +554,7 @@ export default function SchoolDetail({
     }
   }, [initialTab]);
   const [progresInput, setProgresInput] = useState(school?.progres_fisik || 0);
+  const [isRefreshingGSheet, setIsRefreshingGSheet] = useState(false);
   const [uploadingState, setUploadingState] = useState({});
   const [pendingDocs, setPendingDocs] = useState({});   // { [categoryKey]: newDocObject }
   const [savingDocKey, setSavingDocKey] = useState(null); // key sedang dalam proses simpan
@@ -3113,12 +3084,35 @@ export default function SchoolDetail({
                     Memantau realisasi vs rencana progres fisik proyek minggu ke-1 sampai minggu ke-24.
                   </p>
                 </div>
-                <button
-                  onClick={handleExportWpCSV}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer border-0 flex items-center gap-1.5 shrink-0"
-                >
-                  <Download className="w-4 h-4 text-indigo-400" /> Export CSV
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {onRefreshGSheetData && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setIsRefreshingGSheet(true);
+                          await onRefreshGSheetData();
+                          window.showAlert('Data progres mingguan M-1 s/d M-24 berhasil ditarik dan disinkronkan dari Google Sheets!');
+                        } catch (err) {
+                          window.showAlert('Gagal menarik data dari Google Sheets: ' + (err.message || 'Error koneksi'));
+                        } finally {
+                          setIsRefreshingGSheet(false);
+                        }
+                      }}
+                      disabled={isRefreshingGSheet}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 transition-all cursor-pointer border-0 flex items-center gap-1.5 shrink-0 shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+                      title="Tarik & Perbarui data minggu M-1 s/d M-24 dari Google Sheets"
+                    >
+                      <RefreshCw className={`w-4 h-4 text-white ${isRefreshingGSheet ? 'animate-spin' : ''}`} />
+                      <span>{isRefreshingGSheet ? 'Menarik Data...' : 'Tarik Data GSheet'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleExportWpCSV}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer border-0 flex items-center gap-1.5 shrink-0"
+                  >
+                    <Download className="w-4 h-4 text-indigo-400" /> Export CSV
+                  </button>
+                </div>
               </div>
 
               {/* Section 1: S-Curve Chart */}

@@ -3778,6 +3778,7 @@ export default function App() {
               weeklyProgress={weeklyProgress}
               onUpdateWeeklyProgress={handleUpdateWeeklyProgress}
               onDeleteWeeklyProgress={handleDeleteWeeklyProgress}
+              onRefreshGSheetData={handleRefreshGSheetData}
               initialTab={activeSchoolTab}
             />
           </div>
