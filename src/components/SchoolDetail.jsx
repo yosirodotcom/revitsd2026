@@ -76,14 +76,24 @@ function SCurveChart({ records = [], school = {} }) {
 
   const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => Number(r.minggu))) : 0);
 
+  // Hitung minggu terakhir yang terisi data (realisasi atau rencana)
+  let maxRencanaWeek = 0;
+  records.forEach(r => {
+    if (r.rencana !== undefined && r.rencana !== null && r.rencana !== '' && Number(r.rencana) > 0) {
+      const w = Number(r.minggu);
+      if (w > maxRencanaWeek) maxRencanaWeek = w;
+    }
+  });
+  const maxChartWeek = Math.max(maxFilledWeek, maxRencanaWeek);
+
   // Sumbu X: 0 s/d 24 (M0 = x=110, M24 = x=765)
   const getX = (w) => padding.left + (w / totalWeeks) * chartW;
   const getY = (pct) => padding.top + chartH - (Math.min(100, Math.max(0, pct)) / 100) * chartH;
 
-  // Kurva Rencana Kumulatif: Mulai dari M0 (0%) s/d M24
+  // Kurva Rencana Kumulatif: Mulai dari M0 (0%) s/d maxChartWeek (tidak menggaris datar ke M24)
   let runningRencana = 0;
   const rencanaPoints = [{ w: 0, val: 0 }];
-  for (let w = 1; w <= totalWeeks; w++) {
+  for (let w = 1; w <= maxChartWeek; w++) {
     const rec = recordMap.get(w);
     const rPlan = rec ? Number(rec.rencana || 0) : 0;
     runningRencana += rPlan;
