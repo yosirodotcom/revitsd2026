@@ -52,7 +52,11 @@ function SCurveChart({ records = [], school = {} }) {
   const width = 800;
   const height = 300;
 
+<<<<<<< HEAD
   // Margin kiri diset 110px agar teks sumbu Y (0%-100%) tidak menimpa garis PKS (x=75) atau M0 (x=110)
+=======
+  // Margin kiri diset 75px agar teks sumbu Y (0%-100%) memiliki area khusus di sebelah kiri (x=45) dan tidak menimpa garis PKS (x=75) atau M0 (x=110)
+>>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
   const padding = { top: 50, right: 35, bottom: 45, left: 110 };
   const yAxisTextX = 42; // Teks persen 0%, 25%, dst. di sebelah kiri
   const yAxisLineX = 52; // Garis vertikal sumbu Y
@@ -60,15 +64,30 @@ function SCurveChart({ records = [], school = {} }) {
   const chartW = width - padding.left - padding.right; // 800 - 110 - 35 = 655px
   const chartH = height - padding.top - padding.bottom;
 
-  const recordMap = new Map();
-  records.forEach(r => recordMap.set(Number(r.minggu), r));
+  // Fallback: Jika records mingguan belum diisi di tab progres mingguan tetapi sekolah memiliki progres_fisik master > 0
+  const schoolProgressVal = Number(school?.progres_fisik || 0);
+  const effectiveRecords = (records && records.length > 0)
+    ? records
+    : (schoolProgressVal > 0 ? [{ minggu: 1, realisasi: schoolProgressVal, kumulatif: schoolProgressVal, rencana: Math.round(schoolProgressVal / 2) }] : []);
 
+  const recordMap = new Map();
+  effectiveRecords.forEach(r => recordMap.set(Number(r.minggu), r));
+
+<<<<<<< HEAD
   // Hitung maxFilledWeek: minggu tertinggi yang terisi data realisasi/kumulatif
   const filledWeeks = records
     .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) || (r.kumulatif !== undefined && r.kumulatif !== null && Number(r.kumulatif) > 0))
     .map(r => Number(r.minggu));
 
   const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : 0;
+=======
+  // Hitung maxFilledWeek: minggu terbawah s.d tertinggi yang terisi data realisasi/kumulatif
+  const filledWeeks = effectiveRecords
+    .filter(r => (r.realisasi !== undefined && r.realisasi !== null && r.realisasi !== '' && Number(r.realisasi) >= 0) && (Number(r.kumulatif) > 0 || Number(r.realisasi) > 0 || Number(r.minggu) === 1))
+    .map(r => Number(r.minggu));
+
+  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => Number(r.minggu))) : 0);
+>>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
 
   // Sumbu X: 0 s/d 24 (M0 = x=110, M24 = x=765)
   const getX = (w) => padding.left + (w / totalWeeks) * chartW;
@@ -84,24 +103,42 @@ function SCurveChart({ records = [], school = {} }) {
     rencanaPoints.push({ w, val: Math.min(100, Number(runningRencana.toFixed(3))) });
   }
 
+<<<<<<< HEAD
   // Kurva Realisasi Kumulatif: Mulai dari M0 (0%) s/d maxFilledWeek
   const realisasiPoints = [{ w: 0, val: 0 }];
   for (let w = 1; w <= maxFilledWeek; w++) {
     const rec = recordMap.get(w);
     if (rec) {
       realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
+=======
+  // Kurva Realisasi: Mulai dari M0 (0%) s/d maxFilledWeek
+  const realisasiPoints = [{ w: 0, val: 0 }]; // Mulai dari M0 = 0%
+  if (maxFilledWeek > 0 || effectiveRecords.length > 0) {
+    for (let w = 1; w <= (maxFilledWeek > 0 ? maxFilledWeek : 1); w++) {
+      const rec = recordMap.get(w);
+      if (rec) {
+        realisasiPoints.push({ w, val: Number(rec.kumulatif || 0) });
+      }
+>>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
     }
   }
 
   const rencanaD = rencanaPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.w)} ${getY(p.val)}`).join(' ');
   const realisasiD = realisasiPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.w)} ${getY(p.val)}`).join(' ');
 
-  const sorted = [...records].filter(r => Number(r.minggu) <= maxFilledWeek).sort((a, b) => Number(a.minggu) - Number(b.minggu));
+  const sorted = [...effectiveRecords].filter(r => Number(r.minggu) <= maxFilledWeek).sort((a, b) => Number(a.minggu) - Number(b.minggu));
   const latestRec = sorted[sorted.length - 1];
+<<<<<<< HEAD
   const latestWeek = latestRec ? Number(latestRec.minggu) : 0;
   const latestRealisasi = latestRec ? Number(latestRec.kumulatif || 0) : Number(school?.progres_fisik || 0);
   const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek]?.val || 0) : 0;
   const latestDeviasi = latestRec ? Number(latestRec.deviasi !== undefined && latestRec.deviasi !== 0 ? latestRec.deviasi : (latestRealisasi - latestRencana)) : (latestRealisasi - latestRencana);
+=======
+  const latestWeek = latestRec ? latestRec.minggu : (maxFilledWeek > 0 ? maxFilledWeek : 0);
+  const latestRealisasi = latestRec ? Number(latestRec.kumulatif || 0) : schoolProgressVal;
+  const latestRencana = latestWeek > 0 ? (rencanaPoints[latestWeek]?.val || 0) : 0;
+  const latestDeviasi = latestRec ? Number(latestRec.deviasi || 0) : (latestRealisasi - latestRencana);
+>>>>>>> e72193797e7e9293ac01b6b03a0e48864ced8df8
 
   // Hitung posisi vertikal milestone tanggal di sumbu X relatif terhadap M0 (MC-0)
   const milestones = [];
