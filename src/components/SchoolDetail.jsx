@@ -999,7 +999,13 @@ export default function SchoolDetail({
   };
 
   const isMySchool = activeUser ? school.fasilitatorId === activeUser.id : false;
-  const isAuthorizedToEdit = activeUser ? (isMySchool || activeUser.role === 'admin') : false;
+  const isAuthorizedToEdit = Boolean(
+    activeUser && (
+      isMySchool || 
+      activeUser.role === 'admin' || 
+      ['Super Admin', 'Ketua Tim', 'Koordinator', 'Fasilitator', 'Fasilitator Teknik', 'Fasilitator Pemberdayaan', 'Tenaga Administrasi'].includes(activeUser.jabatanTim)
+    )
+  );
   const isReviuAuthorized = activeUser ? (activeUser.jabatanTim === 'Koordinator' || activeUser.role === 'admin') : false;
   const canDeleteDoc = (file) => {
     if (!activeUser) return false;
