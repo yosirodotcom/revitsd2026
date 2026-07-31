@@ -260,7 +260,25 @@ function SCurveChart({ records = [], school = {} }) {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[330px] select-none">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-auto max-h-[330px] select-none cursor-crosshair"
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          if (!rect.width) return;
+          const mouseX = e.clientX - rect.left;
+          const scaleX = width / rect.width;
+          const svgX = mouseX * scaleX;
+          const relativeX = svgX - padding.left;
+          if (relativeX >= -15 && relativeX <= chartW + 15) {
+            const calculatedWeek = Math.max(0, Math.min(totalWeeks, Math.round((relativeX / chartW) * totalWeeks)));
+            setHoveredWeek(calculatedWeek);
+          } else {
+            setHoveredWeek(null);
+          }
+        }}
+        onMouseLeave={() => setHoveredWeek(null)}
+      >
         {/* Sumbu Y Percentage Grid Lines */}
         {[0, 25, 50, 75, 100].map((pct) => (
           <g key={pct}>
@@ -431,8 +449,6 @@ function SCurveChart({ records = [], school = {} }) {
               cy={getY(p.val)}
               r={p.w === 0 ? "3.5" : "4.5"}
               className={`${p.w === 0 ? 'fill-emerald-300' : 'fill-emerald-400'} stroke-slate-950 stroke-2 hover:r-6 transition-all`}
-              onMouseEnter={() => setHoveredWeek(p.w)}
-              onMouseLeave={() => setHoveredWeek(null)}
             />
             <title>{`Minggu M-${p.w}: Kumulatif Realisasi ${p.val}%`}</title>
           </g>
@@ -463,25 +479,47 @@ function SCurveChart({ records = [], school = {} }) {
           </g>
         )}
 
-        {/* Full-height Invisible Column Mouse Triggers */}
-        {Array.from({ length: totalWeeks + 1 }, (_, i) => i).map((w) => {
-          const stepW = chartW / totalWeeks;
-          const colX = w === 0 ? padding.left - 10 : getX(w) - stepW / 2;
-          const colW = w === 0 ? 20 : stepW;
+        {/* Direct SVG Floating Tooltip Popup Card */}
+        {hoveredWeek !== null && (() => {
+          const hX = getX(hoveredWeek);
+          const val = realisasiPoints.find(p => p.w === hoveredWeek)?.val || 0;
+          const hY = getY(val);
+          const tooltipW = 165;
+          const tooltipH = 54;
+          const tooltipX = hX > width - tooltipW - 20 ? hX - tooltipW - 10 : hX + 12;
+          const tooltipY = Math.max(padding.top + 5, Math.min(height - padding.bottom - tooltipH, hY - 25));
+
+          const rec = recordMap.get(hoveredWeek);
+          const rRealisasi = parseNum(rec?.realisasi);
+          const rRencana = parseNum(rec?.rencana);
+
           return (
-            <rect
-              key={`trigger-${w}`}
-              x={colX}
-              y={padding.top - 10}
-              width={colW}
-              height={chartH + 20}
-              fill="transparent"
-              className="cursor-pointer"
-              onMouseEnter={() => setHoveredWeek(w)}
-              onMouseLeave={() => setHoveredWeek(null)}
-            />
+            <g className="pointer-events-none select-none">
+              <rect
+                x={tooltipX}
+                y={tooltipY}
+                width={tooltipW}
+                height={tooltipH}
+                rx="6"
+                fill="#090d16"
+                stroke="#6366f1"
+                strokeWidth="1.5"
+                opacity="0.95"
+              />
+              <text x={tooltipX + 8} y={tooltipY + 15} fill="#c7d2fe" className="text-[9.5px] font-extrabold font-mono">
+                {hoveredWeek === 0 ? 'M0 (MC-0 Baseline)' : `Minggu M-${hoveredWeek} (Bln.${Math.ceil(hoveredWeek/4)})`}
+              </text>
+              <text x={tooltipX + 8} y={tooltipY + 31} fill="#34d399" className="text-[9px] font-semibold">
+                Realisasi Ko: <tspan fill="#34d399" className="font-extrabold font-mono">{val.toFixed(3)}%</tspan>
+                {rRealisasi > 0 && <tspan fill="#6ee7b7" className="text-[8px] font-mono"> (+{rRealisasi.toFixed(2)}%)</tspan>}
+              </text>
+              <text x={tooltipX + 8} y={tooltipY + 45} fill="#a5b4fc" className="text-[9px] font-semibold">
+                Rencana Ko: <tspan fill="#a5b4fc" className="font-extrabold font-mono">{(rencanaPoints.find(p => p.w === hoveredWeek)?.val || 0).toFixed(3)}%</tspan>
+                {rRencana > 0 && <tspan fill="#c7d2fe" className="text-[8px] font-mono"> (Re:{rRencana.toFixed(2)}%)</tspan>}
+              </text>
+            </g>
           );
-        })}
+        })()}
       </svg>
 
       {/* Dynamic Hover Tooltip Card */}
