@@ -181,6 +181,7 @@ export default function PublicDashboard({
   // Modals State
   const [activeModalCard, setActiveModalCard] = useState(null); // 'pks' | 'mc0' | 'progress50' | null
   const [mc0SubTab, setMc0SubTab] = useState('all'); // 'all' | 'belum' | 'tanpa_dokumen' | 'lengkap'
+  const [pksSubTab, setPksSubTab] = useState('belum'); // 'belum' | 'sudah' | 'all'
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null);
 
   // Chart Tooltips State
@@ -231,6 +232,7 @@ export default function PublicDashboard({
   // Card Calculations
   const totalSchools = schools.length;
   const pksDoneList = schools.filter(isPksDone);
+  const pksBelumList = schools.filter(s => !isPksDone(s));
   const pksDoneCount = pksDoneList.length;
   const pksPct = totalSchools > 0 ? Math.round((pksDoneCount / totalSchools) * 100) : 0;
 
@@ -357,7 +359,10 @@ export default function PublicDashboard({
 
           {/* Card 2: Status PKS */}
           <div 
-            onClick={() => setActiveModalCard('pks')}
+            onClick={() => {
+              setPksSubTab('belum');
+              setActiveModalCard('pks');
+            }}
             className="bg-slate-900/40 backdrop-blur-xl border border-slate-800/80 hover:border-emerald-500/50 rounded-2xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] group"
           >
             <div className="flex items-center justify-between">
@@ -964,13 +969,35 @@ export default function PublicDashboard({
 
             {/* Modal Title Header */}
             {activeModalCard === 'pks' && (
-              <div>
+              <div className="space-y-3">
                 <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
                   <CheckCircle className="w-4 h-4" /> Detail Perjanjian Kerja Sama (PKS)
                 </div>
-                <h3 className="text-xl font-extrabold text-white mt-1">
-                  Daftar Status PKS ({pksDoneCount} dari {totalSchools} Sekolah Sudah PKS)
+                <h3 className="text-xl font-extrabold text-white">
+                  Daftar Status Perjanjian Kerja Sama (PKS)
                 </h3>
+
+                {/* Sub-Tabs for PKS */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={() => setPksSubTab('belum')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${pksSubTab === 'belum' ? 'bg-rose-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'}`}
+                  >
+                    Belum PKS ({pksBelumList.length})
+                  </button>
+                  <button
+                    onClick={() => setPksSubTab('sudah')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${pksSubTab === 'sudah' ? 'bg-emerald-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'}`}
+                  >
+                    Sudah PKS ({pksDoneList.length})
+                  </button>
+                  <button
+                    onClick={() => setPksSubTab('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${pksSubTab === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'}`}
+                  >
+                    Semua ({totalSchools})
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1038,7 +1065,12 @@ export default function PublicDashboard({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {(activeModalCard === 'pks' ? schools : activeModalCard === 'progress50' ? progress50List : schools)
+                  {(activeModalCard === 'pks' 
+                      ? (pksSubTab === 'belum' ? pksBelumList : pksSubTab === 'sudah' ? pksDoneList : schools)
+                      : activeModalCard === 'progress50' 
+                      ? progress50List 
+                      : schools
+                    )
                     .filter(sch => {
                       if (activeModalCard === 'mc0') {
                         const info = getMc0Info(sch);
@@ -1055,9 +1087,18 @@ export default function PublicDashboard({
                       const fasilName = getFacilitatorName(sch);
 
                       return (
-                        <tr key={sch.npsn} className="hover:bg-slate-800/30 transition-colors">
+                        <tr 
+                          key={sch.npsn} 
+                          onClick={() => setSelectedSchoolDetail(sch)}
+                          className="hover:bg-slate-800/50 transition-colors cursor-pointer group"
+                        >
                           <td className="py-2.5 px-3 text-slate-500 font-mono">{idx + 1}</td>
-                          <td className="py-2.5 px-3 font-bold text-white">{sch.nama_sekolah}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-white group-hover:text-indigo-300 group-hover:underline transition-colors flex items-center gap-1.5">
+                              <span>{sch.nama_sekolah}</span>
+                              <Info className="w-3 h-3 text-indigo-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </td>
                           <td className="py-2.5 px-3 text-indigo-300 font-medium">{fasilName}</td>
                           <td className="py-2.5 px-3 text-slate-400">{sch.kabupaten || '-'}</td>
                           <td className="py-2.5 px-3 text-center font-extrabold text-slate-200">{prog}%</td>
@@ -1104,7 +1145,7 @@ export default function PublicDashboard({
 
       {/* 6. POPUP MODAL: DETIL INDIVIDUAL SEKOLAH */}
       {selectedSchoolDetail && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
+        <div className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-5 relative text-slate-100">
             <button
               onClick={() => setSelectedSchoolDetail(null)}
