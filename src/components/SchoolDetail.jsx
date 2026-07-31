@@ -57,62 +57,60 @@ const parseNum = (val) => {
 
 // Grafik Kurva-S Progres Mingguan
 function SCurveChart({ records = [], school = {} }) {
-  const totalWeeks = 24;
-  const width = 800;
-  const height = 300;
+  try {
+    const totalWeeks = 24;
+    const width = 800;
+    const height = 300;
 
-  // Margin kiri diset 110px agar teks sumbu Y (0%-100%) tidak menimpa garis PKS (x=75) atau M0 (x=110)
-  const padding = { top: 50, right: 35, bottom: 45, left: 110 };
-  const yAxisTextX = 42; // Teks persen 0%, 25%, dst. di sebelah kiri
-  const yAxisLineX = 52; // Garis vertikal sumbu Y
+    const padding = { top: 50, right: 35, bottom: 45, left: 110 };
+    const yAxisTextX = 42;
+    const yAxisLineX = 52;
 
-  const chartW = width - padding.left - padding.right; // 800 - 110 - 35 = 655px
-  const chartH = height - padding.top - padding.bottom;
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
 
-  const safeRecords = Array.isArray(records) ? records : [];
-  const schoolProgressVal = parseNum(school?.progres_fisik);
+    const safeRecords = Array.isArray(records) ? records : [];
+    const schoolProgressVal = parseNum(school?.progres_fisik);
 
-  const effectiveRecords = (safeRecords.length > 0)
-    ? safeRecords
-    : (schoolProgressVal > 0 ? [{ minggu: 1, realisasi: schoolProgressVal, kumulatif: schoolProgressVal, rencana: Math.round(schoolProgressVal / 2) }] : []);
+    const effectiveRecords = (safeRecords.length > 0)
+      ? safeRecords
+      : (schoolProgressVal > 0 ? [{ minggu: 1, realisasi: schoolProgressVal, kumulatif: schoolProgressVal, rencana: Math.round(schoolProgressVal / 2) }] : []);
 
-  const recordMap = new Map();
-  effectiveRecords.forEach(r => recordMap.set(parseNum(r.minggu), r));
+    const recordMap = new Map();
+    effectiveRecords.forEach(r => recordMap.set(parseNum(r.minggu), r));
 
-  // Hitung maxFilledWeek: minggu terbawah s.d tertinggi yang terisi data realisasi/kumulatif
-  const filledWeeks = effectiveRecords
-    .filter(r => {
-      const rel = parseNum(r.realisasi);
-      const kum = parseNum(r.kumulatif);
-      const w = parseNum(r.minggu);
-      return (rel > 0 || kum > 0 || w === 1);
-    })
-    .map(r => parseNum(r.minggu));
+    const filledWeeks = effectiveRecords
+      .filter(r => {
+        const rel = parseNum(r.realisasi);
+        const kum = parseNum(r.kumulatif);
+        const w = parseNum(r.minggu);
+        return (rel > 0 || kum > 0 || w === 1);
+      })
+      .map(r => parseNum(r.minggu));
 
-  const maxFilledWeek = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => parseNum(r.minggu))) : 0);
+    const rawMaxFilled = filledWeeks.length > 0 ? Math.max(...filledWeeks) : (effectiveRecords.length > 0 ? Math.max(...effectiveRecords.map(r => parseNum(r.minggu))) : 0);
+    const maxFilledWeek = Math.max(0, Math.min(totalWeeks, Math.floor(parseNum(rawMaxFilled))));
 
-  // Hitung minggu terakhir yang terisi data (realisasi atau rencana)
-  let maxRencanaWeek = 0;
-  safeRecords.forEach(r => {
-    const ren = parseNum(r.rencana);
-    if (ren > 0) {
-      const w = parseNum(r.minggu);
-      if (w > maxRencanaWeek) maxRencanaWeek = w;
-    }
-  });
-  const maxChartWeek = Math.max(maxFilledWeek, maxRencanaWeek);
+    let maxRencanaWeek = 0;
+    safeRecords.forEach(r => {
+      const ren = parseNum(r.rencana);
+      if (ren > 0) {
+        const w = parseNum(r.minggu);
+        if (w > maxRencanaWeek) maxRencanaWeek = w;
+      }
+    });
+    const maxChartWeek = Math.max(0, Math.min(totalWeeks, Math.floor(Math.max(maxFilledWeek, maxRencanaWeek))));
 
-  // Sumbu X: 0 s/d 24 (M0 = x=110, M24 = x=765)
-  const getX = (w) => {
-    const wNum = parseNum(w);
-    return padding.left + (wNum / totalWeeks) * chartW;
-  };
+    const getX = (w) => {
+      const wNum = parseNum(w);
+      return padding.left + (wNum / totalWeeks) * chartW;
+    };
 
-  const getY = (pct) => {
-    const pVal = parseNum(pct);
-    const clamped = Math.min(100, Math.max(0, pVal));
-    return padding.top + chartH - (clamped / 100) * chartH;
-  };
+    const getY = (pct) => {
+      const pVal = parseNum(pct);
+      const clamped = Math.min(100, Math.max(0, pVal));
+      return padding.top + chartH - (clamped / 100) * chartH;
+    };
 
   // Kurva Rencana Kumulatif: Mulai dari M0 (0%) s/d maxChartWeek (tidak menggaris datar ke M24)
   let runningRencana = 0;
@@ -438,6 +436,16 @@ function SCurveChart({ records = [], school = {} }) {
       </svg>
     </div>
   );
+  } catch (err) {
+    console.error("SCurveChart Error:", err);
+    return (
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center select-none">
+        <AlertCircle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+        <h4 className="font-bold text-slate-200 text-sm">Gagal Menampilkan Grafik Kurva-S</h4>
+        <p className="text-xs text-slate-400 mt-1">{err.message || 'Terjadi kesalahan internal kalkulasi grafik'}</p>
+      </div>
+    );
+  }
 }
 
 // Rich Text Editor kustom
