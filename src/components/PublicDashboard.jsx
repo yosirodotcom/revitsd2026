@@ -765,8 +765,8 @@ export default function PublicDashboard({
 
             {/* SVG Chart Container */}
             <div className="relative w-full overflow-x-auto no-scrollbar">
-              {/* Floating Zoom & Fullscreen Toolbar Pill at Bottom-Right Inside Chart */}
-              <div className="absolute bottom-3 right-3 z-10 flex items-center bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg">
+              {/* Floating Zoom & Fullscreen Toolbar Pill at Bottom-Right Inside Plot Area */}
+              <div className="absolute bottom-[52px] right-[180px] z-10 flex items-center bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-xl">
                 <button
                   onClick={() => setKumZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
@@ -977,8 +977,8 @@ export default function PublicDashboard({
 
             {/* SVG Chart Container */}
             <div className="relative w-full overflow-x-auto no-scrollbar">
-              {/* Floating Zoom & Fullscreen Toolbar Pill at Bottom-Right Inside Chart */}
-              <div className="absolute bottom-3 right-3 z-10 flex items-center bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg">
+              {/* Floating Zoom & Fullscreen Toolbar Pill at Bottom-Right Inside Plot Area */}
+              <div className="absolute bottom-[52px] right-[180px] z-10 flex items-center bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-xl">
                 <button
                   onClick={() => setDevZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
