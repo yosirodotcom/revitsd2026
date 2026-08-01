@@ -10,6 +10,7 @@ import TeamManagement from './components/TeamManagement';
 import ProfileModal from './components/ProfileModal';
 import SchoolList from './components/SchoolList';
 import SchoolDetail from './components/SchoolDetail';
+import ErrorBoundary from './components/ErrorBoundary';
 import ContactManagement from './components/ContactManagement';
 import TravelSchedule from './components/TravelSchedule';
 import DailyLogs from './components/DailyLogs';
@@ -3914,36 +3915,38 @@ export default function App() {
             >
               <X className="w-4 h-4" />
             </button>
-            <SchoolDetail
-              school={schools.find((s) => s.npsn === selectedSchoolNpsn)}
-              users={users}
-              contacts={contacts}
-              tasks={tasks}
-              activeUser={activeUser}
-              onBack={handleCloseSchoolDetail}
-              onUpdateSchool={handleUpdateSchool}
-              onAddTask={handleAddTask}
-              onUpdateTaskStatus={handleUpdateTaskStatus}
-              onDeleteTask={handleDeleteTask}
-              onAddContact={handleAddContact}
-              onUpdateContact={handleUpdateContact}
-              schoolDocs={schoolDocs}
-              onAddSchoolDoc={handleAddSchoolDoc}
-              onDeleteSchoolDoc={handleDeleteSchoolDoc}
-              kendala={kendala}
-              kendalaComments={kendalaComments}
-              kendalaDocs={kendalaDocs}
-              onAddKendala={handleAddKendala}
-              onDeleteKendala={handleDeleteKendala}
-              onAddKendalaComment={handleAddKendalaComment}
-              onDeleteKendalaComment={handleDeleteKendalaComment}
-              onDeleteKendalaDoc={handleDeleteKendalaDoc}
-              weeklyProgress={weeklyProgress}
-              onUpdateWeeklyProgress={handleUpdateWeeklyProgress}
-              onDeleteWeeklyProgress={handleDeleteWeeklyProgress}
-              onRefreshGSheetData={handleRefreshGSheetData}
-              initialTab={activeSchoolTab}
-            />
+            <ErrorBoundary onReset={handleCloseSchoolDetail}>
+              <SchoolDetail
+                school={schools.find((s) => String(s.npsn).trim() === String(selectedSchoolNpsn).trim())}
+                users={users}
+                contacts={contacts}
+                tasks={tasks}
+                activeUser={activeUser}
+                onBack={handleCloseSchoolDetail}
+                onUpdateSchool={handleUpdateSchool}
+                onAddTask={handleAddTask}
+                onUpdateTaskStatus={handleUpdateTaskStatus}
+                onDeleteTask={handleDeleteTask}
+                onAddContact={handleAddContact}
+                onUpdateContact={handleUpdateContact}
+                schoolDocs={schoolDocs}
+                onAddSchoolDoc={handleAddSchoolDoc}
+                onDeleteSchoolDoc={handleDeleteSchoolDoc}
+                kendala={kendala}
+                kendalaComments={kendalaComments}
+                kendalaDocs={kendalaDocs}
+                onAddKendala={handleAddKendala}
+                onDeleteKendala={handleDeleteKendala}
+                onAddKendalaComment={handleAddKendalaComment}
+                onDeleteKendalaComment={handleDeleteKendalaComment}
+                onDeleteKendalaDoc={handleDeleteKendalaDoc}
+                weeklyProgress={weeklyProgress}
+                onUpdateWeeklyProgress={handleUpdateWeeklyProgress}
+                onDeleteWeeklyProgress={handleDeleteWeeklyProgress}
+                onRefreshGSheetData={handleRefreshGSheetData}
+                initialTab={activeSchoolTab}
+              />
+            </ErrorBoundary>
           </div>
         </div>
       )}

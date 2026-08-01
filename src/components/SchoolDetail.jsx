@@ -915,12 +915,6 @@ export default function SchoolDetail({
   const hasProgres50 = mySchoolDocs.some(d => d.category === 'lap_progres_50');
   const hasProgres100 = mySchoolDocs.some(d => d.category === 'lap_progres_100');
 
-  useEffect(() => {
-    if (school) {
-      setProgresInput(school.progres_fisik || 0);
-    }
-  }, [school]);
-
   // Focus the inline input when it appears
   useEffect(() => {
     if (inlineField && inlineInputRef.current) {
