@@ -370,6 +370,104 @@ export default function PublicDashboard({
   };
   const zeroDeviasiY = getDeviasiY(0);
 
+  // Helper matching school ID
+  const isSameSchool = (w, sch) => {
+    if (!w || !sch) return false;
+    const wId = String(w.schoolId || w.sekolahId || w.schoolNpsn || w.npsn || '').trim();
+    const sId = String(sch.npsn || sch.id || sch.sekolahId || '').trim();
+    return wId.length > 0 && sId.length > 0 && (wId === sId || wId.endsWith(sId) || sId.endsWith(wId));
+  };
+
+  // Point Generator Helpers for Line Charts
+  const getKumulatifPoints = (sch) => {
+    const schoolWp = weeklyProgress
+      .filter(w => isSameSchool(w, sch) && Number(w.minggu) <= kumDisplayWeeks)
+      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
+
+    const totalProg = Number(sch.progres_fisik) || 0;
+    const hasWpData = schoolWp.some(w => Number(w.kumulatif) > 0 || Number(w.realisasi) > 0);
+
+    let points = [];
+
+    if (hasWpData) {
+      let lastWeek = 0;
+      schoolWp.forEach(w => {
+        if (Number(w.kumulatif) > 0 || Number(w.realisasi) > 0) {
+          lastWeek = Math.max(lastWeek, Number(w.minggu));
+        }
+      });
+      const activeWp = lastWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastWeek) : schoolWp;
+
+      if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+        points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
+      }
+      activeWp.forEach(w => {
+        const val = Number(w.kumulatif) || 0;
+        points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
+      });
+    } else if (totalProg > 0) {
+      // Fallback: No weeklyProgress array entries present, but sch.progres_fisik > 0
+      const targetWeek = Math.min(kumDisplayWeeks, Math.max(2, dataMaxWeek));
+      points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
+      for (let w = 2; w < targetWeek; w++) {
+        const interpVal = Math.round((w - 1) / (targetWeek - 1) * totalProg * 100) / 100;
+        points.push({ week: w, x: getKumulatifX(w), y: getKumulatifY(interpVal), val: interpVal });
+      }
+      points.push({ week: targetWeek, x: getKumulatifX(targetWeek), y: getKumulatifY(totalProg), val: totalProg });
+    } else {
+      const targetWeek = Math.min(kumDisplayWeeks, Math.max(2, dataMaxWeek));
+      points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
+      points.push({ week: targetWeek, x: getKumulatifX(targetWeek), y: getKumulatifY(0), val: 0 });
+    }
+
+    return points;
+  };
+
+  const getDeviasiPoints = (sch) => {
+    const schoolWp = weeklyProgress
+      .filter(w => isSameSchool(w, sch) && Number(w.minggu) <= devDisplayWeeks)
+      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
+
+    const totalProg = Number(sch.progres_fisik) || 0;
+    const hasWpData = schoolWp.some(w => Number(w.deviasi) !== 0 || Number(w.kumulatif) > 0 || Number(w.realisasi) > 0);
+
+    let points = [];
+
+    if (hasWpData) {
+      let lastWeek = 0;
+      schoolWp.forEach(w => {
+        const val = Math.abs(Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0)));
+        if (val > 0) lastWeek = Math.max(lastWeek, Number(w.minggu));
+      });
+      const activeWp = lastWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastWeek) : schoolWp;
+
+      if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+        points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
+      }
+      activeWp.forEach(w => {
+        const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
+        points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
+      });
+    } else if (totalProg > 0) {
+      const targetWeek = Math.min(devDisplayWeeks, Math.max(2, dataMaxWeek));
+      const targetPlan = Math.min(100, Math.round(targetWeek * 4.16 * 100) / 100);
+      const endDev = Math.round((totalProg - targetPlan) * 10) / 10;
+
+      points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
+      for (let w = 2; w < targetWeek; w++) {
+        const interpVal = Math.round((w - 1) / (targetWeek - 1) * endDev * 100) / 100;
+        points.push({ week: w, x: getDeviasiX(w), y: getDeviasiY(interpVal), val: interpVal });
+      }
+      points.push({ week: targetWeek, x: getDeviasiX(targetWeek), y: getDeviasiY(endDev), val: endDev });
+    } else {
+      const targetWeek = Math.min(devDisplayWeeks, Math.max(2, dataMaxWeek));
+      points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
+      points.push({ week: targetWeek, x: getDeviasiX(targetWeek), y: getDeviasiY(0), val: 0 });
+    }
+
+    return points;
+  };
+
   // Filtered & Sorted Table Schools
   const filteredTableSchools = schools.filter(sch => {
     const matchesFasil = tableFasilitatorFilter === 'all' || sch.fasilitatorId === tableFasilitatorFilter;
@@ -732,35 +830,7 @@ export default function PublicDashboard({
                 {/* Lines per School */}
                 {filteredKumulatifSchools.map((sch, schIdx) => {
                   const color = LINE_COLORS[schIdx % LINE_COLORS.length];
-                  const schoolWp = weeklyProgress
-                    .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= kumDisplayWeeks)
-                    .sort((a, b) => Number(a.minggu) - Number(b.minggu));
-
-                  let lastDataWeek = 0;
-                  schoolWp.forEach(w => {
-                    const val = Number(w.kumulatif) || Number(w.realisasi) || 0;
-                    if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
-                  });
-
-                  const maxW = lastDataWeek > 0 
-                    ? lastDataWeek 
-                    : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : kumDisplayWeeks);
-
-                  const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
-
-                  let points = [];
-                  if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
-                    points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
-                  }
-
-                  activeWp.forEach(w => {
-                    const val = Number(w.kumulatif) || 0;
-                    points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
-                  });
-
-                  if (points.length === 1) {
-                    points.push({ week: kumDisplayWeeks, x: getKumulatifX(kumDisplayWeeks), y: getKumulatifY(points[0].val), val: points[0].val });
-                  }
+                  const points = getKumulatifPoints(sch);
 
                   if (points.length === 0) return null;
 
@@ -973,35 +1043,7 @@ export default function PublicDashboard({
 
                 {/* Lines per School */}
                 {filteredDeviasiSchools.map((sch) => {
-                  const schoolWp = weeklyProgress
-                    .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= devDisplayWeeks)
-                    .sort((a, b) => Number(a.minggu) - Number(b.minggu));
-
-                  let lastDataWeek = 0;
-                  schoolWp.forEach(w => {
-                    const val = Math.abs(Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0)));
-                    if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
-                  });
-
-                  const maxW = lastDataWeek > 0 
-                    ? lastDataWeek 
-                    : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : devDisplayWeeks);
-
-                  const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
-
-                  let points = [];
-                  if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
-                    points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
-                  }
-
-                  activeWp.forEach(w => {
-                    const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
-                    points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
-                  });
-
-                  if (points.length === 1) {
-                    points.push({ week: devDisplayWeeks, x: getDeviasiX(devDisplayWeeks), y: getDeviasiY(points[0].val), val: points[0].val });
-                  }
+                  const points = getDeviasiPoints(sch);
 
                   if (points.length === 0) return null;
 
@@ -1411,35 +1453,7 @@ export default function PublicDashboard({
                   {/* Lines per School */}
                   {filteredKumulatifSchools.map((sch, schIdx) => {
                     const color = LINE_COLORS[schIdx % LINE_COLORS.length];
-                    const schoolWp = weeklyProgress
-                      .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= kumDisplayWeeks)
-                      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
-
-                    let lastDataWeek = 0;
-                    schoolWp.forEach(w => {
-                      const val = Number(w.kumulatif) || Number(w.realisasi) || 0;
-                      if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
-                    });
-
-                    const maxW = lastDataWeek > 0 
-                      ? lastDataWeek 
-                      : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : kumDisplayWeeks);
-
-                    const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
-
-                    let points = [];
-                    if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
-                      points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
-                    }
-
-                    activeWp.forEach(w => {
-                      const val = Number(w.kumulatif) || 0;
-                      points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
-                    });
-
-                    if (points.length === 1) {
-                      points.push({ week: kumDisplayWeeks, x: getKumulatifX(kumDisplayWeeks), y: getKumulatifY(points[0].val), val: points[0].val });
-                    }
+                    const points = getKumulatifPoints(sch);
 
                     if (points.length === 0) return null;
                     const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
@@ -1494,35 +1508,7 @@ export default function PublicDashboard({
                   )}
                   {/* Lines per School */}
                   {filteredDeviasiSchools.map((sch) => {
-                    const schoolWp = weeklyProgress
-                      .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= devDisplayWeeks)
-                      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
-
-                    let lastDataWeek = 0;
-                    schoolWp.forEach(w => {
-                      const val = Math.abs(Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0)));
-                      if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
-                    });
-
-                    const maxW = lastDataWeek > 0 
-                      ? lastDataWeek 
-                      : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : devDisplayWeeks);
-
-                    const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
-
-                    let points = [];
-                    if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
-                      points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
-                    }
-
-                    activeWp.forEach(w => {
-                      const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
-                      points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
-                    });
-
-                    if (points.length === 1) {
-                      points.push({ week: devDisplayWeeks, x: getDeviasiX(devDisplayWeeks), y: getDeviasiY(points[0].val), val: points[0].val });
-                    }
+                    const points = getDeviasiPoints(sch);
 
                     if (points.length === 0) return null;
                     const lastPoint = points[points.length - 1];
