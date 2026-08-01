@@ -1776,7 +1776,7 @@ export default function PublicDashboard({
 
       {/* 6. POPUP MODAL: DETIL INDIVIDUAL SEKOLAH (READ-ONLY SCHOOLDETAIL VIEW) */}
       {selectedSchoolDetail && (
-        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fade-in select-none">
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fade-in select-none">
           <div className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden shadow-2xl relative text-slate-100">
             {/* Top Modal Header Bar */}
             <div className="flex items-center justify-between px-6 py-3 border-b border-slate-800/80 bg-slate-900/60 shrink-0">
