@@ -243,6 +243,10 @@ export default function PublicDashboard({
 
   // Card Calculations
   const totalSchools = schools.length;
+  const progressStartedList = schools.filter(s => (Number(s.progres_fisik) || 0) > 0);
+  const progressStartedCount = progressStartedList.length;
+  const progressStartedPct = totalSchools > 0 ? Math.round((progressStartedCount / totalSchools) * 100) : 0;
+
   const pksDoneList = schools.filter(isPksDone);
   const pksBelumList = schools.filter(s => !isPksDone(s));
   const pksDoneCount = pksDoneList.length;
@@ -427,8 +431,14 @@ export default function PublicDashboard({
               </div>
             </div>
             <div className="mt-4">
-              <div className="text-3xl font-black text-white">{totalSchools}</div>
-              <p className="text-[11px] text-slate-400 mt-1">Lokasi Revitalisasi</p>
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="text-3xl font-black text-white">{totalSchools}</div>
+                <span className="text-xs font-extrabold text-indigo-400 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">{progressStartedPct}% Berprogres</span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 flex items-center justify-between font-medium">
+                <span>Lokasi Revitalisasi</span>
+                <span className="text-indigo-300 font-semibold">{progressStartedCount} Sekolah</span>
+              </p>
             </div>
           </div>
 
