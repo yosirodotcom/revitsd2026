@@ -322,7 +322,8 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
 
   return (
-    <div className="space-y-6 animate-fade-in p-6">
+    <>
+      <div className="space-y-6 animate-fade-in p-6">
       
       {/* Title Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -771,10 +772,11 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
           </div>
         </div>
       )}
+    </div>
 
       {/* Modal 2: Tambah Sekolah Master Baru (Admin Only) */}
       {isAddingMaster && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 select-none">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
               <h3 className="font-semibold text-slate-100 text-lg">Tambah Sekolah Master Baru</h3>
@@ -906,8 +908,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 }
 

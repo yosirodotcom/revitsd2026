@@ -32,31 +32,16 @@ import { googleSheetsService } from './services/googleSheetsService';
 // Shadowing helper to dynamically prefix localStorage operations for multi-program isolation
 const storageHelper = {
   getItem: (key) => {
-    // List of allowed configuration keys we want to keep in localStorage
-    const allowedKeys = [
-      'settings', 'active_user', 'last_env_url', 'last_env_token', 'sidebar_collapsed', 'has_cleared_initial_sim'
-    ];
-
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
-      if (!allowedKeys.includes(baseKey)) {
-        return null; // Bypass reading operational tables from localStorage
-      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.getItem(`${prefix}_${baseKey}`);
     }
     return window.localStorage.getItem(key);
   },
   setItem: (key, value) => {
-    const allowedKeys = [
-      'settings', 'active_user', 'last_env_url', 'last_env_token', 'sidebar_collapsed', 'has_cleared_initial_sim'
-    ];
-
     if (key.startsWith('revit_')) {
       const baseKey = key.substring(6);
-      if (!allowedKeys.includes(baseKey)) {
-        return; // No-op: do not write operational/business data to localStorage
-      }
       const prefix = window.localStorage.getItem('active_program_prefix') || 'revit';
       return window.localStorage.setItem(`${prefix}_${baseKey}`, value);
     }
@@ -607,39 +592,44 @@ export default function App() {
     const referenceUsers = activePrefix === 'revitpaud' ? initialPaudUsers : initialUsers;
     const referenceSchools = activePrefix === 'revitpaud' ? initialPaudSchools : initialSchools;
 
-    // Initialize all operational states with their default values
-    setUsers(referenceUsers);
-    setSchools(referenceSchools);
-    setContacts([]);
-    setTasks([]);
-    setTrips([]);
-    setLogs([]);
-    setReports([]);
-    setDutyReports([]);
-    setExpenses([]);
-    setPayments([]);
-    setSchoolDocs([]);
-    setPersonnelDocs([]);
-    setMeetings([]);
-    setMeetingDocs([]);
-    setMeetingPhotos([]);
-    setTripDocs([]);
-    setActivityLogs([]);
-    setKendala([]);
-    setKendalaComments([]);
-    setKendalaDocs([]);
-    setWarnings([]);
-    setWeeklyProgress([]);
+    const loadLocal = (key, fallback) => {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) {
+          console.error(`Failed to parse local storage key ${key}:`, e);
+        }
+      }
+      return fallback;
+    };
 
-    // Clear operational data from localStorage to free space and prevent local cache reliance
-    const keysToClear = [
-      'revit_users', 'revit_schools', 'revit_contacts', 'revit_tasks', 'revit_trips',
-      'revit_logs', 'revit_reports', 'revit_duty_reports', 'revit_expenses', 'revit_payments',
-      'revit_school_docs', 'revit_personnel_docs', 'revit_meetings', 'revit_meeting_docs',
-      'revit_meeting_photos', 'revit_trip_docs', 'revit_activity_logs', 'revit_kendala',
-      'revit_kendala_comments', 'revit_kendala_docs', 'revit_warnings', 'revit_weekly_progress', 'revit_is_dirty'
-    ];
-    keysToClear.forEach(key => localStorage.removeItem(key));
+    // Initialize operational states with stored local data or default reference data
+    setUsers(loadLocal('revit_users', referenceUsers));
+    setSchools(loadLocal('revit_schools', referenceSchools));
+    setContacts(loadLocal('revit_contacts', []));
+    setTasks(loadLocal('revit_tasks', []));
+    setTrips(loadLocal('revit_trips', []));
+    setLogs(loadLocal('revit_logs', []));
+    setReports(loadLocal('revit_reports', []));
+    setDutyReports(loadLocal('revit_duty_reports', []));
+    setExpenses(loadLocal('revit_expenses', []));
+    setPayments(loadLocal('revit_payments', []));
+    setSchoolDocs(loadLocal('revit_school_docs', []));
+    setPersonnelDocs(loadLocal('revit_personnel_docs', []));
+    setMeetings(loadLocal('revit_meetings', []));
+    setMeetingDocs(loadLocal('revit_meeting_docs', []));
+    setMeetingPhotos(loadLocal('revit_meeting_photos', []));
+    setTripDocs(loadLocal('revit_trip_docs', []));
+    setActivityLogs(loadLocal('revit_activity_logs', []));
+    setKendala(loadLocal('revit_kendala', []));
+    setKendalaComments(loadLocal('revit_kendala_comments', []));
+    setKendalaDocs(loadLocal('revit_kendala_docs', []));
+    setWarnings(loadLocal('revit_warnings', []));
+    setWeeklyProgress(loadLocal('revit_weekly_progress', []));
 
 
     // Diagnostics
@@ -869,8 +859,16 @@ export default function App() {
               return updated;
             });
             if (clean.length > 0) {
-              setSchools(clean);
-              localStorage.setItem('revit_schools', JSON.stringify(clean));
+              const currentLocal = latestStateRef.current?.schools || schools;
+              const missingLocal = (currentLocal || []).filter(localSch =>
+                localSch && localSch.npsn && !clean.some(remoteSch => String(remoteSch.npsn).trim() === String(localSch.npsn).trim())
+              );
+              const finalSchools = missingLocal.length > 0 ? [...clean, ...missingLocal] : clean;
+              setSchools(finalSchools);
+              localStorage.setItem('revit_schools', JSON.stringify(finalSchools));
+              if (missingLocal.length > 0) {
+                setTimeout(() => syncWithNewState({ schools: finalSchools }, true, true), 1000);
+              }
             }
           }
           if (remoteData.contacts) {
@@ -1325,8 +1323,16 @@ export default function App() {
           return updated;
         });
         if (clean.length > 0) {
-          setSchools(clean);
-          localStorage.setItem('revit_schools', JSON.stringify(clean));
+          const currentLocal = latestStateRef.current?.schools || schools;
+          const missingLocal = (currentLocal || []).filter(localSch =>
+            localSch && localSch.npsn && !clean.some(remoteSch => String(remoteSch.npsn).trim() === String(localSch.npsn).trim())
+          );
+          const finalSchools = missingLocal.length > 0 ? [...clean, ...missingLocal] : clean;
+          setSchools(finalSchools);
+          localStorage.setItem('revit_schools', JSON.stringify(finalSchools));
+          if (missingLocal.length > 0) {
+            setTimeout(() => syncWithNewState({ schools: finalSchools }, true, true), 1000);
+          }
         }
       }
       if (remoteData.contacts) {
