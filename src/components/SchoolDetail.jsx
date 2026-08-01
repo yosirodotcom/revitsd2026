@@ -813,7 +813,7 @@ export default function SchoolDetail({
       setActiveTab(initialTab);
     }
   }, [initialTab]);
-  const [progresInput, setProgresInput] = useState(school?.progres_fisik || 0);
+
   const [isRefreshingGSheet, setIsRefreshingGSheet] = useState(false);
   const [uploadingState, setUploadingState] = useState({});
   const [pendingDocs, setPendingDocs] = useState({});   // { [categoryKey]: newDocObject }
@@ -1077,17 +1077,6 @@ export default function SchoolDetail({
     } else if (e.key === 'Escape') {
       cancelInlineEdit();
     }
-  };
-
-  const handleQuickProgressSave = () => {
-    if (totalTasks > 0) {
-      return window.showAlert('Progress fisik dihitung otomatis berdasarkan Papan Tugas. Selesaikan tugas untuk menambah progress!');
-    }
-    onUpdateSchool({
-      ...school,
-      progres_fisik: Number(progresInput),
-    });
-    window.showAlert(`Progres fisik berhasil diubah menjadi ${progresInput}%`);
   };
 
   const handleAddTaskSubmit = (e) => {
@@ -2556,63 +2545,48 @@ export default function SchoolDetail({
               {/* Right Column: Progress & Docs checklist */}
               <div className="flex flex-col gap-6 lg:h-full">
                 
-                {/* Manual Progress Slider */}
-                <div className={isAuthorizedToEdit ? 'card-update-progress-glow rounded-2xl p-6 transition-all duration-300' : 'bg-slate-900/30 backdrop-blur-md border border-slate-800 rounded-2xl p-6 transition-all duration-300'}>
+                {/* Progres Akumulasi Fisik Card */}
+                <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-6 transition-all duration-300">
                   <h3 className="font-semibold text-slate-200 text-sm flex items-center justify-between gap-2 mb-4 border-b border-slate-800 pb-2 select-none">
                     <span className="flex items-center gap-2">
-                      {isAuthorizedToEdit && <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />}
-                      Update Progres Konstruksi
+                      <Activity className="w-4 h-4 text-indigo-400" />
+                      Progres Akumulasi Fisik
                     </span>
-                    {isAuthorizedToEdit && (
-                      <span className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20 shadow-sm">
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-400"></span>
-                        </span>
-                        Fokus Utama
-                      </span>
-                    )}
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                      Otomatis
+                    </span>
                   </h3>
-                  {isAuthorizedToEdit ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={progresInput}
-                          onChange={(e) => setProgresInput(e.target.value)}
-                          className="flex-1 accent-indigo-500 h-2 rounded-lg appearance-none cursor-pointer focus:outline-none"
-                          style={{
-                            background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${progresInput || 0}%, #e2e8f0 ${progresInput || 0}%, #e2e8f0 100%)`
-                          }}
-                        />
-                        <div className="w-16">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={progresInput}
-                            onChange={(e) => setProgresInput(e.target.value)}
-                            className="w-full text-center bg-slate-950 border border-slate-800 rounded-xl px-2 py-1 text-sm font-bold text-slate-200"
-                          />
-                        </div>
-                      </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-400 font-medium">Realisasi Fisik Terkini:</span>
+                      <span className="text-xl font-bold font-mono text-emerald-400">
+                        {school.progres_fisik || 0}%
+                      </span>
+                    </div>
+
+                    {/* Progress Bar Display */}
+                    <div className="w-full bg-slate-950 rounded-full h-3 p-0.5 border border-slate-800 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-indigo-500 via-indigo-400 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-sm shadow-emerald-500/50"
+                        style={{ width: `${Math.min(100, Math.max(0, school.progres_fisik || 0))}%` }}
+                      />
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-950/50 p-3 rounded-xl border border-slate-800/60">
+                      💡 Progres fisik total tidak dapat diubah langsung. Nilai ini dihitung otomatis dari akumulasi <strong>Progres Mingguan (M-1 s/d M-24)</strong> oleh Fasilitator/Super Admin atau melalui <strong>Sinkronisasi Google Sheets</strong>.
+                    </p>
+
+                    {isAuthorizedToEdit && (
                       <button
-                        onClick={handleQuickProgressSave}
-                        className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-[0.98] active:translate-y-[0.5px] transition-all duration-150 select-none cursor-pointer"
+                        onClick={() => setActiveTab('weekly-progress')}
+                        className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer border-0"
                       >
-                        Simpan Progres Fisik
+                        <Activity className="w-4 h-4 text-white" />
+                        Input / Edit Progres Mingguan
                       </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 bg-slate-950/40 rounded-xl border border-slate-855 p-4">
-                      <AlertTriangle className="w-5 h-5 text-slate-605 mx-auto mb-2" />
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        Hanya Fasilitator atau Super Admin yang dapat mengubah progres.
-                      </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 {/* Documents table list */}

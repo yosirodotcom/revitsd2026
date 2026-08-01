@@ -59,7 +59,6 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   
   // Modals state
   const [isAddingMaster, setIsAddingMaster] = useState(false);
-  const [tempProgress, setTempProgress] = useState({});
   const [isCustomKabupaten, setIsCustomKabupaten] = useState(false);
   const [customKabupatenInput, setCustomKabupatenInput] = useState('');
   
@@ -610,61 +609,19 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
                       {/* Progress */}
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-3 max-w-[260px]">
-                          <div className="flex-1">
-                            {isAuthorizedToEdit && !hasTasks ? (
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}
-                                onChange={(e) => {
-                                  setTempProgress({
-                                    ...tempProgress,
-                                    [school.npsn]: Number(e.target.value)
-                                  });
-                                }}
-                                className="w-full accent-emerald-500 h-1.5 rounded-lg appearance-none cursor-pointer focus:outline-none"
-                                style={{
-                                  background: `linear-gradient(to right, #2e7d32 0%, #2e7d32 ${tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}%, #e2e8f8 ${tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}%, #e2e8f8 100%)`
-                                }}
-                                title="Geser untuk mengubah progres fisik"
-                              />
-                            ) : (
-                              <div 
-                                className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden"
-                                title={hasTasks ? "Progres dihitung otomatis dari Papan Tugas (Kanban)" : "Hanya Fasilitator atau Super Admin yang dapat mengubah progres."}
-                              >
-                                <div
-                                  className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                                  style={{ width: `${school.progres_fisik}%` }}
-                                />
-                              </div>
-                            )}
+                        <div className="flex items-center gap-3 max-w-[240px]">
+                          <div 
+                            className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700/50"
+                            title="Progres fisik dihitung otomatis dari Progres Mingguan atau Google Sheets"
+                          >
+                            <div
+                              className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(100, Math.max(0, school.progres_fisik || 0))}%` }}
+                            />
                           </div>
-                          <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">
-                            {tempProgress[school.npsn] !== undefined ? tempProgress[school.npsn] : (school.progres_fisik || 0)}%
+                          <span className="text-xs font-bold font-mono text-slate-200 min-w-[36px] text-right shrink-0">
+                            {school.progres_fisik || 0}%
                           </span>
-                          
-                          {/* Save Button for modified progress */}
-                          {tempProgress[school.npsn] !== undefined && tempProgress[school.npsn] !== school.progres_fisik && (
-                            <button
-                              onClick={() => {
-                                onUpdateSchool({
-                                  ...school,
-                                  progres_fisik: tempProgress[school.npsn]
-                                });
-                                // Clear temp progress for this school
-                                const next = { ...tempProgress };
-                                delete next[school.npsn];
-                                setTempProgress(next);
-                              }}
-                              className="p-1 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors cursor-pointer border-0 shadow flex items-center justify-center shrink-0"
-                              title="Simpan Progres Baru"
-                            >
-                              <Check className="w-3.5 h-3.5 text-white" />
-                            </button>
-                          )}
                         </div>
                       </td>
 
