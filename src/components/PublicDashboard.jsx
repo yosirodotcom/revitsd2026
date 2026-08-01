@@ -434,9 +434,22 @@ export default function PublicDashboard({
       if (Number(activeWp[0].minggu) > 1) {
         points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
       }
-      activeWp.forEach(w => {
-        const val = Number(w.kumulatif) || 0;
-        points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
+
+      let runningKum = 0;
+      activeWp.forEach((w, idx) => {
+        let val = Number(w.kumulatif) || 0;
+        
+        // Detect single-week isolated spike anomaly (e.g. 98% typed by mistake when next week is 4% or school total is 28%)
+        const nextWp = activeWp[idx + 1];
+        const nextVal = nextWp ? (Number(nextWp.kumulatif) || 0) : totalProg;
+        if (nextWp && val > nextVal && val > totalProg) {
+          val = nextVal;
+        }
+
+        // Monotonic non-decreasing constraint for cumulative progress
+        runningKum = Math.max(runningKum, val);
+
+        points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(runningKum), val: runningKum });
       });
     } else if (totalProg > 0) {
       const targetWeek = Math.min(kumDisplayWeeks, lastWeek);

@@ -136,11 +136,18 @@ function SCurveChart({ records = [], school = {} }) {
   for (let w = 1; w <= maxFilledWeek; w++) {
     const rec = recordMap.get(w);
     if (rec) {
-      const kumVal = rec.kumulatif !== undefined && rec.kumulatif !== null && parseNum(rec.kumulatif) > 0 
+      const nextRec = recordMap.get(w + 1);
+      let kumVal = rec.kumulatif !== undefined && rec.kumulatif !== null && parseNum(rec.kumulatif) > 0 
         ? parseNum(rec.kumulatif) 
         : (runningRealisasi + parseNum(rec.realisasi));
-      runningRealisasi = kumVal;
-      realisasiPoints.push({ w, val: kumVal });
+
+      const nextVal = nextRec ? parseNum(nextRec.kumulatif) : schoolProgressVal;
+      if (nextRec && kumVal > nextVal && kumVal > schoolProgressVal) {
+        kumVal = nextVal;
+      }
+
+      runningRealisasi = Math.max(runningRealisasi, kumVal);
+      realisasiPoints.push({ w, val: runningRealisasi });
     }
   }
 
