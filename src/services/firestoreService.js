@@ -87,14 +87,20 @@ export const fetchAllData = async (programId) => {
   return result;
 };
 
+const getDocId = (doc) => {
+  if (!doc) return '';
+  return String(doc.id || doc.npsn || doc.userId || '').trim();
+};
+
 // ============================================================
 // 2. Simpan / Update satu dokumen
 // ============================================================
 export const saveDocument = async (programId, collectionName, docData) => {
-  const { id, ...data } = docData;
-  if (!id) throw new Error(`saveDocument: dokumen tanpa 'id' (${collectionName})`);
-  const docRef = programDoc(programId, collectionName, String(id));
-  await setDoc(docRef, { id, ...data, _updatedAt: serverTimestamp() }, { merge: true });
+  const docId = getDocId(docData);
+  if (!docId) throw new Error(`saveDocument: dokumen tanpa 'id' atau 'npsn' (${collectionName})`);
+  const docRef = programDoc(programId, collectionName, docId);
+  const payload = { id: docId, ...docData, _updatedAt: serverTimestamp() };
+  await setDoc(docRef, payload, { merge: true });
 };
 
 // ============================================================
@@ -114,7 +120,7 @@ export const saveDocumentsBatch = async (programId, collectionName, docs) => {
   }
 
   // 2. Identify removed document IDs that need to be deleted from Firestore
-  const newIds = new Set(safeDocs.map(d => String(d.id)).filter(Boolean));
+  const newIds = new Set(safeDocs.map(d => getDocId(d)).filter(Boolean));
   const idsToDelete = existingDocIds.filter(id => !newIds.has(id));
 
   const CHUNK_SIZE = 400;
@@ -138,10 +144,11 @@ export const saveDocumentsBatch = async (programId, collectionName, docs) => {
       const chunk = safeDocs.slice(i, i + CHUNK_SIZE);
       const batch = writeBatch(db);
       chunk.forEach((docData) => {
-        const { id, ...data } = docData;
-        if (!id) return;
-        const docRef = programDoc(programId, collectionName, String(id));
-        batch.set(docRef, { id, ...data, _updatedAt: serverTimestamp() }, { merge: true });
+        const docId = getDocId(docData);
+        if (!docId) return;
+        const docRef = programDoc(programId, collectionName, docId);
+        const payload = { id: docId, ...docData, _updatedAt: serverTimestamp() };
+        batch.set(docRef, payload, { merge: true });
       });
       await batch.commit();
       console.log(`[Firestore] ✓ Batch ${collectionName} chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${chunk.length} docs`);

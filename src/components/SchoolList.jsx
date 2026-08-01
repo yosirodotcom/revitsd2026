@@ -293,6 +293,8 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
     }
 
     const newSchool = {
+      id: newSchoolData.npsn.trim(),
+      npsn: newSchoolData.npsn.trim(),
       ...newSchoolData,
       kabupaten: selectedKabupatenName,
       desa: '',

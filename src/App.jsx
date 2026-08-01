@@ -1869,9 +1869,15 @@ export default function App() {
     setActiveSchoolTab('profile');
   };
 
-  // 7. School Actions (Fase 2)
   const handleAddSchool = (newSchool) => {
-    const updated = [...schools, newSchool];
+    const schoolId = String(newSchool.id || newSchool.npsn || '').trim();
+    const formatted = {
+      ...newSchool,
+      id: schoolId,
+      npsn: schoolId,
+      nama_sekolah: newSchool.nama_sekolah || newSchool.nama || ''
+    };
+    const updated = [...schools, formatted];
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
     syncWithNewState({ schools: updated }, true, true);
