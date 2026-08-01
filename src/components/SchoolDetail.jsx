@@ -82,11 +82,21 @@ function SCurveChart({ records = [], school = {} }) {
     const filledWeeks = effectiveRecords
       .filter(r => {
         const rel = parseNum(r?.realisasi);
-        return rel > 0;
+        const kum = parseNum(r?.kumulatif);
+        return rel > 0 || kum > 0 || (r?.updatedAt && parseNum(r?.minggu) > 0);
       })
       .map(r => parseNum(r?.minggu));
 
-    const rawMaxFilled = filledWeeks.length > 0 ? Math.max(...filledWeeks) : 0;
+    let rawMaxFilled = filledWeeks.length > 0 ? Math.max(...filledWeeks) : 0;
+    if (rawMaxFilled === 0 && effectiveRecords.length > 0) {
+      const weeksWithData = effectiveRecords
+        .filter(r => r && r.kumulatif !== undefined && r.kumulatif !== null && parseNum(r.minggu) > 0)
+        .map(r => parseNum(r.minggu));
+      if (weeksWithData.length > 0) {
+        rawMaxFilled = Math.max(...weeksWithData);
+      }
+    }
+
     const maxFilledWeek = Math.max(0, Math.min(totalWeeks, Math.floor(parseNum(rawMaxFilled))));
 
     let maxRencanaWeek = 0;

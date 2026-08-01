@@ -292,34 +292,21 @@ export default function PublicDashboard({
     let lastActiveWeek = 0;
     weeklyProgress.forEach(wp => {
       const realisasi = Number(wp.realisasi) || 0;
+      const kumulatif = Number(wp.kumulatif) || 0;
       const minggu = Number(wp.minggu) || 0;
-      if (realisasi > 0 && minggu > lastActiveWeek) {
+      if ((realisasi > 0 || kumulatif > 0) && minggu > lastActiveWeek) {
         lastActiveWeek = minggu;
       }
     });
 
-    // Fallback: if no realisasi > 0, try to detect the last week where kumulatif changed
     if (lastActiveWeek === 0) {
-      const bySchool = {};
       weeklyProgress.forEach(wp => {
-        const sid = String(wp.schoolId);
-        if (!bySchool[sid]) bySchool[sid] = [];
-        bySchool[sid].push(wp);
-      });
-
-      Object.values(bySchool).forEach(records => {
-        records.sort((a, b) => Number(a.minggu) - Number(b.minggu));
-        for (let i = 0; i < records.length; i++) {
-          const val = Number(records[i].kumulatif) || 0;
-          const prevVal = i > 0 ? (Number(records[i - 1].kumulatif) || 0) : -1;
-          if (val !== prevVal) {
-            lastActiveWeek = Math.max(lastActiveWeek, Number(records[i].minggu));
-          }
-        }
+        const m = Number(wp.minggu) || 0;
+        if (m > lastActiveWeek) lastActiveWeek = m;
       });
     }
 
-    return Math.max(4, lastActiveWeek || 4);
+    return Math.max(4, Math.min(24, lastActiveWeek || 4));
   }, [weeklyProgress]);
 
   // Auto-fit range: dataMaxWeek + 2 buffer (capped at 24)
@@ -747,31 +734,28 @@ export default function PublicDashboard({
                   const color = LINE_COLORS[schIdx % LINE_COLORS.length];
                   const schoolWp = weeklyProgress
                     .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
-                    .sort((a, b) => a.minggu - b.minggu);
+                    .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
-                  // Find the last week with actual data (realisasi > 0)
-                  let lastRealWeek = 0;
+                  let lastDataWeek = 0;
                   schoolWp.forEach(w => {
-                    if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu));
+                    const val = Number(w.kumulatif) || Number(w.realisasi) || 0;
+                    if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
                   });
-                  // Fallback: detect last week where kumulatif changed
-                  if (lastRealWeek === 0) {
-                    for (let i = 0; i < schoolWp.length; i++) {
-                      const val = Number(schoolWp[i].kumulatif) || 0;
-                      const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
-                      if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
-                    }
-                  }
 
-                  // Only include points up to last real data week
-                  const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
+                  const maxW = lastDataWeek > 0 
+                    ? lastDataWeek 
+                    : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : kumDisplayWeeks);
+
+                  const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
 
                   let points = [];
-                  points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
+                  if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+                    points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
+                  }
 
                   activeWp.forEach(w => {
                     const val = Number(w.kumulatif) || 0;
-                    points.push({ week: w.minggu, x: getKumulatifX(w.minggu), y: getKumulatifY(val), val });
+                    points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
                   });
 
                   if (points.length === 0) return null;
@@ -987,31 +971,28 @@ export default function PublicDashboard({
                 {filteredDeviasiSchools.map((sch) => {
                   const schoolWp = weeklyProgress
                     .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
-                    .sort((a, b) => a.minggu - b.minggu);
+                    .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
-                  // Find the last week with actual data (realisasi > 0)
-                  let lastRealWeek = 0;
+                  let lastDataWeek = 0;
                   schoolWp.forEach(w => {
-                    if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu));
+                    const val = Math.abs(Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0)));
+                    if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
                   });
-                  // Fallback: detect last week where kumulatif changed
-                  if (lastRealWeek === 0) {
-                    for (let i = 0; i < schoolWp.length; i++) {
-                      const val = Number(schoolWp[i].kumulatif) || 0;
-                      const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
-                      if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
-                    }
-                  }
 
-                  // Only include points up to last real data week
-                  const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
+                  const maxW = lastDataWeek > 0 
+                    ? lastDataWeek 
+                    : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : devDisplayWeeks);
+
+                  const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
 
                   let points = [];
-                  points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
+                  if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+                    points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
+                  }
 
                   activeWp.forEach(w => {
                     const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
-                    points.push({ week: w.minggu, x: getDeviasiX(w.minggu), y: getDeviasiY(devVal), val: devVal });
+                    points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
                   });
 
                   if (points.length === 0) return null;
@@ -1424,22 +1405,30 @@ export default function PublicDashboard({
                     const color = LINE_COLORS[schIdx % LINE_COLORS.length];
                     const schoolWp = weeklyProgress
                       .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
-                      .sort((a, b) => a.minggu - b.minggu);
-                    let lastRealWeek = 0;
-                    schoolWp.forEach(w => { if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu)); });
-                    if (lastRealWeek === 0) {
-                      for (let i = 0; i < schoolWp.length; i++) {
-                        const val = Number(schoolWp[i].kumulatif) || 0;
-                        const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
-                        if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
-                      }
+                      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
+
+                    let lastDataWeek = 0;
+                    schoolWp.forEach(w => {
+                      const val = Number(w.kumulatif) || Number(w.realisasi) || 0;
+                      if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
+                    });
+
+                    const maxW = lastDataWeek > 0 
+                      ? lastDataWeek 
+                      : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : kumDisplayWeeks);
+
+                    const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
+
+                    let points = [];
+                    if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+                      points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
                     }
-                    const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
-                    let points = [{ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 }];
+
                     activeWp.forEach(w => {
                       const val = Number(w.kumulatif) || 0;
-                      points.push({ week: w.minggu, x: getKumulatifX(w.minggu), y: getKumulatifY(val), val });
+                      points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
                     });
+
                     if (points.length === 0) return null;
                     const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
                     const lastPoint = points[points.length - 1];
@@ -1495,22 +1484,30 @@ export default function PublicDashboard({
                   {filteredDeviasiSchools.map((sch) => {
                     const schoolWp = weeklyProgress
                       .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
-                      .sort((a, b) => a.minggu - b.minggu);
-                    let lastRealWeek = 0;
-                    schoolWp.forEach(w => { if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu)); });
-                    if (lastRealWeek === 0) {
-                      for (let i = 0; i < schoolWp.length; i++) {
-                        const val = Number(schoolWp[i].kumulatif) || 0;
-                        const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
-                        if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
-                      }
+                      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
+
+                    let lastDataWeek = 0;
+                    schoolWp.forEach(w => {
+                      const val = Math.abs(Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0)));
+                      if (val > 0) lastDataWeek = Math.max(lastDataWeek, Number(w.minggu));
+                    });
+
+                    const maxW = lastDataWeek > 0 
+                      ? lastDataWeek 
+                      : (schoolWp.length > 0 ? Math.max(...schoolWp.map(w => Number(w.minggu))) : devDisplayWeeks);
+
+                    const activeWp = schoolWp.filter(w => Number(w.minggu) <= maxW);
+
+                    let points = [];
+                    if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+                      points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
                     }
-                    const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
-                    let points = [{ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 }];
+
                     activeWp.forEach(w => {
                       const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
-                      points.push({ week: w.minggu, x: getDeviasiX(w.minggu), y: getDeviasiY(devVal), val: devVal });
+                      points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
                     });
+
                     if (points.length === 0) return null;
                     const lastPoint = points[points.length - 1];
                     const isNeg = lastPoint.val < 0;
