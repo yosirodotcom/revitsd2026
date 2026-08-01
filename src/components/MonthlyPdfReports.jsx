@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2, UploadCloud, CloudUpload, Loader2 } from 'lucide-react';
+import { FileText, Plus, Check, X, ShieldAlert, Award, FileSearch, Download, User, Calendar, Eye, Trash2, Link as LinkIcon, ExternalLink, Loader2, Edit3 } from 'lucide-react';
 
 export default function MonthlyPdfReports({ 
   reports, 
@@ -12,6 +12,7 @@ export default function MonthlyPdfReports({
   onlyReview = false
 }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
   const [rejectingReportId, setRejectingReportId] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
   const [approvingReportId, setApprovingReportId] = useState(null);
@@ -46,74 +47,30 @@ export default function MonthlyPdfReports({
   const [formData, setFormData] = useState({
     bulanKe: 1,
     fileName: '',
-    fileData: ''
+    driveUrl: ''
   });
-  const [uploadProgress, setUploadProgress] = useState(null);
-  const [uploadFileName, setUploadFileName] = useState('');
-  const [pendingReport, setPendingReport] = useState(null);  // file sudah dibaca, belum disimpan
   const [isSavingReport, setIsSavingReport] = useState(false);
 
-  // Handle PDF upload — hanya baca file & tampilkan progress, BELUM simpan ke server
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      e.target.value = '';
-      return window.showAlert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
+  const normalizeUrl = (url) => {
+    if (!url) return '';
+    let trimmed = url.trim();
+    if (!trimmed) return '';
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = 'https://' + trimmed;
     }
-
-    // Size limit of 10MB for LocalStorage protection
-    if (file.size > 10 * 1024 * 1024) {
-      e.target.value = '';
-      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 10MB.');
-    }
-
-    setPendingReport(null);
-    setUploadFileName(file.name);
-    setUploadProgress(0);
-
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev === null) {
-          clearInterval(interval);
-          return null;
-        }
-        const next = prev + 20;
-        if (next >= 100) {
-          clearInterval(interval);
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = (event) => {
-            const targetMonth = Number(formData.bulanKe);
-            const newReport = {
-              id: `report-${activeUser.id}-bulan-${targetMonth}`,
-              userId: activeUser.id,
-              bulanKe: targetMonth,
-              fileName: file.name,
-              fileData: event.target.result, // Base64 data URL
-              submittedAt: new Date().toISOString(),
-              status: 'pending',
-              note: ''
-            };
-            // Simpan ke state pending — user masih harus klik Simpan
-            setPendingReport(newReport);
-            setUploadProgress(null);
-          };
-          return 100;
-        }
-        return next;
-      });
-    }, 150);
-
-    e.target.value = '';
+    return trimmed;
   };
 
-  // Dipanggil saat user menekan tombol Simpan — baru kirim ke Google Sheets
+  // Submit report link
   const handleSaveReport = async () => {
-    if (!pendingReport) return;
-    const targetMonth = pendingReport.bulanKe;
-    const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth);
+    const targetMonth = Number(formData.bulanKe);
+    const formattedUrl = normalizeUrl(formData.driveUrl);
+    
+    if (!formattedUrl) {
+      return window.showAlert('Link Google Drive wajib diisi!');
+    }
+
+    const exists = reports.some(r => r.userId === activeUser.id && r.bulanKe === targetMonth && (!editingReport || editingReport.bulanKe !== targetMonth));
     if (exists) {
       if (!await window.showConfirm(`Laporan untuk Bulan Ke-${targetMonth} sudah pernah dikirim. Apakah Anda ingin menindihnya?`)) {
         return;
@@ -121,62 +78,43 @@ export default function MonthlyPdfReports({
     }
     setIsSavingReport(true);
     try {
-      onAddReport(pendingReport);
-      setPendingReport(null);
-      setUploadFileName('');
-      setFormData({ bulanKe: 1, fileName: '', fileData: '' });
-      setIsAdding(false);
-    } finally {
-      setIsSavingReport(false);
-    }
-  };
-
-  const handleEditReportFileChange = (reportId, e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      e.target.value = '';
-      return window.showAlert('Hanya berkas berformat PDF (.pdf) yang diperbolehkan!');
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      e.target.value = '';
-      return window.showAlert('Ukuran file PDF terlalu besar! Maksimal ukuran file adalah 10MB.');
-    }
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const rep = reports.find(r => r.id === reportId);
-      if (!rep) return;
-
-      const updatedReport = {
-        ...rep,
-        fileName: file.name,
-        fileData: event.target.result,
+      const reportName = formData.fileName.trim() || `Laporan Bulanan Bulan Ke-${targetMonth}.pdf`;
+      const newReport = {
+        id: editingReport ? editingReport.id : `report-${activeUser.id}-bulan-${targetMonth}`,
+        userId: activeUser.id,
+        bulanKe: targetMonth,
+        fileName: reportName,
+        fileData: formattedUrl, // GDrive Link
         submittedAt: new Date().toISOString(),
         status: 'pending',
         note: ''
       };
 
-      onAddReport(updatedReport);
-      e.target.value = '';
-      window.showAlert(`Laporan Bulan Ke-${rep.bulanKe} berhasil diperbarui.`);
-    };
+      onAddReport(newReport);
+      setFormData({ bulanKe: 1, fileName: '', driveUrl: '' });
+      setIsAdding(false);
+      setEditingReport(null);
+      window.showAlert(`Link Laporan Bulan Ke-${targetMonth} berhasil disimpan.`);
+    } finally {
+      setIsSavingReport(false);
+    }
   };
 
-  // Safe PDF opener from Base64 Data URL (converts to Blob first to avoid browser security blockages)
-  const openPdf = (base64Data, filename) => {
+  // Safe opener: Opens GDrive link or legacy Blob in a NEW TAB
+  const openPdf = (fileData, filename) => {
     try {
-      if (base64Data && base64Data.startsWith('http')) {
-        const newWindow = window.open(base64Data, '_blank');
+      if (!fileData) {
+        return window.showAlert('Link dokumen tidak tersedia.');
+      }
+      if (typeof fileData === 'string' && fileData.startsWith('http')) {
+        const newWindow = window.open(fileData, '_blank', 'noopener,noreferrer');
         if (!newWindow) {
           window.showAlert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
         }
         return;
       }
-      const arr = base64Data.split(',');
+      // Base64 legacy fallback
+      const arr = fileData.split(',');
       const mime = arr[0].match(/:(.*?);/)[1];
       const bstr = atob(arr[1]);
       let n = bstr.length;
@@ -226,12 +164,12 @@ export default function MonthlyPdfReports({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <h2 className="text-xl md:text-2xl font-semibold text-slate-100 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-400" /> {onlyReview ? 'Pantau & Reviu Laporan Tim (PDF)' : 'Laporan Bulanan Saya (PDF)'}
+            <FileText className="w-6 h-6 text-indigo-400" /> {onlyReview ? 'Pantau & Reviu Laporan Tim' : 'Laporan Bulanan Saya'}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             {onlyReview 
-              ? 'Reviu berkas PDF laporan bulanan dari fasilitator di bawah supervisi Anda untuk verifikasi pembayaran honorarium.' 
-              : 'Kirim berkas PDF laporan bulanan Anda (Bulan 1 s/d 6) untuk verifikasi pembayaran honorarium.'}
+              ? 'Reviu link Google Drive laporan bulanan dari fasilitator di bawah supervisi Anda untuk verifikasi pembayaran honorarium.' 
+              : 'Kirim link Google Drive laporan bulanan Anda (Bulan 1 s/d 6) untuk verifikasi pembayaran honorarium.'}
           </p>
         </div>
 
@@ -244,12 +182,13 @@ export default function MonthlyPdfReports({
                 window.showAlert('Semua laporan bulanan (Bulan 1 s/d 6) sudah disetujui.');
                 return;
               }
-              setFormData({ bulanKe: available[0], fileName: '', fileData: '' });
+              setEditingReport(null);
+              setFormData({ bulanKe: available[0], fileName: '', driveUrl: '' });
               setIsAdding(true);
             }}
             className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Unggah Laporan Baru
+            <Plus className="w-4 h-4" /> Input Link Laporan Baru
           </button>
         )}
       </div>
@@ -261,7 +200,7 @@ export default function MonthlyPdfReports({
           style={{ width: '320px', minWidth: '320px' }}
         >
           <button
-            onClick={() => { setSubTab('my'); setIsAdding(false); }}
+            onClick={() => { setSubTab('my'); setIsAdding(false); setEditingReport(null); }}
             className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               subTab === 'my' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
@@ -269,7 +208,7 @@ export default function MonthlyPdfReports({
             Laporan Saya
           </button>
           <button
-            onClick={() => { setSubTab('all'); setIsAdding(false); }}
+            onClick={() => { setSubTab('all'); setIsAdding(false); setEditingReport(null); }}
             className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               subTab === 'all' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
@@ -312,11 +251,11 @@ export default function MonthlyPdfReports({
         </div>
       )}
 
-      {/* Form Upload */}
+      {/* Form Input Link GDrive */}
       {isAdding && (
-        <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-6 max-w-xl">
+        <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-6 max-w-xl animate-fade-in">
           <h3 className="font-semibold text-slate-200 text-base mb-4 flex items-center gap-2">
-            <Plus className="w-4 h-4 text-indigo-400" /> Kirim Laporan Periodik Bulanan
+            <LinkIcon className="w-4 h-4 text-indigo-400" /> {editingReport ? `Revisi Link Laporan Bulan Ke-${formData.bulanKe}` : 'Kirim Link Laporan Periodik Bulanan'}
           </h3>
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -326,14 +265,8 @@ export default function MonthlyPdfReports({
                 </label>
                 <select
                   value={formData.bulanKe}
-                  onChange={(e) => {
-                    setFormData({ ...formData, bulanKe: Number(e.target.value) });
-                    // Reset pending file jika bulan diganti
-                    setPendingReport(null);
-                    setUploadFileName('');
-                    setUploadProgress(null);
-                  }}
-                  disabled={uploadProgress !== null || !!pendingReport}
+                  onChange={(e) => setFormData({ ...formData, bulanKe: Number(e.target.value) })}
+                  disabled={!!editingReport}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                 >
                   {[1, 2, 3, 4, 5, 6].map((num) => {
@@ -341,11 +274,11 @@ export default function MonthlyPdfReports({
                     const isApproved = existingRep?.status === 'approved';
                     let labelSuffix = '';
                     if (isApproved) labelSuffix = '(Sudah Disetujui)';
-                    else if (existingRep?.status === 'rejected') labelSuffix = '(Perlu Perbaikan - Siap Unggah Ulang)';
+                    else if (existingRep?.status === 'rejected') labelSuffix = '(Perlu Perbaikan)';
                     else if (existingRep) labelSuffix = '(Pending - Tindih)';
 
                     return (
-                      <option key={num} value={num} disabled={isApproved}>
+                      <option key={num} value={num} disabled={isApproved && (!editingReport || editingReport.bulanKe !== num)}>
                         Laporan Bulan Ke-{num} {labelSuffix}
                       </option>
                     );
@@ -355,75 +288,46 @@ export default function MonthlyPdfReports({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Pilih Berkas PDF (Maks 10MB)
+                  Nama / Judul Berkas (Opsional)
                 </label>
-                {/* State 1: Progress bar sedang berjalan */}
-                {uploadProgress !== null && (
-                  <div className="space-y-1.5 pt-1.5">
-                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
-                      <span className="truncate max-w-[120px] text-indigo-300 flex items-center gap-1">
-                        <UploadCloud className="w-3 h-3 animate-bounce" />
-                        {uploadFileName}
-                      </span>
-                      <span className="text-indigo-400">{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
-                      <div 
-                        className="bg-indigo-500 h-full rounded-full transition-all duration-150"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {/* State 2: File sudah terbaca, siap disimpan */}
-                {uploadProgress === null && pendingReport && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-[11px] text-emerald-300 font-semibold truncate">{pendingReport.fileName}</span>
-                    </div>
-                    <label
-                      className="px-2.5 py-2 rounded-xl text-[11px] font-semibold bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 cursor-pointer transition-all shrink-0"
-                      title="Ganti file"
-                    >
-                      Ganti
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                  </div>
-                )}
-                {/* State 3: Belum ada file dipilih */}
-                {uploadProgress === null && !pendingReport && (
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 py-2.5"
-                    required
-                  />
-                )}
+                <input
+                  type="text"
+                  placeholder={`Laporan Bulanan Bulan ${formData.bulanKe}.pdf`}
+                  value={formData.fileName}
+                  onChange={(e) => setFormData({ ...formData, fileName: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 py-2.5"
+                />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Link Google Drive Laporan <span className="text-indigo-400 font-bold">*Wajib</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://drive.google.com/file/d/xxx/view?usp=sharing"
+                value={formData.driveUrl}
+                onChange={(e) => setFormData({ ...formData, driveUrl: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
+                required
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Pastikan akses link Google Drive diatur ke "Siapa saja yang memiliki link" agar dapat diverifikasi oleh Koordinator.
+              </p>
             </div>
 
             <div className="pt-3 flex items-center justify-between gap-2 border-t border-slate-800/70">
               <p className="text-[10px] text-slate-500">
-                {pendingReport
-                  ? <span>File siap dikirim. Klik <span className="text-emerald-400 font-semibold">Simpan</span> untuk mengunggah ke Google Sheets.</span>
-                  : 'Pilih file PDF terlebih dahulu sebelum menyimpan.'}
+                Link laporan akan dibuka secara otomatis di <span className="text-indigo-400 font-semibold">Tab Baru</span> saat direviu.
               </p>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
-                    setFormData({ bulanKe: 1, fileName: '', fileData: '' });
-                    setPendingReport(null);
-                    setUploadFileName('');
-                    setUploadProgress(null);
+                    setFormData({ bulanKe: 1, fileName: '', driveUrl: '' });
                     setIsAdding(false);
+                    setEditingReport(null);
                   }}
                   disabled={isSavingReport}
                   className="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-40"
@@ -433,13 +337,13 @@ export default function MonthlyPdfReports({
                 <button
                   type="button"
                   onClick={handleSaveReport}
-                  disabled={!pendingReport || isSavingReport || uploadProgress !== null}
+                  disabled={isSavingReport || !formData.driveUrl.trim()}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/30"
                 >
                   {isSavingReport ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
                   ) : (
-                    <><CloudUpload className="w-4 h-4" /> Simpan</>
+                    <><LinkIcon className="w-4 h-4" /> Simpan Link</>
                   )}
                 </button>
               </div>
@@ -456,7 +360,7 @@ export default function MonthlyPdfReports({
               <tr>
                 {(subTab === 'all' || !canUpload) && <th className="px-6 py-4">Nama Pengirim</th>}
                 <th className="px-6 py-4">Periode Laporan</th>
-                <th className="px-6 py-4">Nama File PDF</th>
+                <th className="px-6 py-4">Link / Berkas Laporan GDrive</th>
                 <th className="px-6 py-4">Tanggal Pengiriman</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Aksi</th>
@@ -478,8 +382,16 @@ export default function MonthlyPdfReports({
                       Bulan Ke-{rep.bulanKe}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-300 font-mono text-xs max-w-xs truncate">
-                    {rep.fileName}
+                  <td className="px-6 py-4 text-slate-300 text-xs max-w-xs">
+                    <button
+                      onClick={() => openPdf(rep.fileData, rep.fileName)}
+                      className="font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 truncate max-w-xs group cursor-pointer text-left"
+                      title="Klik untuk membuka link Google Drive di Tab Baru"
+                    >
+                      <LinkIcon className="w-3.5 h-3.5 shrink-0 text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <span className="truncate underline underline-offset-2">{rep.fileName || `Laporan Bulan Ke-${rep.bulanKe}`}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 text-slate-500 group-hover:text-indigo-300" />
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-slate-400 text-xs">
                     <div className="flex items-center gap-1.5">
@@ -519,10 +431,11 @@ export default function MonthlyPdfReports({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => openPdf(rep.fileData, rep.fileName)}
-                        className="p-2 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-indigo-400 transition-all cursor-pointer"
-                        title="Lihat PDF"
+                        className="p-2 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-indigo-400 transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                        title="Buka Link Google Drive di Tab Baru"
                       >
-                        <Eye className="w-4 h-4" />
+                        <ExternalLink className="w-4 h-4 text-emerald-400" />
+                        <span className="hidden sm:inline">Buka Tab Baru</span>
                       </button>
 
                       {/* Reviewer Actions */}
@@ -559,18 +472,21 @@ export default function MonthlyPdfReports({
                         <div className="flex items-center gap-2">
                           {(rep.status === 'rejected' || rep.status === 'pending' || !rep.status) && (
                             <>
-                              <label
+                              <button
+                                onClick={() => {
+                                  setEditingReport(rep);
+                                  setFormData({
+                                    bulanKe: rep.bulanKe,
+                                    fileName: rep.fileName || '',
+                                    driveUrl: rep.fileData || ''
+                                  });
+                                  setIsAdding(true);
+                                }}
                                 className="p-2 rounded-xl bg-slate-950 hover:bg-indigo-950/40 border border-slate-850 hover:border-indigo-500/30 text-indigo-400 transition-all cursor-pointer flex items-center justify-center"
-                                title="Unggah Berkas Revisi / Edit Laporan"
+                                title="Edit Link Laporan GDrive"
                               >
-                                <CloudUpload className="w-4 h-4" />
-                                <input
-                                  type="file"
-                                  accept=".pdf"
-                                  className="hidden"
-                                  onChange={(e) => handleEditReportFileChange(rep.id, e)}
-                                />
-                              </label>
+                                <Edit3 className="w-4 h-4" />
+                              </button>
 
                               <button
                                 onClick={async () => {
@@ -596,7 +512,7 @@ export default function MonthlyPdfReports({
               {filteredReports.length === 0 && (
                 <tr>
                   <td colSpan={(subTab === 'all' || !canUpload) ? 6 : 5} className="px-6 py-10 text-center text-slate-500 font-semibold italic">
-                    Belum ada laporan PDF bulanan yang diunggah.
+                    Belum ada link laporan GDrive yang dimasukkan.
                   </td>
                 </tr>
               )}

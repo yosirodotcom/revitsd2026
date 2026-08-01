@@ -5,7 +5,8 @@ import {
   ChevronRight, Play, CheckCircle, AlertCircle, Phone, User, Pencil,
   Download, FileText, Sparkles, Bold, Italic, List, ListOrdered, AlignLeft, 
   AlignCenter, AlignRight, AlignJustify, Paperclip, MessageSquare, Send,
-  Save, Loader2, Activity, TrendingUp, BarChart2, RefreshCw
+  Save, Loader2, Activity, TrendingUp, BarChart2, RefreshCw,
+  Link as LinkIcon, ExternalLink
 } from 'lucide-react';
 
 // Helper konversi string tanggal ke Date object
@@ -818,6 +819,9 @@ export default function SchoolDetail({
   const [uploadingState, setUploadingState] = useState({});
   const [pendingDocs, setPendingDocs] = useState({});   // { [categoryKey]: newDocObject }
   const [savingDocKey, setSavingDocKey] = useState(null); // key sedang dalam proses simpan
+  const [addingDocCategory, setAddingDocCategory] = useState(null);
+  const [docNameInput, setDocNameInput] = useState('');
+  const [docUrlInput, setDocUrlInput] = useState('');
 
   // Weekly Progress Form State
   const [selectedMinggu, setSelectedMinggu] = useState(1);
@@ -1266,6 +1270,34 @@ export default function SchoolDetail({
     e.target.value = '';
   };
 
+  // Simpan dokumen berupa Link Google Drive
+  const handleSaveGDriveSchoolDoc = (categoryKey) => {
+    let url = (docUrlInput || '').trim();
+    if (!url) {
+      return window.showAlert('Link Google Drive wajib diisi!');
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      url = 'https://' + url;
+    }
+    const catObj = [...docCategories, ...reportCategories].find(c => c.key === categoryKey);
+    const defaultLabel = catObj ? catObj.label : 'Dokumen Sekolah';
+    const newDoc = {
+      id: `sdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      sekolahId: school.npsn,
+      category: categoryKey,
+      fileName: docNameInput.trim() || `${defaultLabel}.pdf`,
+      fileSize: 'Link GDrive',
+      fileData: url,
+      uploadedBy: activeUser ? activeUser.nama : 'Guest',
+      uploadedAt: new Date().toISOString()
+    };
+    onAddSchoolDoc(newDoc);
+    setAddingDocCategory(null);
+    setDocNameInput('');
+    setDocUrlInput('');
+    window.showAlert('Link Google Drive dokumen berhasil disimpan.');
+  };
+
   // Dipanggil saat tombol Simpan ditekan — baru kirim ke Google Sheets
   const handleSaveSchoolDoc = async (categoryKey) => {
     const doc = pendingDocs[categoryKey];
@@ -1281,6 +1313,13 @@ export default function SchoolDetail({
 
   const handleDownloadFile = (file) => {
     try {
+      if (file.fileData && file.fileData.startsWith('http')) {
+        const newWindow = window.open(file.fileData, '_blank', 'noopener,noreferrer');
+        if (!newWindow) {
+          window.showAlert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
+        }
+        return;
+      }
       const link = document.createElement('a');
       link.href = file.fileData;
       link.download = file.fileName;
@@ -1296,7 +1335,7 @@ export default function SchoolDetail({
   const handleOpenFile = (file) => {
     try {
       if (file.fileData && file.fileData.startsWith('http')) {
-        const newWindow = window.open(file.fileData, '_blank');
+        const newWindow = window.open(file.fileData, '_blank', 'noopener,noreferrer');
         if (!newWindow) {
           window.showAlert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
         }
@@ -2725,7 +2764,7 @@ export default function SchoolDetail({
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-800 select-none">
                 <div>
                   <h3 className="font-semibold text-slate-200 text-sm">Dokumen Pendukung Teknis</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Unggah dan kelola kelengkapan dokumen teknis proyek sekolah ini.</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Input link Google Drive dan kelola kelengkapan dokumen teknis proyek sekolah ini.</p>
                 </div>
               </div>
 
@@ -2736,59 +2775,102 @@ export default function SchoolDetail({
 
                   return (
                     <div key={cat.key} className="bg-slate-900/20 border border-slate-850/80 rounded-2xl p-5 flex flex-col gap-4">
-                      {/* Header with Title and Upload Button */}
+                      {/* Header with Title and Add Link Button */}
                       <div className="flex justify-between items-center pb-2 border-b border-slate-800/60 select-none">
                         <div>
                           <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider">{cat.label}</h4>
-                          <span className="text-[9px] text-slate-500">{catFiles.length} Berkas terunggah</span>
+                          <span className="text-[9px] text-slate-500">{catFiles.length} Berkas terhubung</span>
                         </div>
                         {isAuthorizedToEdit && (
-                          <label className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer transition-all flex items-center gap-1 select-none shadow shadow-indigo-650/10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingDocCategory(cat.key);
+                              setDocNameInput('');
+                              setDocUrlInput('');
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer transition-all flex items-center gap-1 select-none shadow shadow-indigo-650/10"
+                          >
                             <Plus className="w-3.5 h-3.5" />
-                            Unggah
-                            <input
-                              type="file"
-                              onChange={(e) => handleUploadSchoolDoc(e, cat.key)}
-                              className="hidden"
-                            />
-                          </label>
+                            + Link GDrive
+                          </button>
                         )}
                       </div>
 
+                      {/* Inline Form Add GDrive Link */}
+                      {addingDocCategory === cat.key && (
+                        <div className="bg-slate-950/80 border border-indigo-500/30 rounded-xl p-3 space-y-2.5 mb-1 animate-fade-in select-none">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                              <LinkIcon className="w-3.5 h-3.5 text-indigo-400" /> Input Link Google Drive
+                            </span>
+                            <button 
+                              type="button"
+                              onClick={() => setAddingDocCategory(null)}
+                              className="text-slate-500 hover:text-slate-300 p-0.5"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Nama Dokumen (Opsional)</label>
+                            <input
+                              type="text"
+                              placeholder={`${cat.label}.pdf`}
+                              value={docNameInput}
+                              onChange={(e) => setDocNameInput(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Link GDrive *Wajib</label>
+                            <input
+                              type="url"
+                              placeholder="https://drive.google.com/file/d/xxx/view"
+                              value={docUrlInput}
+                              onChange={(e) => setDocUrlInput(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setAddingDocCategory(null)}
+                              className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-slate-200"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveGDriveSchoolDoc(cat.key)}
+                              className="px-3 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all shadow"
+                            >
+                              Simpan Link
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Files List */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[220px] pr-1">
-                        {uploadingState[cat.key] && (
-                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5">
-                            <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
-                              <span className="truncate max-w-[150px] text-indigo-300 flex items-center gap-1.5">
-                                <Plus className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
-                                {uploadingState[cat.key].fileName}
-                              </span>
-                              <span className="text-indigo-400 font-bold">{uploadingState[cat.key].progress}%</span>
-                            </div>
-                            <div className="w-full bg-slate-950 rounded-full h-1 overflow-hidden border border-slate-800">
-                              <div 
-                                className="bg-indigo-500 h-full rounded-full transition-all duration-155"
-                                style={{ width: `${uploadingState[cat.key].progress}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
                         {catFiles.map((file) => (
                           <div
                             key={file.id}
                             className="bg-slate-950/60 border border-slate-855 rounded-xl p-3 flex justify-between items-center gap-2"
                           >
                             <div className="min-w-0 flex-1">
-                              <span 
+                              <button 
+                                type="button"
                                 onClick={() => handleOpenFile(file)}
-                                className="font-semibold text-slate-350 text-xs truncate block cursor-pointer hover:text-indigo-400 hover:underline transition-all"
-                                title="Klik untuk membuka dokumen"
+                                className="font-semibold text-indigo-400 hover:text-indigo-300 text-xs truncate flex items-center gap-1.5 cursor-pointer text-left group"
+                                title="Klik untuk membuka di Tab Baru"
                               >
-                                {file.fileName}
-                              </span>
+                                <LinkIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+                                <span className="truncate underline underline-offset-2">{file.fileName}</span>
+                                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-indigo-300 shrink-0" />
+                              </button>
                               <div className="flex items-center gap-2 text-[9px] text-slate-500 font-medium mt-1 select-none">
-                                <span>{file.fileSize}</span>
+                                <span className="text-emerald-400/80 font-bold">{file.fileSize || 'Link GDrive'}</span>
                                 <span>•</span>
                                 <span>Oleh: {file.uploadedBy}</span>
                                 <span>•</span>
@@ -2799,14 +2881,17 @@ export default function SchoolDetail({
                             {/* Action Buttons */}
                             <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => handleDownloadFile(file)}
-                                className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-                                title="Download File"
+                                type="button"
+                                onClick={() => handleOpenFile(file)}
+                                className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold"
+                                title="Buka Link GDrive di Tab Baru"
                               >
-                                <Download className="w-3.5 h-3.5" />
+                                <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="hidden sm:inline">Buka</span>
                               </button>
                               {canDeleteDoc(file) && (
                                 <button
+                                  type="button"
                                   onClick={async () => {
                                     if (await window.showConfirm(`Hapus dokumen "${file.fileName}"?`)) {
                                       onDeleteSchoolDoc(file.id);
@@ -2822,34 +2907,12 @@ export default function SchoolDetail({
                           </div>
                         ))}
 
-                        {catFiles.length === 0 && !pendingDocs[cat.key] && !uploadingState[cat.key] && (
+                        {catFiles.length === 0 && addingDocCategory !== cat.key && (
                           <div className="text-center py-6 text-[10px] text-slate-650 italic border border-dashed border-slate-850/60 rounded-xl select-none">
-                            Belum ada berkas diunggah
+                            Belum ada link dokumen GDrive yang dimasukkan
                           </div>
                         )}
                       </div>
-
-                      {/* Pending Save Footer */}
-                      {pendingDocs[cat.key] && (
-                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between gap-2 select-none">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                            <span className="text-[10px] text-emerald-400 font-semibold truncate">{pendingDocs[cat.key].fileName}</span>
-                            <span className="text-[9px] text-slate-500 shrink-0">siap disimpan</span>
-                          </div>
-                          <button
-                            onClick={() => handleSaveSchoolDoc(cat.key)}
-                            disabled={savingDocKey === cat.key}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow shadow-emerald-900/30 shrink-0"
-                          >
-                            {savingDocKey === cat.key ? (
-                              <><Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...</>
-                            ) : (
-                              <><Save className="w-3 h-3" /> Simpan</>
-                            )}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -2863,7 +2926,7 @@ export default function SchoolDetail({
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-800 select-none">
                 <div>
                   <h3 className="font-semibold text-slate-200 text-sm">Upload Laporan Sekolah</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Unggah dan kelola kelengkapan dokumen laporan dari sekolah ini.</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Input link Google Drive dokumen laporan resmi dari sekolah ini.</p>
                 </div>
               </div>
 
@@ -2874,59 +2937,102 @@ export default function SchoolDetail({
 
                   return (
                     <div key={cat.key} className="bg-slate-900/20 border border-slate-855 rounded-2xl p-5 flex flex-col gap-4">
-                      {/* Header with Title and Upload Button */}
+                      {/* Header with Title and Add Link Button */}
                       <div className="flex justify-between items-center pb-2 border-b border-slate-800/60 select-none">
                         <div>
                           <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider">{cat.label}</h4>
-                          <span className="text-[9px] text-slate-500">{catFiles.length} Berkas terunggah</span>
+                          <span className="text-[9px] text-slate-500">{catFiles.length} Berkas terhubung</span>
                         </div>
                         {isAuthorizedToEdit && (
-                          <label className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer transition-all flex items-center gap-1 select-none shadow shadow-indigo-650/10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingDocCategory(cat.key);
+                              setDocNameInput('');
+                              setDocUrlInput('');
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer transition-all flex items-center gap-1 select-none shadow shadow-indigo-650/10"
+                          >
                             <Plus className="w-3.5 h-3.5" />
-                            Unggah
-                            <input
-                              type="file"
-                              onChange={(e) => handleUploadSchoolDoc(e, cat.key)}
-                              className="hidden"
-                            />
-                          </label>
+                            + Link GDrive
+                          </button>
                         )}
                       </div>
 
+                      {/* Inline Form Add GDrive Link */}
+                      {addingDocCategory === cat.key && (
+                        <div className="bg-slate-950/80 border border-indigo-500/30 rounded-xl p-3 space-y-2.5 mb-1 animate-fade-in select-none">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                              <LinkIcon className="w-3.5 h-3.5 text-indigo-400" /> Input Link Google Drive
+                            </span>
+                            <button 
+                              type="button"
+                              onClick={() => setAddingDocCategory(null)}
+                              className="text-slate-500 hover:text-slate-300 p-0.5"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Nama Dokumen Laporan (Opsional)</label>
+                            <input
+                              type="text"
+                              placeholder={`${cat.label}.pdf`}
+                              value={docNameInput}
+                              onChange={(e) => setDocNameInput(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Link GDrive *Wajib</label>
+                            <input
+                              type="url"
+                              placeholder="https://drive.google.com/file/d/xxx/view"
+                              value={docUrlInput}
+                              onChange={(e) => setDocUrlInput(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setAddingDocCategory(null)}
+                              className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-slate-200"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveGDriveSchoolDoc(cat.key)}
+                              className="px-3 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all shadow"
+                            >
+                              Simpan Link
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Files List */}
                       <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[220px] pr-1">
-                        {uploadingState[cat.key] && (
-                          <div className="bg-slate-950/40 border border-dashed border-indigo-500/20 rounded-xl p-3 space-y-1.5">
-                            <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
-                              <span className="truncate max-w-[150px] text-indigo-300 flex items-center gap-1.5">
-                                <Plus className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
-                                {uploadingState[cat.key].fileName}
-                              </span>
-                              <span className="text-indigo-400 font-bold">{uploadingState[cat.key].progress}%</span>
-                            </div>
-                            <div className="w-full bg-slate-950 rounded-full h-1 overflow-hidden border border-slate-800">
-                              <div 
-                                className="bg-indigo-500 h-full rounded-full transition-all duration-155"
-                                style={{ width: `${uploadingState[cat.key].progress}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
                         {catFiles.map((file) => (
                           <div
                             key={file.id}
                             className="bg-slate-950/60 border border-slate-855 rounded-xl p-3 flex justify-between items-center gap-2"
                           >
                             <div className="min-w-0 flex-1">
-                              <span 
+                              <button 
+                                type="button"
                                 onClick={() => handleOpenFile(file)}
-                                className="font-semibold text-slate-350 text-xs truncate block cursor-pointer hover:text-indigo-400 hover:underline transition-all"
-                                title="Klik untuk membuka dokumen"
+                                className="font-semibold text-indigo-400 hover:text-indigo-300 text-xs truncate flex items-center gap-1.5 cursor-pointer text-left group"
+                                title="Klik untuk membuka di Tab Baru"
                               >
-                                {file.fileName}
-                              </span>
+                                <LinkIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+                                <span className="truncate underline underline-offset-2">{file.fileName}</span>
+                                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-indigo-300 shrink-0" />
+                              </button>
                               <div className="flex items-center gap-2 text-[9px] text-slate-500 font-medium mt-1 select-none">
-                                <span>{file.fileSize}</span>
+                                <span className="text-emerald-400/80 font-bold">{file.fileSize || 'Link GDrive'}</span>
                                 <span>•</span>
                                 <span>Oleh: {file.uploadedBy}</span>
                                 <span>•</span>
@@ -2937,14 +3043,17 @@ export default function SchoolDetail({
                             {/* Action Buttons */}
                             <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => handleDownloadFile(file)}
-                                className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-                                title="Download File"
+                                type="button"
+                                onClick={() => handleOpenFile(file)}
+                                className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold"
+                                title="Buka Link GDrive di Tab Baru"
                               >
-                                <Download className="w-3.5 h-3.5" />
+                                <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="hidden sm:inline">Buka</span>
                               </button>
                               {canDeleteDoc(file) && (
                                 <button
+                                  type="button"
                                   onClick={async () => {
                                     if (await window.showConfirm(`Hapus dokumen "${file.fileName}"?`)) {
                                       onDeleteSchoolDoc(file.id);
@@ -2960,34 +3069,12 @@ export default function SchoolDetail({
                           </div>
                         ))}
 
-                        {catFiles.length === 0 && !pendingDocs[cat.key] && !uploadingState[cat.key] && (
-                          <div className="text-center py-6 text-[10px] text-slate-650 italic border border-dashed border-slate-850/60 rounded-xl select-none">
-                            Belum ada berkas diunggah
+                        {catFiles.length === 0 && addingDocCategory !== cat.key && (
+                          <div className="text-center py-6 text-[10px] text-slate-650 italic border border-dashed border-slate-855 rounded-xl select-none">
+                            Belum ada link dokumen GDrive yang dimasukkan
                           </div>
                         )}
                       </div>
-
-                      {/* Pending Save Footer */}
-                      {pendingDocs[cat.key] && (
-                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between gap-2 select-none">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                            <span className="text-[10px] text-emerald-400 font-semibold truncate">{pendingDocs[cat.key].fileName}</span>
-                            <span className="text-[9px] text-slate-500 shrink-0">siap disimpan</span>
-                          </div>
-                          <button
-                            onClick={() => handleSaveSchoolDoc(cat.key)}
-                            disabled={savingDocKey === cat.key}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow shadow-emerald-900/30 shrink-0"
-                          >
-                            {savingDocKey === cat.key ? (
-                              <><Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...</>
-                            ) : (
-                              <><Save className="w-3 h-3" /> Simpan</>
-                            )}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })}

@@ -1,12 +1,12 @@
-import React from 'react';
-import { X, UploadCloud, Eye, Trash2, FileText, CheckCircle2, ShieldAlert, Save, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Eye, Trash2, FileText, CheckCircle2, Save, Loader2, Link as LinkIcon, ExternalLink, Plus } from 'lucide-react';
 
 const CATEGORIES = [
-  { key: 'KTP', label: 'KTP (Kartu Tanda Penduduk)', desc: 'Unggah berkas scan KTP asli (PDF/Gambar, maks 5MB).', isMultiple: false },
-  { key: 'Daftar Riwayat Hidup', label: 'Daftar Riwayat Hidup (CV)', desc: 'Unggah dokumen riwayat hidup lengkap terbaru.', isMultiple: false },
-  { key: 'SK PNS', label: 'SK PNS (Surat Keputusan)', desc: 'Bagi PNS/PPPK, unggah berkas SK kepegawaian terakhir.', isMultiple: false },
-  { key: 'Sertifikat', label: 'Sertifikat Keahlian / Pelatihan', desc: 'Unggah sertifikat kompetensi atau piagam keahlian (bisa lebih dari satu).', isMultiple: true },
-  { key: 'Lainnya', label: 'Dokumen Lainnya', desc: 'Unggah berkas pendukung administrasi tambahan lainnya.', isMultiple: true }
+  { key: 'KTP', label: 'KTP (Kartu Tanda Penduduk)', desc: 'Link Google Drive scan KTP asli.', isMultiple: false },
+  { key: 'Daftar Riwayat Hidup', label: 'Daftar Riwayat Hidup (CV)', desc: 'Link Google Drive dokumen riwayat hidup lengkap.', isMultiple: false },
+  { key: 'SK PNS', label: 'SK PNS (Surat Keputusan)', desc: 'Bagi PNS/PPPK, link Google Drive SK kepegawaian terakhir.', isMultiple: false },
+  { key: 'Sertifikat', label: 'Sertifikat Keahlian / Pelatihan', desc: 'Link Google Drive sertifikat kompetensi (bisa lebih dari satu).', isMultiple: true },
+  { key: 'Lainnya', label: 'Dokumen Lainnya', desc: 'Link Google Drive berkas pendukung administrasi tambahan.', isMultiple: true }
 ];
 
 export default function PersonnelDocumentsModal({ 
@@ -21,75 +21,42 @@ export default function PersonnelDocumentsModal({
   const isSuperAdmin = activeUser.role === 'admin' || activeUser.jabatanTim === 'Super Admin';
   const isOwnDocuments = activeUser.id === user.id;
 
-  const [uploadingState, setUploadingState] = React.useState({});
-  const [isSaving, setIsSaving] = React.useState(false);
+  const [addingCategoryKey, setAddingCategoryKey] = useState(null);
+  const [docNameInput, setDocNameInput] = useState('');
+  const [docUrlInput, setDocUrlInput] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleUpload = (e, category) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Check file type
-    const isPdf = file.type === 'application/pdf';
-    const isImage = file.type.startsWith('image/');
-    if (!isPdf && !isImage) {
-      e.target.value = '';
-      return window.showAlert('Format file tidak didukung! Hanya diperbolehkan berkas PDF (.pdf) atau Gambar (.png, .jpg, .jpeg).');
+  const normalizeUrl = (url) => {
+    if (!url) return '';
+    let trimmed = url.trim();
+    if (!trimmed) return '';
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = 'https://' + trimmed;
     }
+    return trimmed;
+  };
 
-    // Check size limit: 10MB
-    if (file.size > 10.0 * 1024 * 1024) {
-      e.target.value = '';
-      return window.showAlert('Ukuran file terlalu besar! Maksimal ukuran file adalah 10MB.');
+  const handleSaveGDriveDoc = (categoryKey) => {
+    const formattedUrl = normalizeUrl(docUrlInput);
+    if (!formattedUrl) {
+      return window.showAlert('Link Google Drive wajib diisi!');
     }
+    const catObj = CATEGORIES.find(c => c.key === categoryKey);
+    const newDoc = {
+      id: `pdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      userId: user.id,
+      type: categoryKey,
+      fileName: docNameInput.trim() || `${catObj ? catObj.label : 'Dokumen'}.pdf`,
+      fileSize: 'Link GDrive',
+      fileData: formattedUrl,
+      uploadedAt: new Date().toISOString()
+    };
 
-    setUploadingState((prev) => ({
-      ...prev,
-      [category.key]: { progress: 0, fileName: file.name }
-    }));
-
-    const progressInterval = setInterval(() => {
-      setUploadingState((prev) => {
-        const state = prev[category.key];
-        if (!state) {
-          clearInterval(progressInterval);
-          return prev;
-        }
-        const nextProgress = state.progress + 20;
-        if (nextProgress >= 100) {
-          clearInterval(progressInterval);
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = (event) => {
-            const newDoc = {
-              id: `pdoc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              userId: user.id,
-              type: category.key,
-              fileName: file.name,
-              fileSize: (file.size / 1024).toFixed(1) + ' KB',
-              fileData: event.target.result, // Base64 data URL
-              uploadedAt: new Date().toISOString()
-            };
-
-            onAddDoc(newDoc);
-            setUploadingState((latest) => {
-              const copy = { ...latest };
-              delete copy[category.key];
-              return copy;
-            });
-          };
-          return {
-            ...prev,
-            [category.key]: { ...state, progress: 100 }
-          };
-        }
-        return {
-          ...prev,
-          [category.key]: { ...state, progress: nextProgress }
-        };
-      });
-    }, 150);
-
-    e.target.value = '';
+    onAddDoc(newDoc);
+    setAddingCategoryKey(null);
+    setDocNameInput('');
+    setDocUrlInput('');
+    window.showAlert('Link Google Drive dokumen personil berhasil disimpan.');
   };
 
   const handleDeleteClick = async (file) => {
@@ -100,10 +67,11 @@ export default function PersonnelDocumentsModal({
 
   const handleOpenFile = (file) => {
     try {
-      if (file.fileData.startsWith('http')) {
-        const newWindow = window.open(file.fileData, '_blank');
+      if (!file || !file.fileData) return window.showAlert('Link dokumen tidak tersedia.');
+      if (typeof file.fileData === 'string' && file.fileData.startsWith('http')) {
+        const newWindow = window.open(file.fileData, '_blank', 'noopener,noreferrer');
         if (!newWindow) {
-          window.showAlert('Pop-up terblokir! Silakan izinkan pop-up untuk membuka file.');
+          window.showAlert('Pop-up terblokir! Silakan izinkan pop-up di browser Anda.');
         }
         return;
       }
@@ -139,10 +107,10 @@ export default function PersonnelDocumentsModal({
           <div>
             <h3 className="font-bold text-slate-100 text-lg flex items-center gap-2">
               <FileText className="w-5 h-5 text-indigo-400" />
-              <span>Dokumen Personil</span>
+              <span>Dokumen Personil (GDrive)</span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isOwnDocuments ? 'Unggah dan kelola berkas kepegawaian Anda sendiri.' : `Mengelola berkas kepegawaian milik: ${user.nama}`}
+              {isOwnDocuments ? 'Kelola link Google Drive berkas kepegawaian Anda sendiri.' : `Mengelola berkas kepegawaian milik: ${user.nama}`}
             </p>
           </div>
           <button
@@ -159,9 +127,9 @@ export default function PersonnelDocumentsModal({
           <div className="bg-indigo-500/5 border border-indigo-500/15 rounded-2xl p-4 flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-semibold text-slate-200 text-xs">Penyimpanan Otomatis</h4>
+              <h4 className="font-semibold text-slate-200 text-xs">Penggunaan Link Google Drive</h4>
               <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">
-                Berkas diunggah secara lokal dan akan disinkronkan ke **Google Sheets & Google Drive** secara otomatis saat sinkronisasi diaktifkan. Ukuran maksimal file adalah 5MB.
+                Dokumen personil disimpan dalam bentuk link Google Drive. Klik dokumen untuk membuka dan melihat secara langsung di **Tab Baru**.
               </p>
             </div>
           </div>
@@ -211,14 +179,20 @@ export default function PersonnelDocumentsModal({
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-                              <FileText className="w-4 h-4" />
+                              <LinkIcon className="w-4 h-4 text-emerald-400" />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold text-slate-200 truncate pr-2" title={file.fileName}>
-                                {file.fileName}
-                              </p>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFile(file)}
+                                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 truncate pr-2 flex items-center gap-1 group text-left"
+                                title="Buka di Tab Baru"
+                              >
+                                <span className="truncate underline underline-offset-2">{file.fileName}</span>
+                                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-indigo-300 shrink-0" />
+                              </button>
                               <p className="text-[9px] text-slate-500 font-medium mt-0.5">
-                                {file.fileSize} • {new Date(file.uploadedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {file.fileSize || 'Link GDrive'} • {new Date(file.uploadedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
                             </div>
                           </div>
@@ -226,10 +200,11 @@ export default function PersonnelDocumentsModal({
                           <div className="flex items-center gap-1.5 ml-2">
                             <button
                               onClick={() => handleOpenFile(file)}
-                              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-indigo-450 hover:text-indigo-400 transition-all cursor-pointer"
-                              title="Buka Dokumen"
+                              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-indigo-450 hover:text-indigo-400 transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold"
+                              title="Buka Link GDrive di Tab Baru"
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Buka</span>
                             </button>
                             <button
                               onClick={() => handleDeleteClick(file)}
@@ -244,35 +219,72 @@ export default function PersonnelDocumentsModal({
                     </div>
                   )}
 
-                  {/* Uploading Progress Bar or Action */}
-                  {uploadingState[category.key] ? (
-                    <div className="pt-2 select-none space-y-2 bg-slate-950/30 border border-dashed border-indigo-500/20 rounded-xl p-3">
-                      <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
-                        <span className="truncate max-w-[200px] text-indigo-300 flex items-center gap-1.5">
-                          <UploadCloud className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
-                          {uploadingState[category.key].fileName}
+                  {/* Inline Form Input Link GDrive */}
+                  {addingCategoryKey === category.key ? (
+                    <div className="bg-slate-950/80 border border-indigo-500/30 rounded-xl p-3 space-y-2.5 select-none">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                          <LinkIcon className="w-3.5 h-3.5 text-indigo-400" /> Input Link Google Drive
                         </span>
-                        <span className="text-indigo-400 font-bold">{uploadingState[category.key].progress}%</span>
+                        <button 
+                          type="button"
+                          onClick={() => setAddingCategoryKey(null)}
+                          className="text-slate-500 hover:text-slate-300 p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
-                        <div 
-                          className="bg-indigo-500 h-full rounded-full transition-all duration-150"
-                          style={{ width: `${uploadingState[category.key].progress}%` }}
+                      <div>
+                        <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Nama Berkas (Opsional)</label>
+                        <input
+                          type="text"
+                          placeholder={`${category.label}.pdf`}
+                          value={docNameInput}
+                          onChange={(e) => setDocNameInput(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Link GDrive *Wajib</label>
+                        <input
+                          type="url"
+                          placeholder="https://drive.google.com/file/d/xxx/view"
+                          value={docUrlInput}
+                          onChange={(e) => setDocUrlInput(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setAddingCategoryKey(null)}
+                          className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-slate-200"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveGDriveDoc(category.key)}
+                          className="px-3 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all shadow"
+                        >
+                          Simpan Link
+                        </button>
                       </div>
                     </div>
                   ) : shouldShowUpload ? (
                     <div className="pt-1 select-none">
-                      <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-800 hover:border-indigo-500/40 bg-slate-950/30 hover:bg-slate-950/60 text-[11px] font-semibold text-slate-400 hover:text-indigo-400 transition-all duration-200 cursor-pointer">
-                        <UploadCloud className="w-4 h-4 text-indigo-400" />
-                        <span>Unggah Berkas Baru</span>
-                        <input
-                          type="file"
-                          accept=".pdf, image/*"
-                          onChange={(e) => handleUpload(e, category)}
-                          className="hidden"
-                        />
-                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddingCategoryKey(category.key);
+                          setDocNameInput('');
+                          setDocUrlInput('');
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-800 hover:border-indigo-500/40 bg-slate-950/30 hover:bg-slate-950/60 text-[11px] font-semibold text-slate-400 hover:text-indigo-400 transition-all duration-200 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 text-indigo-400" />
+                        <span>+ Input Link Google Drive</span>
+                      </button>
                     </div>
                   ) : null}
                 </div>
@@ -284,7 +296,7 @@ export default function PersonnelDocumentsModal({
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-950/20 border-t border-slate-800/80 flex items-center justify-between select-none gap-3">
           <p className="text-[10px] text-slate-500">
-            Klik <span className="text-indigo-400 font-semibold">Simpan</span> untuk mengirim perubahan ke Google Sheets.
+            Klik <span className="text-indigo-400 font-semibold">Simpan</span> untuk menyimpan perubahan.
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -304,7 +316,7 @@ export default function PersonnelDocumentsModal({
                   setIsSaving(false);
                 }
               }}
-              disabled={isSaving || Object.keys(uploadingState).length > 0}
+              disabled={isSaving}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-900/30"
             >
               {isSaving ? (
