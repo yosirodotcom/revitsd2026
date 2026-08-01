@@ -262,11 +262,43 @@ export default function PublicDashboard({
     ? schools
     : schools.filter(s => s.fasilitatorId === chartFasilitatorFilter);
 
-  // Compute the effective max week from actual data (the highest minggu in weeklyProgress)
+  // Compute the effective max week from actual data
+  // GSheet may pre-fill rows for all 24 weeks, but only weeks with realisasi > 0 have real data.
+  // We detect the last week where ANY school has a non-zero realisasi (actual weekly increment).
   const dataMaxWeek = useMemo(() => {
     if (!weeklyProgress || weeklyProgress.length === 0) return 4;
-    const maxW = weeklyProgress.reduce((max, wp) => Math.max(max, Number(wp.minggu) || 0), 0);
-    return Math.max(4, maxW); // at least 4 weeks for readability
+
+    let lastActiveWeek = 0;
+    weeklyProgress.forEach(wp => {
+      const realisasi = Number(wp.realisasi) || 0;
+      const minggu = Number(wp.minggu) || 0;
+      if (realisasi > 0 && minggu > lastActiveWeek) {
+        lastActiveWeek = minggu;
+      }
+    });
+
+    // Fallback: if no realisasi > 0, try to detect the last week where kumulatif changed
+    if (lastActiveWeek === 0) {
+      const bySchool = {};
+      weeklyProgress.forEach(wp => {
+        const sid = String(wp.schoolId);
+        if (!bySchool[sid]) bySchool[sid] = [];
+        bySchool[sid].push(wp);
+      });
+
+      Object.values(bySchool).forEach(records => {
+        records.sort((a, b) => Number(a.minggu) - Number(b.minggu));
+        for (let i = 0; i < records.length; i++) {
+          const val = Number(records[i].kumulatif) || 0;
+          const prevVal = i > 0 ? (Number(records[i - 1].kumulatif) || 0) : -1;
+          if (val !== prevVal) {
+            lastActiveWeek = Math.max(lastActiveWeek, Number(records[i].minggu));
+          }
+        }
+      });
+    }
+
+    return Math.max(4, lastActiveWeek || 4);
   }, [weeklyProgress]);
 
   // Auto-fit range: dataMaxWeek + 2 buffer (capped at 24)
@@ -628,10 +660,27 @@ export default function PublicDashboard({
                     .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
                     .sort((a, b) => a.minggu - b.minggu);
 
+                  // Find the last week with actual data (realisasi > 0)
+                  let lastRealWeek = 0;
+                  schoolWp.forEach(w => {
+                    if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu));
+                  });
+                  // Fallback: detect last week where kumulatif changed
+                  if (lastRealWeek === 0) {
+                    for (let i = 0; i < schoolWp.length; i++) {
+                      const val = Number(schoolWp[i].kumulatif) || 0;
+                      const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
+                      if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
+                    }
+                  }
+
+                  // Only include points up to last real data week
+                  const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
+
                   let points = [];
                   points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
 
-                  schoolWp.forEach(w => {
+                  activeWp.forEach(w => {
                     const val = Number(w.kumulatif) || 0;
                     points.push({ week: w.minggu, x: getKumulatifX(w.minggu), y: getKumulatifY(val), val });
                   });
@@ -844,10 +893,27 @@ export default function PublicDashboard({
                     .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
                     .sort((a, b) => a.minggu - b.minggu);
 
+                  // Find the last week with actual data (realisasi > 0)
+                  let lastRealWeek = 0;
+                  schoolWp.forEach(w => {
+                    if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu));
+                  });
+                  // Fallback: detect last week where kumulatif changed
+                  if (lastRealWeek === 0) {
+                    for (let i = 0; i < schoolWp.length; i++) {
+                      const val = Number(schoolWp[i].kumulatif) || 0;
+                      const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
+                      if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
+                    }
+                  }
+
+                  // Only include points up to last real data week
+                  const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
+
                   let points = [];
                   points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
 
-                  schoolWp.forEach(w => {
+                  activeWp.forEach(w => {
                     const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
                     points.push({ week: w.minggu, x: getDeviasiX(w.minggu), y: getDeviasiY(devVal), val: devVal });
                   });
