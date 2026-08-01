@@ -20,7 +20,9 @@ import {
   DollarSign,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 // Leaflet Map Component for Public Dashboard
@@ -192,8 +194,11 @@ export default function PublicDashboard({
   const [deviasiHover, setDeviasiHover] = useState(null);
 
   // Chart Zoom State
-  const [kumZoomLevel, setKumZoomLevel] = useState(0); // 0 = auto-fit, positive = zoom in, negative = zoom out
+  const [kumZoomLevel, setKumZoomLevel] = useState(0);
   const [devZoomLevel, setDevZoomLevel] = useState(0);
+
+  // Chart Fullscreen State: null | 'kumulatif' | 'deviasi'
+  const [fullscreenChart, setFullscreenChart] = useState(null);
 
   // Facilitators list
   const facilitators = users.filter(u => u.jabatanTim === 'Fasilitator' || u.role === 'fasilitator')
@@ -563,6 +568,13 @@ export default function PublicDashboard({
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
+                  <button
+                    onClick={() => setFullscreenChart('kumulatif')}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Fullscreen"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
 
                 {/* Filter Fasilitator */}
@@ -770,6 +782,13 @@ export default function PublicDashboard({
                     title="Reset Zoom"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setFullscreenChart('deviasi')}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Fullscreen"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1138,6 +1157,266 @@ export default function PublicDashboard({
         </div>
 
       </div>
+
+      {/* FULLSCREEN CHART MODAL */}
+      {fullscreenChart && (
+        <div 
+          className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-md flex flex-col animate-fade-in select-none"
+          onKeyDown={(e) => { if (e.key === 'Escape') setFullscreenChart(null); }}
+          tabIndex={0}
+          ref={(el) => el && el.focus()}
+        >
+          {/* Fullscreen Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/60 shrink-0">
+            <div>
+              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                {fullscreenChart === 'kumulatif' ? (
+                  <><TrendingUp className="w-5 h-5 text-indigo-400" /> Progres Kumulatif per Sekolah</>
+                ) : (
+                  <><AlertTriangle className="w-5 h-5 text-amber-400" /> Deviasi Progress per Sekolah</>
+                )}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {fullscreenChart === 'kumulatif'
+                  ? `Menampilkan data hingga Minggu ${kumDisplayWeeks} (dari ${dataMaxWeek} minggu terisi)`
+                  : 'Selisih realisasi kumulatif terhadap target rencana (Baseline = 0%)'
+                }
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Zoom Controls */}
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5">
+                <button
+                  onClick={() => fullscreenChart === 'kumulatif'
+                    ? setKumZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))
+                    : setDevZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))
+                  }
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => fullscreenChart === 'kumulatif'
+                    ? setKumZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))
+                    : setDevZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))
+                  }
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => fullscreenChart === 'kumulatif' ? setKumZoomLevel(0) : setDevZoomLevel(0)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Reset Zoom"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Filters */}
+              {fullscreenChart === 'kumulatif' && (
+                <select
+                  value={chartFasilitatorFilter}
+                  onChange={(e) => setChartFasilitatorFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                >
+                  <option value="all">Semua Fasilitator ({schools.length})</option>
+                  {facilitators.map(f => (
+                    <option key={f.id} value={f.id}>{f.nama}</option>
+                  ))}
+                </select>
+              )}
+              {fullscreenChart === 'deviasi' && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5 text-[11px] font-bold">
+                    <button onClick={() => setDeviasiTypeFilter('all')} className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${deviasiTypeFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>Semua</button>
+                    <button onClick={() => setDeviasiTypeFilter('negatif')} className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${deviasiTypeFilter === 'negatif' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>Negatif ↓</button>
+                    <button onClick={() => setDeviasiTypeFilter('positif')} className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${deviasiTypeFilter === 'positif' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>Positif ↑</button>
+                  </div>
+                  <select
+                    value={deviasiFasilitatorFilter}
+                    onChange={(e) => setDeviasiFasilitatorFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                  >
+                    <option value="all">Semua Fasil</option>
+                    {facilitators.map(f => (
+                      <option key={f.id} value={f.id}>{f.nama}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <button
+                onClick={() => setFullscreenChart(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer border border-slate-800"
+                title="Tutup Fullscreen (Esc)"
+              >
+                <Minimize2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Fullscreen Chart Body */}
+          <div className="flex-1 overflow-auto p-6 flex items-center justify-center">
+            {fullscreenChart === 'kumulatif' && (
+              <svg 
+                viewBox={`0 0 ${kumulatifChartWidth} ${kumulatifChartHeight}`} 
+                className="w-full h-full max-h-[calc(100vh-120px)]"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                {/* Y-axis grid */}
+                {[0, 25, 50, 75, 100].map(val => {
+                  const y = getKumulatifY(val);
+                  return (
+                    <g key={val}>
+                      <line x1={kumPadding.left} y1={y} x2={kumulatifChartWidth - kumPadding.right} y2={y} stroke="#334155" strokeWidth="1" strokeDasharray={val === 0 || val === 100 ? "none" : "3 3"} opacity={val === 0 || val === 100 ? 0.6 : 0.3} />
+                      <text x={kumPadding.left - 8} y={y + 4} textAnchor="end" className="fill-slate-500 text-[9px] font-semibold">{val}%</text>
+                    </g>
+                  );
+                })}
+                {/* X-axis ticks */}
+                {getXTicks(kumDisplayWeeks).map(w => {
+                  const x = getKumulatifX(w);
+                  return (
+                    <g key={w}>
+                      <line x1={x} y1={kumPadding.top} x2={x} y2={kumulatifChartHeight - kumPadding.bottom} stroke="#334155" strokeWidth="1" strokeDasharray="2 2" opacity="0.2" />
+                      <text x={x} y={kumulatifChartHeight - kumPadding.bottom + 16} textAnchor="middle" className="fill-slate-400 text-[9px] font-semibold">M-{w}</text>
+                    </g>
+                  );
+                })}
+                {/* Data extent line */}
+                {dataMaxWeek < kumDisplayWeeks && (
+                  <line x1={getKumulatifX(dataMaxWeek)} y1={kumPadding.top} x2={getKumulatifX(dataMaxWeek)} y2={kumulatifChartHeight - kumPadding.bottom} stroke="#6366f1" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
+                )}
+                {/* Lines per School */}
+                {filteredKumulatifSchools.map((sch, schIdx) => {
+                  const color = LINE_COLORS[schIdx % LINE_COLORS.length];
+                  const schoolWp = weeklyProgress
+                    .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
+                    .sort((a, b) => a.minggu - b.minggu);
+                  let lastRealWeek = 0;
+                  schoolWp.forEach(w => { if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu)); });
+                  if (lastRealWeek === 0) {
+                    for (let i = 0; i < schoolWp.length; i++) {
+                      const val = Number(schoolWp[i].kumulatif) || 0;
+                      const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
+                      if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
+                    }
+                  }
+                  const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
+                  let points = [{ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 }];
+                  activeWp.forEach(w => {
+                    const val = Number(w.kumulatif) || 0;
+                    points.push({ week: w.minggu, x: getKumulatifX(w.minggu), y: getKumulatifY(val), val });
+                  });
+                  if (points.length === 0) return null;
+                  const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+                  const lastPoint = points[points.length - 1];
+                  return (
+                    <g key={sch.npsn}>
+                      <path d={pathD} stroke={color} strokeWidth="2" fill="none" opacity="0.85" />
+                      {points.map((p, idx) => (
+                        <circle key={idx} cx={p.x} cy={p.y} r="3" fill={color} className="cursor-pointer" onMouseEnter={() => setKumulatifHover({ school: sch, point: p })} onMouseLeave={() => setKumulatifHover(null)} onClick={() => setSelectedSchoolDetail(sch)} />
+                      ))}
+                      <text x={lastPoint.x + 6} y={lastPoint.y + 3} className="fill-slate-300 hover:fill-white text-[9px] font-bold cursor-pointer transition-colors" onClick={() => setSelectedSchoolDetail(sch)}>
+                        {sch.nama_sekolah.length > 18 ? `${sch.nama_sekolah.substring(0, 16)}...` : sch.nama_sekolah} ({lastPoint.val}%)
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+
+            {fullscreenChart === 'deviasi' && (
+              <svg 
+                viewBox={`0 0 ${deviasiChartWidth} ${deviasiChartHeight}`} 
+                className="w-full h-full max-h-[calc(100vh-120px)]"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                {/* Y-axis grid */}
+                {[-20, -10, 0, 10, 20].map(val => {
+                  const y = getDeviasiY(val);
+                  const isZero = val === 0;
+                  return (
+                    <g key={val}>
+                      <line x1={devPadding.left} y1={y} x2={deviasiChartWidth - devPadding.right} y2={y} stroke={isZero ? "#94a3b8" : "#334155"} strokeWidth={isZero ? "1.5" : "1"} strokeDasharray={isZero ? "none" : "3 3"} opacity={isZero ? 0.8 : 0.3} />
+                      <text x={devPadding.left - 8} y={y + 4} textAnchor="end" className={`text-[9px] font-bold ${isZero ? 'fill-slate-200' : val > 0 ? 'fill-emerald-400' : 'fill-rose-400'}`}>
+                        {val > 0 ? `+${val}%` : `${val}%`}
+                      </text>
+                    </g>
+                  );
+                })}
+                {/* X-axis ticks */}
+                {getXTicks(devDisplayWeeks).map(w => {
+                  const x = getDeviasiX(w);
+                  return (
+                    <g key={w}>
+                      <line x1={x} y1={devPadding.top} x2={x} y2={deviasiChartHeight - devPadding.bottom} stroke="#334155" strokeWidth="1" strokeDasharray="2 2" opacity="0.2" />
+                      <text x={x} y={deviasiChartHeight - devPadding.bottom + 16} textAnchor="middle" className="fill-slate-400 text-[9px] font-semibold">M-{w}</text>
+                    </g>
+                  );
+                })}
+                {/* Data extent line */}
+                {dataMaxWeek < devDisplayWeeks && (
+                  <line x1={getDeviasiX(dataMaxWeek)} y1={devPadding.top} x2={getDeviasiX(dataMaxWeek)} y2={deviasiChartHeight - devPadding.bottom} stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
+                )}
+                {/* Lines per School */}
+                {filteredDeviasiSchools.map((sch) => {
+                  const schoolWp = weeklyProgress
+                    .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
+                    .sort((a, b) => a.minggu - b.minggu);
+                  let lastRealWeek = 0;
+                  schoolWp.forEach(w => { if ((Number(w.realisasi) || 0) > 0) lastRealWeek = Math.max(lastRealWeek, Number(w.minggu)); });
+                  if (lastRealWeek === 0) {
+                    for (let i = 0; i < schoolWp.length; i++) {
+                      const val = Number(schoolWp[i].kumulatif) || 0;
+                      const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : -1;
+                      if (val !== prevVal) lastRealWeek = Number(schoolWp[i].minggu);
+                    }
+                  }
+                  const activeWp = lastRealWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastRealWeek) : [];
+                  let points = [{ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 }];
+                  activeWp.forEach(w => {
+                    const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
+                    points.push({ week: w.minggu, x: getDeviasiX(w.minggu), y: getDeviasiY(devVal), val: devVal });
+                  });
+                  if (points.length === 0) return null;
+                  const lastPoint = points[points.length - 1];
+                  const isNeg = lastPoint.val < 0;
+                  const strokeColor = isNeg ? '#ef4444' : '#10b981';
+                  const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+                  return (
+                    <g key={sch.npsn}>
+                      <path d={pathD} stroke={strokeColor} strokeWidth="2" fill="none" opacity="0.8" />
+                      {points.map((p, idx) => (
+                        <circle key={idx} cx={p.x} cy={p.y} r="3" fill={strokeColor} className="cursor-pointer" onMouseEnter={() => setDeviasiHover({ school: sch, point: p })} onMouseLeave={() => setDeviasiHover(null)} onClick={() => setSelectedSchoolDetail(sch)} />
+                      ))}
+                      <text x={lastPoint.x + 6} y={lastPoint.y + 3} className={`text-[9px] font-bold cursor-pointer transition-colors ${isNeg ? 'fill-rose-400 hover:fill-rose-200' : 'fill-emerald-400 hover:fill-emerald-200'}`} onClick={() => setSelectedSchoolDetail(sch)}>
+                        {sch.nama_sekolah.length > 18 ? `${sch.nama_sekolah.substring(0, 16)}...` : sch.nama_sekolah} ({lastPoint.val > 0 ? `+${lastPoint.val}` : lastPoint.val}%)
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+          </div>
+
+          {/* Footer hint */}
+          <div className="px-6 py-3 border-t border-slate-800/60 text-center shrink-0">
+            <p className="text-[11px] text-slate-500">
+              {fullscreenChart === 'kumulatif' 
+                ? '💡 Klik nama sekolah di ujung garis untuk melihat informasi detail sekolah tersebut.'
+                : '💡 Garis merah menandakan deviasi keterlambatan (< 0%), garis hijau menandakan progres melampaui target (≥ 0%).'
+              }
+              &nbsp;Tekan <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 text-[10px] font-mono border border-slate-700">Esc</kbd> untuk keluar.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 5. POPUP MODAL: CARD DETAILS (PKS / MC-0 / Progress 50%) */}
       {activeModalCard && (
