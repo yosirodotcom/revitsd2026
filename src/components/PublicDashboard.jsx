@@ -1793,7 +1793,7 @@ export default function PublicDashboard({
                 contacts={contacts}
                 tasks={tasks}
                 activeUser={null}
-                onBack={null}
+                onBack={() => setSelectedSchoolDetail(null)}
                 schoolDocs={schoolDocs}
                 kendala={kendala}
                 kendalaComments={kendalaComments}
