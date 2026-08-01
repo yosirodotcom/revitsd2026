@@ -363,42 +363,22 @@ export default function PublicDashboard({
 
   const maxDevAbs = 25; // -25% to +25%
   const getDeviasiX = (week) => devPadding.left + ((week - 1) / (devDisplayWeeks - 1)) * devPlotWidth;
-  const getDeviasiY = (devVal) => {
-    const clamped = Math.min(maxDevAbs, Math.max(-maxDevAbs, devVal));
-    const norm = (clamped + maxDevAbs) / (2 * maxDevAbs); // 0 to 1
-    return devPadding.top + (1 - norm) * devPlotHeight;
-  };
-  const zeroDeviasiY = getDeviasiY(0);
-
-  // Helper matching school ID
-  const isSameSchool = (w, sch) => {
-    if (!w || !sch) return false;
-    const wId = String(w.schoolId || w.sekolahId || w.schoolNpsn || w.npsn || '').trim();
-    const sId = String(sch.npsn || sch.id || sch.sekolahId || '').trim();
-    return wId.length > 0 && sId.length > 0 && (wId === sId || wId.endsWith(sId) || sId.endsWith(wId));
-  };
 
   // Point Generator Helpers for Line Charts
   const getKumulatifPoints = (sch) => {
     const schoolWp = weeklyProgress
-      .filter(w => isSameSchool(w, sch) && Number(w.minggu) <= kumDisplayWeeks)
+      .filter(w => isSameSchool(w, sch))
       .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
     const totalProg = Number(sch.progres_fisik) || 0;
-    const hasWpData = schoolWp.some(w => Number(w.kumulatif) > 0 || Number(w.realisasi) > 0);
+    const lastWeek = getSchoolLastWeek(sch, weeklyProgress);
 
     let points = [];
 
-    if (hasWpData) {
-      let lastWeek = 0;
-      schoolWp.forEach(w => {
-        if (Number(w.kumulatif) > 0 || Number(w.realisasi) > 0) {
-          lastWeek = Math.max(lastWeek, Number(w.minggu));
-        }
-      });
-      const activeWp = lastWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastWeek) : schoolWp;
+    const activeWp = schoolWp.filter(w => Number(w.minggu) <= lastWeek && Number(w.minggu) <= kumDisplayWeeks);
 
-      if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+    if (activeWp.length > 0) {
+      if (Number(activeWp[0].minggu) > 1) {
         points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
       }
       activeWp.forEach(w => {
@@ -406,8 +386,7 @@ export default function PublicDashboard({
         points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
       });
     } else if (totalProg > 0) {
-      // Fallback: No weeklyProgress array entries present, but sch.progres_fisik > 0
-      const targetWeek = Math.min(kumDisplayWeeks, Math.max(2, dataMaxWeek));
+      const targetWeek = Math.min(kumDisplayWeeks, lastWeek);
       points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
       for (let w = 2; w < targetWeek; w++) {
         const interpVal = Math.round((w - 1) / (targetWeek - 1) * totalProg * 100) / 100;
@@ -415,9 +394,10 @@ export default function PublicDashboard({
       }
       points.push({ week: targetWeek, x: getKumulatifX(targetWeek), y: getKumulatifY(totalProg), val: totalProg });
     } else {
-      const targetWeek = Math.min(kumDisplayWeeks, Math.max(2, dataMaxWeek));
       points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
-      points.push({ week: targetWeek, x: getKumulatifX(targetWeek), y: getKumulatifY(0), val: 0 });
+      if (lastWeek > 1) {
+        points.push({ week: lastWeek, x: getKumulatifX(lastWeek), y: getKumulatifY(0), val: 0 });
+      }
     }
 
     return points;
@@ -425,23 +405,18 @@ export default function PublicDashboard({
 
   const getDeviasiPoints = (sch) => {
     const schoolWp = weeklyProgress
-      .filter(w => isSameSchool(w, sch) && Number(w.minggu) <= devDisplayWeeks)
+      .filter(w => isSameSchool(w, sch))
       .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
     const totalProg = Number(sch.progres_fisik) || 0;
-    const hasWpData = schoolWp.some(w => Number(w.deviasi) !== 0 || Number(w.kumulatif) > 0 || Number(w.realisasi) > 0);
+    const lastWeek = getSchoolLastWeek(sch, weeklyProgress);
 
     let points = [];
 
-    if (hasWpData) {
-      let lastWeek = 0;
-      schoolWp.forEach(w => {
-        const val = Math.abs(Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0)));
-        if (val > 0) lastWeek = Math.max(lastWeek, Number(w.minggu));
-      });
-      const activeWp = lastWeek > 0 ? schoolWp.filter(w => Number(w.minggu) <= lastWeek) : schoolWp;
+    const activeWp = schoolWp.filter(w => Number(w.minggu) <= lastWeek && Number(w.minggu) <= devDisplayWeeks);
 
-      if (activeWp.length === 0 || Number(activeWp[0].minggu) > 1) {
+    if (activeWp.length > 0) {
+      if (Number(activeWp[0].minggu) > 1) {
         points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
       }
       activeWp.forEach(w => {
@@ -449,7 +424,7 @@ export default function PublicDashboard({
         points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
       });
     } else if (totalProg > 0) {
-      const targetWeek = Math.min(devDisplayWeeks, Math.max(2, dataMaxWeek));
+      const targetWeek = Math.min(devDisplayWeeks, lastWeek);
       const targetPlan = Math.min(100, Math.round(targetWeek * 4.16 * 100) / 100);
       const endDev = Math.round((totalProg - targetPlan) * 10) / 10;
 
@@ -460,9 +435,10 @@ export default function PublicDashboard({
       }
       points.push({ week: targetWeek, x: getDeviasiX(targetWeek), y: getDeviasiY(endDev), val: endDev });
     } else {
-      const targetWeek = Math.min(devDisplayWeeks, Math.max(2, dataMaxWeek));
       points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
-      points.push({ week: targetWeek, x: getDeviasiX(targetWeek), y: getDeviasiY(0), val: 0 });
+      if (lastWeek > 1) {
+        points.push({ week: lastWeek, x: getDeviasiX(lastWeek), y: getDeviasiY(0), val: 0 });
+      }
     }
 
     return points;
