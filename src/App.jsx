@@ -3384,6 +3384,7 @@ export default function App() {
             kendalaDocs={kendalaDocs}
             onBack={() => setPublicProgram(null)}
             onLogin={() => setShowLoginModal(true)}
+            onRefreshGSheetData={handleRefreshGSheetData}
           />
 
           {showLoginModal && (

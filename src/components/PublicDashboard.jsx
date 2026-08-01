@@ -184,8 +184,28 @@ export default function PublicDashboard({
   kendalaComments = [],
   kendalaDocs = [],
   onLogin, 
-  onBack 
+  onBack,
+  onRefreshGSheetData
 }) {
+  // GSheet Refresh State
+  const [isSyncingGsheet, setIsSyncingGsheet] = useState(false);
+  const [gsheetSyncStatus, setGsheetSyncStatus] = useState(null);
+
+  const handleRefreshGsheet = async () => {
+    if (!onRefreshGSheetData || isSyncingGsheet) return;
+    setIsSyncingGsheet(true);
+    setGsheetSyncStatus(null);
+    try {
+      const res = await onRefreshGSheetData();
+      setGsheetSyncStatus({ type: 'success', message: res?.message || 'Data berhasil diperbarui dari Google Sheets!' });
+      setTimeout(() => setGsheetSyncStatus(null), 5000);
+    } catch (err) {
+      setGsheetSyncStatus({ type: 'error', message: err?.message || 'Gagal memperbarui data dari Google Sheets.' });
+      setTimeout(() => setGsheetSyncStatus(null), 6000);
+    } finally {
+      setIsSyncingGsheet(false);
+    }
+  };
   // Filters State
   const [chartFasilitatorFilter, setChartFasilitatorFilter] = useState('all');
   const [deviasiFasilitatorFilter, setDeviasiFasilitatorFilter] = useState('all');
@@ -602,14 +622,45 @@ export default function PublicDashboard({
           </div>
         </div>
 
-        <button
-          onClick={onLogin}
-          className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20 cursor-pointer border-0"
-        >
-          <LogIn className="w-4 h-4" />
-          <span>Masuk ke Sistem</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {onRefreshGSheetData && (
+            <button
+              onClick={handleRefreshGsheet}
+              disabled={isSyncingGsheet}
+              className="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 text-slate-200 hover:text-white flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50 hover:bg-slate-800/80"
+              title="Tarik & perbarui data dari Google Sheets secara langsung"
+            >
+              <RefreshCw className={`w-4 h-4 text-indigo-400 ${isSyncingGsheet ? 'animate-spin' : ''}`} />
+              <span>{isSyncingGsheet ? 'Memperbarui Data...' : 'Refresh Data GSheet'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={onLogin}
+            className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20 cursor-pointer border-0"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Masuk ke Sistem</span>
+          </button>
+        </div>
       </div>
+
+      {/* Sync Status Banner Alert */}
+      {gsheetSyncStatus && (
+        <div className={`max-w-7xl mx-auto mb-6 p-4 rounded-2xl border text-xs font-bold flex items-center justify-between animate-fade-in shadow-xl backdrop-blur-md ${
+          gsheetSyncStatus.type === 'success' 
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+            : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <CheckCircle className={`w-4 h-4 shrink-0 ${gsheetSyncStatus.type === 'success' ? 'text-emerald-400' : 'text-rose-400'}`} />
+            <span>{gsheetSyncStatus.message}</span>
+          </div>
+          <button onClick={() => setGsheetSyncStatus(null)} className="text-slate-400 hover:text-white cursor-pointer p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto space-y-8">
 
@@ -1812,6 +1863,7 @@ export default function PublicDashboard({
                 kendalaDocs={kendalaDocs}
                 weeklyProgress={weeklyProgress}
                 readOnly={true}
+                onRefreshGSheetData={onRefreshGSheetData}
               />
             </div>
           </div>
