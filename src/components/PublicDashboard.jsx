@@ -22,7 +22,10 @@ import {
   ZoomOut,
   RotateCcw,
   Maximize2,
-  Minimize2
+  Minimize2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 // Leaflet Map Component for Public Dashboard
@@ -182,6 +185,8 @@ export default function PublicDashboard({
   const [deviasiTypeFilter, setDeviasiTypeFilter] = useState('all'); // 'all' | 'negatif' | 'positif'
   const [tableFasilitatorFilter, setTableFasilitatorFilter] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
+  const [tableSortField, setTableSortField] = useState('progres_fisik'); // Default sort by highest progress
+  const [tableSortDir, setTableSortDir] = useState('desc');
 
   // Modals State
   const [activeModalCard, setActiveModalCard] = useState(null); // 'pks' | 'mc0' | 'progress50' | null
@@ -371,7 +376,7 @@ export default function PublicDashboard({
   };
   const zeroDeviasiY = getDeviasiY(0);
 
-  // Filtered Table Schools
+  // Filtered & Sorted Table Schools
   const filteredTableSchools = schools.filter(sch => {
     const matchesFasil = tableFasilitatorFilter === 'all' || sch.fasilitatorId === tableFasilitatorFilter;
     const matchesQuery = !tableSearch || 
@@ -380,6 +385,61 @@ export default function PublicDashboard({
       sch.kabupaten.toLowerCase().includes(tableSearch.toLowerCase());
     return matchesFasil && matchesQuery;
   });
+
+  const handleTableSort = (field) => {
+    if (tableSortField === field) {
+      setTableSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTableSortField(field);
+      setTableSortDir(field === 'nama_sekolah' ? 'asc' : 'desc');
+    }
+  };
+
+  const sortedTableSchools = useMemo(() => {
+    return [...filteredTableSchools].sort((a, b) => {
+      let valA, valB;
+      if (tableSortField === 'nama_sekolah') {
+        valA = String(a.nama_sekolah || '').toLowerCase();
+        valB = String(b.nama_sekolah || '').toLowerCase();
+        return tableSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      if (tableSortField === 'progres_fisik') {
+        valA = Number(a.progres_fisik) || 0;
+        valB = Number(b.progres_fisik) || 0;
+      } else if (tableSortField === 'mc0') {
+        const rank = { lengkap: 3, tanpa_dokumen: 2, belum: 1 };
+        valA = rank[getMc0Info(a).status] || 0;
+        valB = rank[getMc0Info(b).status] || 0;
+      } else if (tableSortField === 'pks') {
+        valA = isPksDone(a) ? 1 : 0;
+        valB = isPksDone(b) ? 1 : 0;
+      } else if (tableSortField === 'dana') {
+        valA = isDanaTahap1Done(a) ? 1 : 0;
+        valB = isDanaTahap1Done(b) ? 1 : 0;
+      } else if (tableSortField === 'data') {
+        valA = getLastWeeklyUpdate(a.npsn)?.minggu || 0;
+        valB = getLastWeeklyUpdate(b.npsn)?.minggu || 0;
+      } else {
+        valA = 0;
+        valB = 0;
+      }
+
+      if (valA < valB) return tableSortDir === 'asc' ? -1 : 1;
+      if (valA > valB) return tableSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredTableSchools, tableSortField, tableSortDir, weeklyProgress]);
+
+  const renderSortIcon = (field) => {
+    if (tableSortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-500 opacity-50 group-hover/th:opacity-100 transition-opacity shrink-0" />;
+    }
+    return tableSortDir === 'asc' ? (
+      <ArrowUp className="w-3 h-3 text-indigo-400 font-bold shrink-0" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-indigo-400 font-bold shrink-0" />
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-['Outfit',sans-serif] p-4 md:p-8 select-none">
@@ -1049,23 +1109,71 @@ export default function PublicDashboard({
                 <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold sticky top-0 z-10 border-b border-slate-800">
                   <tr>
                     <th className="py-2.5 px-3">No</th>
-                    <th className="py-2.5 px-3">Nama Sekolah</th>
-                    <th className="py-2.5 px-3 text-center">Progress</th>
-                    <th className="py-2.5 px-3 text-center">MC-0</th>
-                    <th className="py-2.5 px-3 text-center">PKS</th>
-                    <th className="py-2.5 px-3 text-center">Dana T1</th>
-                    <th className="py-2.5 px-3 text-center">Data</th>
+                    <th 
+                      onClick={() => handleTableSort('nama_sekolah')} 
+                      className="py-2.5 px-3 cursor-pointer select-none group/th hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Nama Sekolah</span>
+                        {renderSortIcon('nama_sekolah')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleTableSort('progres_fisik')} 
+                      className="py-2.5 px-3 text-center cursor-pointer select-none group/th hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>Progress</span>
+                        {renderSortIcon('progres_fisik')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleTableSort('mc0')} 
+                      className="py-2.5 px-3 text-center cursor-pointer select-none group/th hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>MC-0</span>
+                        {renderSortIcon('mc0')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleTableSort('pks')} 
+                      className="py-2.5 px-3 text-center cursor-pointer select-none group/th hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>PKS</span>
+                        {renderSortIcon('pks')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleTableSort('dana')} 
+                      className="py-2.5 px-3 text-center cursor-pointer select-none group/th hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>Dana T1</span>
+                        {renderSortIcon('dana')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleTableSort('data')} 
+                      className="py-2.5 px-3 text-center cursor-pointer select-none group/th hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>Data</span>
+                        {renderSortIcon('data')}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {filteredTableSchools.length === 0 ? (
+                  {sortedTableSchools.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="py-8 text-center text-slate-500 italic text-xs">
                         Tidak ada data sekolah yang sesuai filter.
                       </td>
                     </tr>
                   ) : (
-                    filteredTableSchools.map((sch, idx) => {
+                    sortedTableSchools.map((sch, idx) => {
                       const prog = Number(sch.progres_fisik) || 0;
                       const pksOk = isPksDone(sch);
                       const mc0Info = getMc0Info(sch);
