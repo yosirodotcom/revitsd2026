@@ -6,7 +6,7 @@ import {
   Download, FileText, Sparkles, Bold, Italic, List, ListOrdered, AlignLeft, 
   AlignCenter, AlignRight, AlignJustify, Paperclip, MessageSquare, Send,
   Save, Loader2, Activity, TrendingUp, BarChart2, RefreshCw,
-  Link as LinkIcon, ExternalLink
+  Link as LinkIcon, ExternalLink, Building2
 } from 'lucide-react';
 
 // Helper konversi string tanggal ke Date object
@@ -1575,57 +1575,142 @@ export default function SchoolDetail({
         </div>
       </div>
 
-      {/* Tabs Control */}
-      <div className="flex border-b border-slate-800 gap-2 select-none">
+      {/* Tabs Control - Modern Glassmorphism Pill Design */}
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 p-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 overflow-x-auto no-scrollbar select-none my-2">
+        {/* Tab 1: Profil & Kelengkapan */}
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
             activeTab === 'profile'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40 scale-[1.02] -translate-y-0.5'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          Profil & Kelengkapan
+          <Building2 className={`w-4 h-4 transition-transform duration-300 ${
+            activeTab === 'profile' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-indigo-400 group-hover:scale-110'
+          }`} />
+          <span>Profil & Kelengkapan</span>
+          {activeTab === 'profile' && (
+            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-indigo-200/60 rounded-full blur-[0.5px]"></span>
+          )}
         </button>
+
+        {/* Tab 2: Dokumen Pendukung Teknis */}
         <button
           onClick={() => setActiveTab('documents')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
             activeTab === 'documents'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'bg-gradient-to-r from-sky-600 via-cyan-500 to-blue-600 text-white shadow-lg shadow-sky-500/25 border border-sky-400/40 scale-[1.02] -translate-y-0.5'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <FileCheck className="w-4 h-4" /> Dokumen Pendukung Teknis ({technicalDocs.length})
+          <FileCheck className={`w-4 h-4 transition-transform duration-300 ${
+            activeTab === 'documents' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-sky-400 group-hover:scale-110'
+          }`} />
+          <span>Dokumen Pendukung Teknis</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+            activeTab === 'documents'
+              ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
+              : 'bg-slate-800 text-slate-400 border border-slate-700/60 group-hover:border-slate-600 group-hover:text-slate-200'
+          }`}>
+            {technicalDocs.length}
+          </span>
+          {activeTab === 'documents' && (
+            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-sky-200/60 rounded-full blur-[0.5px]"></span>
+          )}
         </button>
+
+        {/* Tab 3: Upload Laporan */}
         <button
           onClick={() => setActiveTab('reports')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
             activeTab === 'reports'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/25 border border-emerald-400/40 scale-[1.02] -translate-y-0.5'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <FileText className="w-4 h-4" /> Upload Laporan ({reportDocs.length})
+          <FileText className={`w-4 h-4 transition-transform duration-300 ${
+            activeTab === 'reports' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-emerald-400 group-hover:scale-110'
+          }`} />
+          <span>Upload Laporan</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+            activeTab === 'reports'
+              ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
+              : 'bg-slate-800 text-slate-400 border border-slate-700/60 group-hover:border-slate-600 group-hover:text-slate-200'
+          }`}>
+            {reportDocs.length}
+          </span>
+          {activeTab === 'reports' && (
+            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-emerald-200/60 rounded-full blur-[0.5px]"></span>
+          )}
         </button>
-        <button
-          onClick={() => setActiveTab('kendala')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
-            activeTab === 'kendala'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <AlertCircle className="w-4 h-4" /> Laporkan Kendala ({kendala.filter(k => k.schoolId === school.npsn).length})
-        </button>
+
+        {/* Tab 4: Laporkan Kendala */}
+        {(() => {
+          const kendalaCount = kendala.filter(k => k.schoolId === school.npsn).length;
+          const openKendala = kendala.filter(k => k.schoolId === school.npsn && k.status !== 'selesai').length;
+          return (
+            <button
+              onClick={() => setActiveTab('kendala')}
+              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
+                activeTab === 'kendala'
+                  ? 'bg-gradient-to-r from-amber-600 via-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/25 border border-rose-400/40 scale-[1.02] -translate-y-0.5'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
+              }`}
+            >
+              <div className="relative flex items-center">
+                <AlertCircle className={`w-4 h-4 transition-transform duration-300 ${
+                  activeTab === 'kendala' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-rose-400 group-hover:scale-110'
+                }`} />
+                {openKendala > 0 && activeTab !== 'kendala' && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  </span>
+                )}
+              </div>
+              <span>Laporkan Kendala</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+                activeTab === 'kendala'
+                  ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
+                  : openKendala > 0
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 font-black animate-pulse'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700/60 group-hover:border-slate-600 group-hover:text-slate-200'
+              }`}>
+                {kendalaCount}
+              </span>
+              {activeTab === 'kendala' && (
+                <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-rose-200/60 rounded-full blur-[0.5px]"></span>
+              )}
+            </button>
+          );
+        })()}
+
+        {/* Tab 5: Progres Mingguan */}
         <button
           onClick={() => setActiveTab('weekly-progress')}
-          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
             activeTab === 'weekly-progress'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'bg-gradient-to-r from-violet-600 via-purple-500 to-indigo-600 text-white shadow-lg shadow-violet-500/25 border border-violet-400/40 scale-[1.02] -translate-y-0.5'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <Activity className="w-4 h-4" /> Progres Mingguan ({schoolWpRecords.length}/24)
+          <Activity className={`w-4 h-4 transition-transform duration-300 ${
+            activeTab === 'weekly-progress' ? 'text-white scale-110 rotate-[12deg]' : 'text-slate-400 group-hover:text-violet-400 group-hover:scale-110'
+          }`} />
+          <span>Progres Mingguan</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+            activeTab === 'weekly-progress'
+              ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
+              : schoolWpRecords.length > 0
+                ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30'
+                : 'bg-slate-800 text-slate-400 border border-slate-700/60 group-hover:border-slate-600 group-hover:text-slate-200'
+          }`}>
+            {schoolWpRecords.length}/24
+          </span>
+          {activeTab === 'weekly-progress' && (
+            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-violet-200/60 rounded-full blur-[0.5px]"></span>
+          )}
         </button>
       </div>
 
