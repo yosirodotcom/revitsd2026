@@ -853,9 +853,6 @@ export default function App() {
                 if (init.koordinat && !s.koordinat) {
                   updated.koordinat = init.koordinat;
                 }
-                if (init.fasilitatorId && !s.fasilitatorId) {
-                  updated.fasilitatorId = init.fasilitatorId;
-                }
               }
               return updated;
             });
@@ -1316,9 +1313,6 @@ export default function App() {
             }
             if (init.koordinat && !s.koordinat) {
               updated.koordinat = init.koordinat;
-            }
-            if (init.fasilitatorId && !s.fasilitatorId) {
-              updated.fasilitatorId = init.fasilitatorId;
             }
           }
           return updated;

@@ -826,6 +826,7 @@ export default function SchoolDetail({
   initialTab = 'profile'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'profile');
+  const isSuperAdmin = activeUser?.role === 'admin' || activeUser?.jabatanTim === 'Super Admin';
 
   useEffect(() => {
     if (initialTab) {
@@ -1827,8 +1828,8 @@ export default function SchoolDetail({
                       <span className="text-sm font-mono font-medium text-slate-200">{school.npsn}</span>
                     </div>
 
-                    {/* Fasilitator Lapangan (read-only highlight) */}
-                    <div className="sm:col-span-2 bg-indigo-50/90 border border-indigo-200 p-3.5 rounded-xl flex items-center justify-between shadow-sm">
+                    {/* Fasilitator Lapangan (editable by Super Admin) */}
+                    <div className="sm:col-span-2 bg-indigo-50/90 border border-indigo-200 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
                       <div>
                         <span className="block text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Fasilitator Lapangan</span>
                         <span className="text-base font-extrabold text-indigo-950 flex items-center gap-2 mt-0.5">
@@ -1836,9 +1837,25 @@ export default function SchoolDetail({
                           {getFacilitatorName(school.fasilitatorId)}
                         </span>
                       </div>
-                      <span className="text-[11px] font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-200">
-                        {school.fasilitatorId ? 'Terhubung' : 'Belum Diklaim'}
-                      </span>
+                      {isSuperAdmin ? (
+                        <select
+                          value={school.fasilitatorId || ''}
+                          onChange={(e) => {
+                            const val = e.target.value || null;
+                            onUpdateSchool({ ...school, fasilitatorId: val });
+                          }}
+                          className="bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-indigo-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                        >
+                          <option value="">-- Belum Ditugaskan --</option>
+                          {users.filter(u => u.jabatanTim === 'Fasilitator').map(f => (
+                            <option key={f.id} value={f.id}>{f.nama}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-[11px] font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-200">
+                          {school.fasilitatorId ? 'Terhubung' : 'Belum Diklaim'}
+                        </span>
+                      )}
                     </div>
 
                     {/* Kecamatan (inline-editable) */}

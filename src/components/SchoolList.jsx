@@ -71,6 +71,7 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
   });
 
   const isFacilitator = activeUser?.jabatanTim === 'Fasilitator';
+  const isSuperAdmin = activeUser?.role === 'admin' || activeUser?.jabatanTim === 'Super Admin';
 
   // Base list of schools to display
   const displaySchools = schools;
@@ -598,8 +599,22 @@ export default function SchoolList({ schools, users, activeUser, onClaimSchool, 
 
                       {/* Facilitator */}
                       {!isFacilitator && (
-                        <td className="px-6 py-4 font-medium">
-                          {school.fasilitatorId ? (
+                        <td className="px-6 py-4 font-medium" onClick={(e) => e.stopPropagation()}>
+                          {isSuperAdmin ? (
+                            <select
+                              value={school.fasilitatorId || ''}
+                              onChange={(e) => {
+                                const newFacId = e.target.value || null;
+                                onUpdateSchool && onUpdateSchool({ ...school, fasilitatorId: newFacId });
+                              }}
+                              className="bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-indigo-300 font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer shadow-sm"
+                            >
+                              <option value="">-- Belum Ditugaskan --</option>
+                              {users.filter((u) => u.jabatanTim === 'Fasilitator').map((f) => (
+                                <option key={f.id} value={f.id}>{f.nama}</option>
+                              ))}
+                            </select>
+                          ) : school.fasilitatorId ? (
                             <span className="text-slate-250 font-semibold">
                               {users.find((u) => u.id === school.fasilitatorId)?.nama || 'Belum ditugaskan'}
                             </span>
