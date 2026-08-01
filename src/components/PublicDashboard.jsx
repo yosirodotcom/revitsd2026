@@ -212,6 +212,53 @@ export default function PublicDashboard({
   // Chart Fullscreen State: null | 'kumulatif' | 'deviasi'
   const [fullscreenChart, setFullscreenChart] = useState(null);
 
+  // Helper matching school ID
+  const isSameSchool = (w, sch) => {
+    if (!w || !sch) return false;
+    const wId = String(w.schoolId || w.sekolahId || w.schoolNpsn || w.npsn || '').trim();
+    const sId = String(sch.npsn || sch.id || sch.sekolahId || '').trim();
+    return wId.length > 0 && sId.length > 0 && (wId === sId || wId.endsWith(sId) || sId.endsWith(wId));
+  };
+
+  // Helper: detect the last week where actual data input was made for a specific school
+  const getSchoolLastWeek = (sch, wpArray) => {
+    const schoolWp = (wpArray || [])
+      .filter(w => isSameSchool(w, sch))
+      .sort((a, b) => Number(a.minggu) - Number(b.minggu));
+
+    if (schoolWp.length === 0) {
+      return Number(sch?.progres_fisik) > 0 ? 4 : 1;
+    }
+
+    let lastWeek = 0;
+
+    // 1. Check for realisasi > 0
+    schoolWp.forEach(w => {
+      if (Number(w.realisasi) > 0) {
+        lastWeek = Math.max(lastWeek, Number(w.minggu));
+      }
+    });
+
+    // 2. Fallback: detect last week where kumulatif changed from previous week
+    if (lastWeek === 0) {
+      for (let i = 0; i < schoolWp.length; i++) {
+        const val = Number(schoolWp[i].kumulatif) || 0;
+        const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : 0;
+        if (val > 0 && val !== prevVal) {
+          lastWeek = Number(schoolWp[i].minggu);
+        }
+      }
+    }
+
+    // 3. Fallback: if kumulatif > 0 exists at M1
+    if (lastWeek === 0) {
+      const first = schoolWp.find(w => Number(w.kumulatif) > 0);
+      if (first) lastWeek = Number(first.minggu);
+    }
+
+    return Math.max(1, lastWeek || (Number(sch?.progres_fisik) > 0 ? 4 : 1));
+  };
+
   // Facilitators list
   const facilitators = users.filter(u => u.jabatanTim === 'Fasilitator' || u.role === 'fasilitator')
     .sort((a, b) => a.nama.localeCompare(b.nama));
@@ -363,6 +410,12 @@ export default function PublicDashboard({
 
   const maxDevAbs = 25; // -25% to +25%
   const getDeviasiX = (week) => devPadding.left + ((week - 1) / (devDisplayWeeks - 1)) * devPlotWidth;
+  const getDeviasiY = (devVal) => {
+    const clamped = Math.min(maxDevAbs, Math.max(-maxDevAbs, devVal));
+    const norm = (clamped + maxDevAbs) / (2 * maxDevAbs); // 0 to 1
+    return devPadding.top + (1 - norm) * devPlotHeight;
+  };
+  const zeroDeviasiY = getDeviasiY(0);
 
   // Point Generator Helpers for Line Charts
   const getKumulatifPoints = (sch) => {
