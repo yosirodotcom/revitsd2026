@@ -136,6 +136,10 @@ Aplikasi telah sepenuhnya migrasi ke **Firebase Database & Storage**. Berkas-ber
 Setiap kali terjadi perubahan kode (terutama pada state, schema, atau penambahan entitas/kolom baru di sisi React Frontend):
 1. Pastikan perubahan disimpan dan disinkronisasikan secara persisten ke Firebase / Firestore.
 2. Perbarui dokumentasi di `walkthrough.md` jika ada perubahan struktur data utama.
+3. **MANDATORI: Larangan Menimpa Data Firebase dengan Fallback Data Lokal / Hardcoded**:
+   * Data dari Firebase / Firestore adalah **Single Source of Truth** utama aplikasi.
+   * AI Agent / Pengembang **DILARANG KERAS** membuat logika fallback atau sinkronisasi otomatis yang menimpa/mengembalikan field data (misalnya `fasilitatorId`, `kepala_sekolah`, dsb) ke data hardcoded di `initialSchools.js` / `initialData.js` ketika field tersebut kosong atau diubah oleh pengguna.
+   * Penimpaan atau reset data ke default `initial*.js` **HANYA BOLEH DILAKUKAN** jika ada aksi eksplisit yang dipicu langsung oleh tombol **Reset Database oleh Super Admin**.
 
 ---
 
@@ -183,4 +187,12 @@ Bagian ini mencatat daftar kendala sinkronisasi yang pernah dialami beserta solu
 * **Gejala**: Pengguna menekan tombol "Simpan" (atau menghapus) tepat pada momen ketika proses sinkronisasi otomatis latar belakang sedang berlangsung. Data baru tidak tersimpan di server dan seketika terhapus dari layar pengguna.
 * **Penyebab**: Proses `pushData` ke Google Sheets memakan waktu sekitar ~2.5 detik. Pada kode lama, *flag* penanda data kotor (`revit_is_dirty`) dikembalikan menjadi `false` *SETELAH* proses `pushData` selesai. Akibatnya, jika pengguna melakukan input data baru dalam jeda 2.5 detik tersebut (yang akan mengubah *flag* menjadi `true`), *flag* tersebut akan tanpa sengaja ditimpa menjadi `false` lagi saat sinkronisasi sebelumnya selesai. Saat penarikan data (*pull*) terjadi, sistem gagal mendeteksi ada perubahan lokal yang masih tertunda dan dengan membabi-buta menimpakan data server lama ke layar pengguna.
 * **Solusi**: Pengosongan *flag* `revit_is_dirty` menjadi `false` dipindahkan posisinya menjadi *SEBELUM* fungsi `await pushData` dipanggil. Sehingga, perubahan baru oleh pengguna akan kembali menyalakan *flag* ke `true` dan mencegah penarikan data lama menghapus data lokal yang belum dikirim. Data yang tertunda lalu akan dikirim pada siklus *sync* secara rekursif.
+
+### G. Penimpaan Data Penugasan Sekolah (Kasus: `fasilitatorId` Kembali ke Default `initialSchools.js`)
+* **Gejala**: Ketika Super Admin mengubah atau melepas penugasan sekolah (`fasilitatorId`), data penugasan tersebut tiba-tiba kembali ke fasilitator default saat halaman direfresh atau saat background sync berjalan.
+* **Penyebab**: Terdapat logika otomatis pada handler sync `App.jsx` (`if (init.fasilitatorId && !s.fasilitatorId) updated.fasilitatorId = init.fasilitatorId`) yang secara diam-diam memaksa mengembalikan `fasilitatorId` dari file seed awal `initialSchools.js` jika nilainya kosong/null.
+* **Solusi**: 
+  * Dilarang keras menimpa data Firestore dengan file `initial*.js`.
+  * Gunakan Firebase/Firestore sepenuhnya sebagai *Single Source of Truth*. Penimpaan/reset ke data awal `initial*.js` hanya diperbolehkan jika ada perintah/aksi langsung dari tombol **Reset Database oleh Super Admin**.
+
 
