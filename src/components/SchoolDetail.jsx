@@ -1602,39 +1602,39 @@ export default function SchoolDetail({
       </div>
 
       {/* Tabs Control - Modern Glassmorphism Pill Design */}
-      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 p-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 overflow-x-auto no-scrollbar select-none my-2">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 p-1 sm:p-1.5 rounded-2xl shadow-xl flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar select-none my-2 w-full">
         {/* Tab 1: Profil & Kelengkapan */}
         <button
           onClick={() => setActiveTab('profile')}
-          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 group ${
             activeTab === 'profile'
               ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40 scale-[1.02] -translate-y-0.5'
               : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <Building2 className={`w-4 h-4 transition-transform duration-300 ${
+          <Building2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300 ${
             activeTab === 'profile' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-indigo-400 group-hover:scale-110'
           }`} />
           <span>Profil & Kelengkapan</span>
           {activeTab === 'profile' && (
-            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-indigo-200/60 rounded-full blur-[0.5px]"></span>
+            <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-indigo-200/60 rounded-full blur-[0.5px]"></span>
           )}
         </button>
 
         {/* Tab 2: Dokumen Pendukung Teknis */}
         <button
           onClick={() => setActiveTab('documents')}
-          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 group ${
             activeTab === 'documents'
               ? 'bg-gradient-to-r from-sky-600 via-cyan-500 to-blue-600 text-white shadow-lg shadow-sky-500/25 border border-sky-400/40 scale-[1.02] -translate-y-0.5'
               : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <FileCheck className={`w-4 h-4 transition-transform duration-300 ${
+          <FileCheck className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300 ${
             activeTab === 'documents' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-sky-400 group-hover:scale-110'
           }`} />
-          <span>Dokumen Pendukung Teknis</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+          <span>Dokumen Teknis</span>
+          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold transition-colors ${
             activeTab === 'documents'
               ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
               : 'bg-slate-800 text-slate-400 border border-slate-700/60 group-hover:border-slate-600 group-hover:text-slate-200'
@@ -1642,24 +1642,24 @@ export default function SchoolDetail({
             {technicalDocs.length}
           </span>
           {activeTab === 'documents' && (
-            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-sky-200/60 rounded-full blur-[0.5px]"></span>
+            <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-sky-200/60 rounded-full blur-[0.5px]"></span>
           )}
         </button>
 
         {/* Tab 3: Upload Laporan */}
         <button
           onClick={() => setActiveTab('reports')}
-          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 group ${
             activeTab === 'reports'
               ? 'bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/25 border border-emerald-400/40 scale-[1.02] -translate-y-0.5'
               : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <FileText className={`w-4 h-4 transition-transform duration-300 ${
+          <FileText className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300 ${
             activeTab === 'reports' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-emerald-400 group-hover:scale-110'
           }`} />
           <span>Upload Laporan</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold transition-colors ${
             activeTab === 'reports'
               ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
               : 'bg-slate-800 text-slate-400 border border-slate-700/60 group-hover:border-slate-600 group-hover:text-slate-200'
@@ -1667,7 +1667,7 @@ export default function SchoolDetail({
             {reportDocs.length}
           </span>
           {activeTab === 'reports' && (
-            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-emerald-200/60 rounded-full blur-[0.5px]"></span>
+            <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-emerald-200/60 rounded-full blur-[0.5px]"></span>
           )}
         </button>
 
@@ -1678,14 +1678,14 @@ export default function SchoolDetail({
           return (
             <button
               onClick={() => setActiveTab('kendala')}
-              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
+              className={`relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 group ${
                 activeTab === 'kendala'
                   ? 'bg-gradient-to-r from-amber-600 via-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/25 border border-rose-400/40 scale-[1.02] -translate-y-0.5'
                   : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
               }`}
             >
               <div className="relative flex items-center">
-                <AlertCircle className={`w-4 h-4 transition-transform duration-300 ${
+                <AlertCircle className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300 ${
                   activeTab === 'kendala' ? 'text-white scale-110 rotate-[-4deg]' : 'text-slate-400 group-hover:text-rose-400 group-hover:scale-110'
                 }`} />
                 {openKendala > 0 && activeTab !== 'kendala' && (
@@ -1696,7 +1696,7 @@ export default function SchoolDetail({
                 )}
               </div>
               <span>Laporkan Kendala</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold transition-colors ${
                 activeTab === 'kendala'
                   ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
                   : openKendala > 0
@@ -1706,7 +1706,7 @@ export default function SchoolDetail({
                 {kendalaCount}
               </span>
               {activeTab === 'kendala' && (
-                <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-rose-200/60 rounded-full blur-[0.5px]"></span>
+                <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-rose-200/60 rounded-full blur-[0.5px]"></span>
               )}
             </button>
           );
@@ -1715,17 +1715,17 @@ export default function SchoolDetail({
         {/* Tab 5: Progres Mingguan */}
         <button
           onClick={() => setActiveTab('weekly-progress')}
-          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap group ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-all duration-300 cursor-pointer whitespace-nowrap shrink-0 group ${
             activeTab === 'weekly-progress'
               ? 'bg-gradient-to-r from-violet-600 via-purple-500 to-indigo-600 text-white shadow-lg shadow-violet-500/25 border border-violet-400/40 scale-[1.02] -translate-y-0.5'
               : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 hover:scale-[1.01] border border-transparent'
           }`}
         >
-          <Activity className={`w-4 h-4 transition-transform duration-300 ${
+          <Activity className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300 ${
             activeTab === 'weekly-progress' ? 'text-white scale-110 rotate-[12deg]' : 'text-slate-400 group-hover:text-violet-400 group-hover:scale-110'
           }`} />
           <span>Progres Mingguan</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold transition-colors ${
+          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold transition-colors ${
             activeTab === 'weekly-progress'
               ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-inner'
               : schoolWpRecords.length > 0
@@ -1735,7 +1735,7 @@ export default function SchoolDetail({
             {schoolWpRecords.length}/24
           </span>
           {activeTab === 'weekly-progress' && (
-            <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-violet-200/60 rounded-full blur-[0.5px]"></span>
+            <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-violet-200/60 rounded-full blur-[0.5px]"></span>
           )}
         </button>
       </div>
