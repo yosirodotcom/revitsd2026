@@ -297,7 +297,13 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                       <div className="flex-1">
                         <select
                           value={selectedSchoolForFac[fac.id] || ''}
-                          onChange={(e) => setSelectedSchoolForFac(prev => ({ ...prev, [fac.id]: e.target.value }))}
+                          onChange={(e) => {
+                            const npsn = e.target.value;
+                            setSelectedSchoolForFac(prev => ({ ...prev, [fac.id]: npsn }));
+                            if (npsn) {
+                              handleAssign(npsn, fac.id);
+                            }
+                          }}
                           className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                         >
                           <option value="">-- Pilih Sekolah Dasar --</option>
@@ -311,7 +317,7 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                       <button
                         onClick={() => handleAssign(selectedSchoolForFac[fac.id], fac.id)}
                         disabled={!selectedSchoolForFac[fac.id]}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                           selectedSchoolForFac[fac.id]
                             ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/10'
                             : 'bg-slate-900 border border-slate-850 text-slate-500 cursor-not-allowed'
@@ -379,8 +385,14 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                     <div className="flex items-center gap-2 select-none">
                       <select
                         value={selectedFac}
-                        onChange={(e) => setSelectedFacForSchool(prev => ({ ...prev, [school.npsn]: e.target.value }))}
-                        className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer flex-1"
+                        onChange={(e) => {
+                          const facId = e.target.value;
+                          setSelectedFacForSchool(prev => ({ ...prev, [school.npsn]: facId }));
+                          if (facId) {
+                            handleAssign(school.npsn, facId);
+                          }
+                        }}
+                        className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer flex-1"
                       >
                         <option value="">-- Pilih Fasilitator --</option>
                         {facilitators.map((fac) => {
@@ -401,13 +413,13 @@ export default function FacilitatorManagement({ users, schools, onClaimSchool })
                       <button
                         onClick={() => handleAssign(school.npsn, selectedFac)}
                         disabled={!selectedFac}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all shrink-0 cursor-pointer ${
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                           selectedFac
-                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg'
+                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
                             : 'bg-slate-900 border border-slate-850 text-slate-500 cursor-not-allowed'
                         }`}
                       >
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        <UserPlus className="w-3.5 h-3.5" /> Tugaskan
                       </button>
                     </div>
 
