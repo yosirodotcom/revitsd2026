@@ -274,7 +274,11 @@ export default function App() {
   const [portalSdUsers, setPortalSdUsers] = useState(() => {
     try {
       const stored = window.localStorage.getItem('revit_users');
-      return stored ? JSON.parse(stored) : initialUsers;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialUsers;
     } catch (e) {
       return initialUsers;
     }
@@ -283,7 +287,11 @@ export default function App() {
   const [portalPaudUsers, setPortalPaudUsers] = useState(() => {
     try {
       const stored = window.localStorage.getItem('revitpaud_users');
-      return stored ? JSON.parse(stored) : initialPaudUsers;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialPaudUsers;
     } catch (e) {
       return initialPaudUsers;
     }
@@ -310,7 +318,11 @@ export default function App() {
   const [portalSdSchools, setPortalSdSchools] = useState(() => {
     try {
       const stored = window.localStorage.getItem('revit_schools');
-      return stored ? JSON.parse(stored) : initialSchools;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialSchools;
     } catch (e) {
       return initialSchools;
     }
@@ -319,7 +331,11 @@ export default function App() {
   const [portalPaudSchools, setPortalPaudSchools] = useState(() => {
     try {
       const stored = window.localStorage.getItem('revitpaud_schools');
-      return stored ? JSON.parse(stored) : initialPaudSchools;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialPaudSchools;
     } catch (e) {
       return initialPaudSchools;
     }
@@ -1998,7 +2014,8 @@ export default function App() {
 
       // 1. Merge schoolUpdates: non-destructive merge by NPSN
       let schoolsUpdatedCount = 0;
-      const nextSchools = schools.map(sch => {
+      const baseSchools = (schools && schools.length > 0) ? schools : initialSchools;
+      const nextSchools = baseSchools.map(sch => {
         const update = schoolUpdates.find(u => u.npsn === sch.npsn);
         if (!update) return sch;
 
@@ -3357,10 +3374,29 @@ export default function App() {
     };
 
     if (publicProgram) {
-      const dashSchools = publicProgram.prefix === 'revit' ? portalSdSchools : portalPaudSchools;
-      const dashUsers = publicProgram.prefix === 'revit' ? sdUsersList : paudUsersList;
-      const dashWp = publicProgram.prefix === 'revit' ? portalSdWeeklyProgress : portalPaudWeeklyProgress;
-      const dashSettings = publicProgram.prefix === 'revit' ? portalSdSettings : portalPaudSettings;
+      const isCurrentProgram = activeProgram && publicProgram.prefix === activeProgram.prefix;
+      
+      const rawSchools = publicProgram.prefix === 'revit' ? portalSdSchools : portalPaudSchools;
+      const defaultSchools = publicProgram.prefix === 'revit' ? initialSchools : initialPaudSchools;
+      const dashSchools = (isCurrentProgram && schools && schools.length > 0)
+        ? schools
+        : (rawSchools && rawSchools.length > 0 ? rawSchools : defaultSchools);
+
+      const rawUsers = publicProgram.prefix === 'revit' ? sdUsersList : paudUsersList;
+      const defaultUsers = publicProgram.prefix === 'revit' ? initialUsers : initialPaudUsers;
+      const dashUsers = (isCurrentProgram && users && users.length > 0)
+        ? users
+        : (rawUsers && rawUsers.length > 0 ? rawUsers : defaultUsers);
+
+      const rawWp = publicProgram.prefix === 'revit' ? portalSdWeeklyProgress : portalPaudWeeklyProgress;
+      const dashWp = (isCurrentProgram && weeklyProgress && weeklyProgress.length > 0)
+        ? weeklyProgress
+        : (rawWp && rawWp.length > 0 ? rawWp : []);
+
+      const rawSettings = publicProgram.prefix === 'revit' ? portalSdSettings : portalPaudSettings;
+      const dashSettings = (isCurrentProgram && settings && Object.keys(settings).length > 0)
+        ? settings
+        : rawSettings;
 
       return (
         <>
