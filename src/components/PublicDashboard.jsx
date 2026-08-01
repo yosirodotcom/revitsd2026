@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   School, 
   CheckCircle, 
@@ -17,7 +17,10 @@ import {
   Award,
   Check,
   Calendar,
-  DollarSign
+  DollarSign,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw
 } from 'lucide-react';
 
 // Leaflet Map Component for Public Dashboard
@@ -188,6 +191,10 @@ export default function PublicDashboard({
   const [kumulatifHover, setKumulatifHover] = useState(null);
   const [deviasiHover, setDeviasiHover] = useState(null);
 
+  // Chart Zoom State
+  const [kumZoomLevel, setKumZoomLevel] = useState(0); // 0 = auto-fit, positive = zoom in, negative = zoom out
+  const [devZoomLevel, setDevZoomLevel] = useState(0);
+
   // Facilitators list
   const facilitators = users.filter(u => u.jabatanTim === 'Fasilitator' || u.role === 'fasilitator')
     .sort((a, b) => a.nama.localeCompare(b.nama));
@@ -250,10 +257,41 @@ export default function PublicDashboard({
     : '0';
 
   // SVG Chart 1: Progres Kumulatif
-  const maxWeeks = 24;
+  const ABSOLUTE_MAX_WEEKS = 24;
   const filteredKumulatifSchools = chartFasilitatorFilter === 'all'
     ? schools
     : schools.filter(s => s.fasilitatorId === chartFasilitatorFilter);
+
+  // Compute the effective max week from actual data (the highest minggu in weeklyProgress)
+  const dataMaxWeek = useMemo(() => {
+    if (!weeklyProgress || weeklyProgress.length === 0) return 4;
+    const maxW = weeklyProgress.reduce((max, wp) => Math.max(max, Number(wp.minggu) || 0), 0);
+    return Math.max(4, maxW); // at least 4 weeks for readability
+  }, [weeklyProgress]);
+
+  // Auto-fit range: dataMaxWeek + 2 buffer (capped at 24)
+  const autoFitWeeks = Math.min(ABSOLUTE_MAX_WEEKS, dataMaxWeek + 2);
+
+  // Apply zoom: each zoom level adjusts by ±3 weeks
+  const kumDisplayWeeks = Math.max(4, Math.min(ABSOLUTE_MAX_WEEKS, autoFitWeeks - kumZoomLevel * 3));
+  const devDisplayWeeks = Math.max(4, Math.min(ABSOLUTE_MAX_WEEKS, autoFitWeeks - devZoomLevel * 3));
+
+  // Helper: generate nice x-axis tick values for a given display range
+  const getXTicks = (displayWeeks) => {
+    const ticks = [1];
+    if (displayWeeks <= 6) {
+      for (let i = 2; i <= displayWeeks; i++) ticks.push(i);
+    } else if (displayWeeks <= 12) {
+      const step = 2;
+      for (let i = step + 1; i <= displayWeeks; i += step) ticks.push(i);
+      if (!ticks.includes(displayWeeks)) ticks.push(displayWeeks);
+    } else {
+      const step = Math.ceil(displayWeeks / 6);
+      for (let i = step + 1; i <= displayWeeks; i += step) ticks.push(i);
+      if (!ticks.includes(displayWeeks)) ticks.push(displayWeeks);
+    }
+    return [...new Set(ticks)].sort((a, b) => a - b);
+  };
 
   const kumulatifChartWidth = 760;
   const kumulatifChartHeight = 280;
@@ -261,7 +299,7 @@ export default function PublicDashboard({
   const kumPlotWidth = kumulatifChartWidth - kumPadding.left - kumPadding.right;
   const kumPlotHeight = kumulatifChartHeight - kumPadding.top - kumPadding.bottom;
 
-  const getKumulatifX = (week) => kumPadding.left + ((week - 1) / (maxWeeks - 1)) * kumPlotWidth;
+  const getKumulatifX = (week) => kumPadding.left + ((week - 1) / (kumDisplayWeeks - 1)) * kumPlotWidth;
   const getKumulatifY = (pct) => kumPadding.top + (1 - Math.min(100, Math.max(0, pct)) / 100) * kumPlotHeight;
 
   // SVG Chart 2: Deviasi
@@ -284,7 +322,7 @@ export default function PublicDashboard({
   const devPlotHeight = deviasiChartHeight - devPadding.top - devPadding.bottom;
 
   const maxDevAbs = 25; // -25% to +25%
-  const getDeviasiX = (week) => devPadding.left + ((week - 1) / (maxWeeks - 1)) * devPlotWidth;
+  const getDeviasiX = (week) => devPadding.left + ((week - 1) / (devDisplayWeeks - 1)) * devPlotWidth;
   const getDeviasiY = (devVal) => {
     const clamped = Math.min(maxDevAbs, Math.max(-maxDevAbs, devVal));
     const norm = (clamped + maxDevAbs) / (2 * maxDevAbs); // 0 to 1
@@ -466,20 +504,47 @@ export default function PublicDashboard({
                   <TrendingUp className="w-4 h-4 text-indigo-400" />
                   <span>Progres Kumulatif per Sekolah</span>
                 </h3>
-                <p className="text-[11px] text-slate-400">Dimulai dari tanggal proyek hingga Minggu 24</p>
+                <p className="text-[11px] text-slate-400">Menampilkan data hingga Minggu {kumDisplayWeeks} (dari {dataMaxWeek} minggu terisi)</p>
               </div>
 
-              {/* Filter Fasilitator */}
-              <select
-                value={chartFasilitatorFilter}
-                onChange={(e) => setChartFasilitatorFilter(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
-              >
-                <option value="all">Semua Fasilitator ({schools.length} Sekolah)</option>
-                {facilitators.map(f => (
-                  <option key={f.id} value={f.id}>{f.nama}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                {/* Zoom Controls */}
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5">
+                  <button
+                    onClick={() => setKumZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setKumZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setKumZoomLevel(0)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Filter Fasilitator */}
+                <select
+                  value={chartFasilitatorFilter}
+                  onChange={(e) => setChartFasilitatorFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                >
+                  <option value="all">Semua Fasilitator ({schools.length} Sekolah)</option>
+                  {facilitators.map(f => (
+                    <option key={f.id} value={f.id}>{f.nama}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* SVG Chart Container */}
@@ -515,9 +580,8 @@ export default function PublicDashboard({
                   );
                 })}
 
-                {/* X-axis week ticks */}
-                {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(w => {
-                  if (w !== 1 && w !== 6 && w !== 12 && w !== 18 && w !== 24) return null;
+                {/* X-axis week ticks (dynamic based on display range) */}
+                {getXTicks(kumDisplayWeeks).map(w => {
                   const x = getKumulatifX(w);
                   return (
                     <g key={w}>
@@ -543,11 +607,25 @@ export default function PublicDashboard({
                   );
                 })}
 
+                {/* Data extent indicator line (vertical dashed) */}
+                {dataMaxWeek < kumDisplayWeeks && (
+                  <line
+                    x1={getKumulatifX(dataMaxWeek)}
+                    y1={kumPadding.top}
+                    x2={getKumulatifX(dataMaxWeek)}
+                    y2={kumulatifChartHeight - kumPadding.bottom}
+                    stroke="#6366f1"
+                    strokeWidth="1"
+                    strokeDasharray="4 3"
+                    opacity="0.4"
+                  />
+                )}
+
                 {/* Lines per School */}
                 {filteredKumulatifSchools.map((sch, schIdx) => {
                   const color = LINE_COLORS[schIdx % LINE_COLORS.length];
                   const schoolWp = weeklyProgress
-                    .filter(w => String(w.schoolId) === String(sch.npsn))
+                    .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
                     .sort((a, b) => a.minggu - b.minggu);
 
                   let points = [];
@@ -611,13 +689,40 @@ export default function PublicDashboard({
 
           {/* CHART 2: Line Chart Deviasi per Sekolah */}
           <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-5 shadow-xl flex flex-col justify-between">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div>
-                <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>Deviasi Progress per Sekolah</span>
-                </h3>
-                <p className="text-[11px] text-slate-400">Selisih realisasi kumulatif terhadap target rencana (Baseline = 0%)</p>
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <span>Deviasi Progress per Sekolah</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Selisih realisasi kumulatif terhadap target rencana (Baseline = 0%)</p>
+                </div>
+
+                {/* Zoom Controls */}
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5">
+                  <button
+                    onClick={() => setDevZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDevZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDevZoomLevel(0)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Filters Container */}
@@ -692,9 +797,8 @@ export default function PublicDashboard({
                   );
                 })}
 
-                {/* X-axis week ticks */}
-                {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(w => {
-                  if (w !== 1 && w !== 6 && w !== 12 && w !== 18 && w !== 24) return null;
+                {/* X-axis week ticks (dynamic based on display range) */}
+                {getXTicks(devDisplayWeeks).map(w => {
                   const x = getDeviasiX(w);
                   return (
                     <g key={w}>
@@ -720,10 +824,24 @@ export default function PublicDashboard({
                   );
                 })}
 
+                {/* Data extent indicator line (vertical dashed) */}
+                {dataMaxWeek < devDisplayWeeks && (
+                  <line
+                    x1={getDeviasiX(dataMaxWeek)}
+                    y1={devPadding.top}
+                    x2={getDeviasiX(dataMaxWeek)}
+                    y2={deviasiChartHeight - devPadding.bottom}
+                    stroke="#f59e0b"
+                    strokeWidth="1"
+                    strokeDasharray="4 3"
+                    opacity="0.4"
+                  />
+                )}
+
                 {/* Lines per School */}
                 {filteredDeviasiSchools.map((sch) => {
                   const schoolWp = weeklyProgress
-                    .filter(w => String(w.schoolId) === String(sch.npsn))
+                    .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
                     .sort((a, b) => a.minggu - b.minggu);
 
                   let points = [];
