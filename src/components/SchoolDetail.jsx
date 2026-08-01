@@ -805,6 +805,7 @@ export default function SchoolDetail({
   onUpdateWeeklyProgress,
   onDeleteWeeklyProgress,
   onRefreshGSheetData,
+  readOnly = false,
   initialTab = 'profile'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'profile');
@@ -1155,15 +1156,15 @@ export default function SchoolDetail({
 
   const isMySchool = activeUser ? school.fasilitatorId === activeUser.id : false;
   const isAuthorizedToEdit = Boolean(
-    activeUser && (
+    !readOnly && activeUser && (
       isMySchool || 
       activeUser.role === 'admin' || 
       ['Super Admin', 'Ketua Tim', 'Koordinator', 'Fasilitator', 'Fasilitator Teknik', 'Fasilitator Pemberdayaan', 'Tenaga Administrasi'].includes(activeUser.jabatanTim)
     )
   );
-  const isReviuAuthorized = activeUser ? (activeUser.jabatanTim === 'Koordinator' || activeUser.role === 'admin') : false;
+  const isReviuAuthorized = !readOnly && activeUser ? (activeUser.jabatanTim === 'Koordinator' || activeUser.role === 'admin') : false;
   const canDeleteDoc = (file) => {
-    if (!activeUser) return false;
+    if (readOnly || !activeUser) return false;
     return (
       isAuthorizedToEdit ||
       file.uploadedBy === activeUser.nama ||
@@ -1482,14 +1483,16 @@ export default function SchoolDetail({
     <div className="space-y-6 animate-fade-in p-6">
       
       {/* Navigation & Actions Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors bg-slate-900/40 border border-slate-800 px-3 py-1.5 rounded-xl cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" /> Kembali
-        </button>
-      </div>
+      {onBack && (
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors bg-slate-900/40 border border-slate-800 px-3 py-1.5 rounded-xl cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" /> Kembali
+          </button>
+        </div>
+      )}
 
       {/* School Banner Image */}
       <div className="relative group h-48 md:h-64 rounded-3xl overflow-hidden border border-slate-800 bg-slate-950/60 select-none">
@@ -1505,30 +1508,34 @@ export default function SchoolDetail({
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
             </svg>
-            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">Klik untuk unggah foto sekolah</span>
+            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
+              {readOnly ? 'Foto Banner Sekolah' : 'Klik untuk unggah foto sekolah'}
+            </span>
           </div>
         )}
         
         {/* Overlay on Hover */}
-        <label
-          htmlFor="banner-upload-input"
-          className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 cursor-pointer transition-opacity duration-300"
-        >
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-          </svg>
-          <span className="text-white text-[10px] font-bold uppercase tracking-wider">
-            {school.foto_banner ? 'Ganti Foto Sekolah' : 'Unggah Foto Sekolah'}
-          </span>
-          <input
-            type="file"
-            id="banner-upload-input"
-            accept="image/*"
-            onChange={handleUploadBanner}
-            className="hidden"
-          />
-        </label>
+        {!readOnly && (
+          <label
+            htmlFor="banner-upload-input"
+            className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 cursor-pointer transition-opacity duration-300"
+          >
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+            </svg>
+            <span className="text-white text-[10px] font-bold uppercase tracking-wider">
+              {school.foto_banner ? 'Ganti Foto Sekolah' : 'Unggah Foto Sekolah'}
+            </span>
+            <input
+              type="file"
+              id="banner-upload-input"
+              accept="image/*"
+              onChange={handleUploadBanner}
+              className="hidden"
+            />
+          </label>
+        )}
       </div>
 
       {/* Title & Stats Summary Banner */}

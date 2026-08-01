@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import SchoolDetail from './SchoolDetail';
 import { 
   School, 
   CheckCircle, 
@@ -176,6 +177,12 @@ export default function PublicDashboard({
   weeklyProgress = [], 
   settings = {}, 
   programName = 'Revitalisasi Sekolah Dasar 2026',
+  contacts = [],
+  tasks = [],
+  schoolDocs = [],
+  kendala = [],
+  kendalaComments = [],
+  kendalaDocs = [],
   onLogin, 
   onBack 
 }) {
@@ -1727,64 +1734,45 @@ export default function PublicDashboard({
         </div>
       )}
 
-      {/* 6. POPUP MODAL: DETIL INDIVIDUAL SEKOLAH */}
+      {/* 6. POPUP MODAL: DETIL INDIVIDUAL SEKOLAH (READ-ONLY SCHOOLDETAIL VIEW) */}
       {selectedSchoolDetail && (
-        <div className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-5 relative text-slate-100">
-            <button
-              onClick={() => setSelectedSchoolDetail(null)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div>
-              <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Detail Informasi Sekolah</span>
-              <h3 className="text-xl font-extrabold text-white mt-0.5">{selectedSchoolDetail.nama_sekolah}</h3>
-              <p className="text-xs text-slate-400 mt-1">NPSN: {selectedSchoolDetail.npsn} • Kabupaten {selectedSchoolDetail.kabupaten || '-'}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
-                <span className="text-[10px] text-slate-500 font-semibold block">Progres Fisik</span>
-                <span className="text-2xl font-black text-emerald-400 mt-0.5 block">{selectedSchoolDetail.progres_fisik || 0}%</span>
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fade-in select-none">
+          <div className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden shadow-2xl relative text-slate-100">
+            {/* Top Modal Header Bar */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-slate-800/80 bg-slate-900/60 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  Read-Only Mode
+                </span>
+                <h3 className="text-sm font-extrabold text-white truncate max-w-xs sm:max-w-md">
+                  {selectedSchoolDetail.nama_sekolah}
+                </h3>
               </div>
-              <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
-                <span className="text-[10px] text-slate-500 font-semibold block">Fasilitator Binaan</span>
-                <span className="text-sm font-bold text-indigo-300 mt-1 block truncate">{getFacilitatorName(selectedSchoolDetail)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 pt-2 border-t border-slate-800/60 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-800/40">
-                <span className="text-slate-400">Tanggal PKS:</span>
-                <span className="font-bold text-white">{selectedSchoolDetail.tanggal_pks || 'Belum'}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/40">
-                <span className="text-slate-400">Tanggal MC-0:</span>
-                <span className="font-bold text-white">{selectedSchoolDetail.tanggal_mc0 || 'Belum'}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/40">
-                <span className="text-slate-400">Kelengkapan Dokumen MC-0:</span>
-                <span className="font-bold text-white">{selectedSchoolDetail.kelengkapan_mc0 || 'Belum diisi'}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/40">
-                <span className="text-slate-400">Dana Tahap 1 Cair:</span>
-                <span className="font-bold text-white">{selectedSchoolDetail.tanggal_dana_tahap1 || 'Belum'}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-400">Kepala Sekolah:</span>
-                <span className="font-bold text-white">{selectedSchoolDetail.kepala_sekolah || '-'} ({selectedSchoolDetail.hp_kepala_sekolah || '-'})</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
               <button
                 onClick={() => setSelectedSchoolDetail(null)}
-                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-lg cursor-pointer border-0"
+                className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer border border-slate-800 flex items-center gap-1.5 text-xs font-bold"
               >
-                Tutup Window Detail
+                <X className="w-4 h-4" />
+                <span className="hidden sm:inline">Tutup</span>
               </button>
+            </div>
+
+            {/* SchoolDetail Component in Read-Only Mode */}
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+              <SchoolDetail
+                school={selectedSchoolDetail}
+                users={users}
+                contacts={contacts}
+                tasks={tasks}
+                activeUser={null}
+                onBack={null}
+                schoolDocs={schoolDocs}
+                kendala={kendala}
+                kendalaComments={kendalaComments}
+                kendalaDocs={kendalaDocs}
+                weeklyProgress={weeklyProgress}
+                readOnly={true}
+              />
             </div>
           </div>
         </div>

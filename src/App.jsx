@@ -3376,6 +3376,12 @@ export default function App() {
             weeklyProgress={dashWp}
             settings={dashSettings}
             programName={publicProgram.name}
+            contacts={contacts}
+            tasks={tasks}
+            schoolDocs={schoolDocs}
+            kendala={kendala}
+            kendalaComments={kendalaComments}
+            kendalaDocs={kendalaDocs}
             onBack={() => setPublicProgram(null)}
             onLogin={() => setShowLoginModal(true)}
           />
