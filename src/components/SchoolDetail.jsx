@@ -839,7 +839,9 @@ export default function SchoolDetail({
   const [wpForm, setWpForm] = useState({ realisasi: '', rencana: '', kendala: '', rekomendasi: '' });
 
   const schoolWpRecords = (Array.isArray(weeklyProgress) ? weeklyProgress : [])
-    .filter(w => w && String(w.schoolId) === String(school?.npsn))
+    .filter(w => w && (
+      String(w.schoolId || w.sekolahId || '').trim() === String(school?.npsn || school?.id || '').trim()
+    ))
     .sort((a, b) => parseNum(a?.minggu) - parseNum(b?.minggu));
 
   useEffect(() => {

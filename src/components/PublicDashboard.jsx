@@ -733,7 +733,7 @@ export default function PublicDashboard({
                 {filteredKumulatifSchools.map((sch, schIdx) => {
                   const color = LINE_COLORS[schIdx % LINE_COLORS.length];
                   const schoolWp = weeklyProgress
-                    .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
+                    .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= kumDisplayWeeks)
                     .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
                   let lastDataWeek = 0;
@@ -757,6 +757,10 @@ export default function PublicDashboard({
                     const val = Number(w.kumulatif) || 0;
                     points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
                   });
+
+                  if (points.length === 1) {
+                    points.push({ week: kumDisplayWeeks, x: getKumulatifX(kumDisplayWeeks), y: getKumulatifY(points[0].val), val: points[0].val });
+                  }
 
                   if (points.length === 0) return null;
 
@@ -970,7 +974,7 @@ export default function PublicDashboard({
                 {/* Lines per School */}
                 {filteredDeviasiSchools.map((sch) => {
                   const schoolWp = weeklyProgress
-                    .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
+                    .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= devDisplayWeeks)
                     .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
                   let lastDataWeek = 0;
@@ -994,6 +998,10 @@ export default function PublicDashboard({
                     const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
                     points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
                   });
+
+                  if (points.length === 1) {
+                    points.push({ week: devDisplayWeeks, x: getDeviasiX(devDisplayWeeks), y: getDeviasiY(points[0].val), val: points[0].val });
+                  }
 
                   if (points.length === 0) return null;
 
@@ -1404,7 +1412,7 @@ export default function PublicDashboard({
                   {filteredKumulatifSchools.map((sch, schIdx) => {
                     const color = LINE_COLORS[schIdx % LINE_COLORS.length];
                     const schoolWp = weeklyProgress
-                      .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= kumDisplayWeeks)
+                      .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= kumDisplayWeeks)
                       .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
                     let lastDataWeek = 0;
@@ -1428,6 +1436,10 @@ export default function PublicDashboard({
                       const val = Number(w.kumulatif) || 0;
                       points.push({ week: Number(w.minggu), x: getKumulatifX(Number(w.minggu)), y: getKumulatifY(val), val });
                     });
+
+                    if (points.length === 1) {
+                      points.push({ week: kumDisplayWeeks, x: getKumulatifX(kumDisplayWeeks), y: getKumulatifY(points[0].val), val: points[0].val });
+                    }
 
                     if (points.length === 0) return null;
                     const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
@@ -1483,7 +1495,7 @@ export default function PublicDashboard({
                   {/* Lines per School */}
                   {filteredDeviasiSchools.map((sch) => {
                     const schoolWp = weeklyProgress
-                      .filter(w => String(w.schoolId) === String(sch.npsn) && Number(w.minggu) <= devDisplayWeeks)
+                      .filter(w => (String(w.schoolId || w.sekolahId || '').trim() === String(sch.npsn || sch.id || '').trim()) && Number(w.minggu) <= devDisplayWeeks)
                       .sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
                     let lastDataWeek = 0;
@@ -1507,6 +1519,10 @@ export default function PublicDashboard({
                       const devVal = Number(w.deviasi) || (Number(w.kumulatif || 0) - Number(w.rencana || 0));
                       points.push({ week: Number(w.minggu), x: getDeviasiX(Number(w.minggu)), y: getDeviasiY(devVal), val: devVal });
                     });
+
+                    if (points.length === 1) {
+                      points.push({ week: devDisplayWeeks, x: getDeviasiX(devDisplayWeeks), y: getDeviasiY(points[0].val), val: points[0].val });
+                    }
 
                     if (points.length === 0) return null;
                     const lastPoint = points[points.length - 1];
