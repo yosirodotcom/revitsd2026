@@ -1454,7 +1454,7 @@ export default function PublicDashboard({
                   className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer border border-slate-800"
                   title="Tutup Fullscreen (Esc)"
                 >
-                  <Minimize2 className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
