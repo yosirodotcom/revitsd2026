@@ -748,44 +748,12 @@ export default function PublicDashboard({
                 <p className="text-[11px] text-slate-400">Menampilkan data hingga Minggu {kumDisplayWeeks} (dari {dataMaxWeek} minggu terisi)</p>
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* Zoom Controls */}
-                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5">
-                  <button
-                    onClick={() => setKumZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Zoom In"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setKumZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Zoom Out"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setKumZoomLevel(0)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Reset Zoom"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setFullscreenChart('kumulatif')}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Fullscreen"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
+              <div>
                 {/* Filter Fasilitator */}
                 <select
                   value={chartFasilitatorFilter}
                   onChange={(e) => setChartFasilitatorFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all cursor-pointer"
                 >
                   <option value="all">Semua Fasilitator ({schools.length} Sekolah)</option>
                   {facilitators.map(f => (
@@ -797,6 +765,39 @@ export default function PublicDashboard({
 
             {/* SVG Chart Container */}
             <div className="relative w-full overflow-x-auto no-scrollbar">
+              {/* Floating Zoom & Fullscreen Toolbar Pill at Bottom-Right Inside Chart */}
+              <div className="absolute bottom-3 right-3 z-10 flex items-center bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg">
+                <button
+                  onClick={() => setKumZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setKumZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setKumZoomLevel(0)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Reset Zoom"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-[1px] h-4 bg-slate-800 mx-0.5" />
+                <button
+                  onClick={() => setFullscreenChart('kumulatif')}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Fullscreen"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               <svg 
                 viewBox={`0 0 ${kumulatifChartWidth} ${kumulatifChartHeight}`} 
                 className="w-full h-auto min-w-[500px]"
@@ -927,47 +928,13 @@ export default function PublicDashboard({
 
           {/* CHART 2: Line Chart Deviasi per Sekolah */}
           <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-5 shadow-xl flex flex-col justify-between">
-            <div className="flex flex-col gap-3 mb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
-                    <span>Deviasi Progress per Sekolah</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Selisih realisasi kumulatif terhadap target rencana (Baseline = 0%)</p>
-                </div>
-
-                {/* Zoom Controls */}
-                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5">
-                  <button
-                    onClick={() => setDevZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Zoom In"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setDevZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Zoom Out"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setDevZoomLevel(0)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Reset Zoom"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setFullscreenChart('deviasi')}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                    title="Fullscreen"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Deviasi Progress per Sekolah</span>
+                </h3>
+                <p className="text-[11px] text-slate-400">Selisih realisasi kumulatif terhadap target rencana (Baseline = 0%)</p>
               </div>
 
               {/* Filters Container */}
@@ -998,7 +965,7 @@ export default function PublicDashboard({
                 <select
                   value={deviasiFasilitatorFilter}
                   onChange={(e) => setDeviasiFasilitatorFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all cursor-pointer"
                 >
                   <option value="all">Semua Fasil</option>
                   {facilitators.map(f => (
@@ -1010,6 +977,38 @@ export default function PublicDashboard({
 
             {/* SVG Chart Container */}
             <div className="relative w-full overflow-x-auto no-scrollbar">
+              {/* Floating Zoom & Fullscreen Toolbar Pill at Bottom-Right Inside Chart */}
+              <div className="absolute bottom-3 right-3 z-10 flex items-center bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-xl p-1 shadow-lg">
+                <button
+                  onClick={() => setDevZoomLevel(prev => Math.min(prev + 1, Math.floor((autoFitWeeks - 4) / 3)))}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setDevZoomLevel(prev => Math.max(prev - 1, -Math.floor((ABSOLUTE_MAX_WEEKS - autoFitWeeks) / 3)))}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setDevZoomLevel(0)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Reset Zoom"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-[1px] h-4 bg-slate-800 mx-0.5" />
+                <button
+                  onClick={() => setFullscreenChart('deviasi')}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Fullscreen"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <svg 
                 viewBox={`0 0 ${deviasiChartWidth} ${deviasiChartHeight}`} 
                 className="w-full h-auto min-w-[500px]"
