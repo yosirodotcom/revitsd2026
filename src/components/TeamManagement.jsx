@@ -24,7 +24,11 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
     pendidikan: 'Strata 2',
     statusPegawai: 'PNS',
     role: 'user',
-    password: ''
+    password: '',
+    namaBank: '',
+    nomorRekening: '',
+    atasNama: '',
+    npwp: ''
   });
 
   const resetForm = () => {
@@ -36,7 +40,11 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
       pendidikan: 'Strata 2',
       statusPegawai: 'PNS',
       role: 'user',
-      password: ''
+      password: '',
+      namaBank: '',
+      nomorRekening: '',
+      atasNama: '',
+      npwp: ''
     });
     setIsAdding(false);
     setEditingUser(null);
@@ -52,7 +60,11 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
       pendidikan: user.pendidikan || '',
       statusPegawai: user.statusPegawai || '',
       role: user.role || 'user',
-      password: user.password || ''
+      password: user.password || '',
+      namaBank: user.namaBank || '',
+      nomorRekening: user.nomorRekening || '',
+      atasNama: user.atasNama || '',
+      npwp: user.npwp || ''
     });
     setIsAdding(false);
   };
@@ -248,6 +260,59 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
               />
             </div>
 
+            {/* Rekening Bank & NPWP */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Nama Bank
+              </label>
+              <input
+                type="text"
+                value={formData.namaBank}
+                onChange={(e) => setFormData({ ...formData, namaBank: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder="Contoh: Bank Kalbar / Mandiri"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Nomor Rekening
+              </label>
+              <input
+                type="text"
+                value={formData.nomorRekening}
+                onChange={(e) => setFormData({ ...formData, nomorRekening: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder="1234567890"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Atas Nama Rekening
+              </label>
+              <input
+                type="text"
+                value={formData.atasNama}
+                onChange={(e) => setFormData({ ...formData, atasNama: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder="Nama Pemilik Rekening"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Nomor NPWP
+              </label>
+              <input
+                type="text"
+                value={formData.npwp}
+                onChange={(e) => setFormData({ ...formData, npwp: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder="00.000.000.0-000.000"
+              />
+            </div>
+
 
             <div className="md:col-span-3 pt-3 flex items-center justify-end gap-2 border-t border-slate-800/80">
               <button
@@ -277,6 +342,7 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                 <th className="px-6 py-4">Nama</th>
                 <th className="px-6 py-4">Jabatan Kepegawaian</th>
                 <th className="px-6 py-4">Jabatan Tim</th>
+                <th className="px-6 py-4">Rekening & NPWP</th>
                 <th className="px-6 py-4 text-center">Pendidikan</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-center">Password</th>
@@ -313,6 +379,28 @@ export default function TeamManagement({ users, activeUser, onAddUser, onUpdateU
                       <div className="text-[10px] text-slate-500 mt-1">
                         Koord: {users.find(u => u.id === user.coordinatorId)?.nama || '-'}
                       </div>
+                    )}
+                  </td>
+                  {/* Rekening & NPWP */}
+                  <td className="px-6 py-4 text-xs">
+                    {user.nomorRekening || user.namaBank ? (
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-slate-200 truncate">
+                          {user.namaBank ? `${user.namaBank}: ` : ''}{user.nomorRekening || '-'}
+                        </div>
+                        {user.atasNama && (
+                          <div className="text-[10px] text-slate-400 truncate">
+                            a.n. {user.atasNama}
+                          </div>
+                        )}
+                        {user.npwp && (
+                          <div className="text-[9px] font-mono text-emerald-400/90 truncate">
+                            NPWP: {user.npwp}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 italic text-[11px]">Belum diisi</span>
                     )}
                   </td>
                   {/* Pendidikan */}

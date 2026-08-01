@@ -992,9 +992,26 @@ Apakah Anda yakin ingin memproses pembayaran ini?`;
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(localUsers || []).filter(u => u && u.jabatanTim && u.jabatanTim !== 'Super Admin').map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-850 rounded-2xl hover:border-slate-800 transition-colors">
-                    <div>
-                      <span className="text-xs font-bold text-slate-200 block">{member.nama}</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">{member.jabatanTim}</span>
+                    <div className="min-w-0 pr-2">
+                      <span className="text-xs font-bold text-slate-200 block truncate">{member.nama}</span>
+                      <span className="text-[10px] text-slate-400 font-semibold block">{member.jabatanTim}</span>
+                      {(member.namaBank || member.nomorRekening || member.npwp) ? (
+                        <div className="text-[9px] text-slate-500 mt-1 space-y-0.5">
+                          {(member.namaBank || member.nomorRekening) && (
+                            <div className="truncate text-slate-350">
+                              💳 <strong className="text-slate-300">{member.namaBank || 'Bank'}</strong>: {member.nomorRekening || '-'}
+                              {member.atasNama ? ` (a.n. ${member.atasNama})` : ''}
+                            </div>
+                          )}
+                          {member.npwp && (
+                            <div className="truncate text-emerald-400/90 font-mono">
+                              📄 NPWP: {member.npwp}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[9px] text-slate-600 italic block mt-0.5">Belum ada info rekening/NPWP</span>
+                      )}
                     </div>
                     <div className="relative w-28 shrink-0">
                       <input

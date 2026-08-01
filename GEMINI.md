@@ -129,14 +129,13 @@ Aplikasi menyimpan seluruh data dalam satu namespace utama agar mudah disinkronk
 
 ---
 
-## 🚨 7. Aturan Khusus: Evaluasi Backend & Apps Script (Wajib Baca)
+## 🚨 7. Aturan Khusus: Evaluasi Backend Firebase (Wajib Baca)
+
+Aplikasi telah sepenuhnya migrasi ke **Firebase Database & Storage**. Berkas-berkas Google Apps Script (`.gs`) lama telah dihapus dari repositori.
 
 Setiap kali terjadi perubahan kode (terutama pada state, schema, atau penambahan entitas/kolom baru di sisi React Frontend):
-1. **BACA ATURAN INI TERLEBIH DAHULU** sebelum melanjutkan langkah coding.
-2. **Evaluasi Dampak Backend**: Tentukan apakah perubahan kode tersebut memerlukan penyesuaian pada skema tabel Google Sheets atau penanganan berkas Google Drive.
-3. **Perbarui Walkthrough**: Jika backend memerlukan perubahan struktur, perbarui berkas panduan setup [walkthrough.md](file:///C:/Users/Kerja%20Sama%20Polnep/.gemini/antigravity-ide/brain/c7484b94-d046-4809-bd51-1ffcaf7df6d6/walkthrough.md) (khususnya skema `SCHEMAS` dan kode `Code.gs` di dalamnya) agar tetap sinkron.
-4. **Instruksi Pengguna**: Tampilkan saran instruksi yang jelas kepada pengguna di akhir giliran untuk segera memperbarui kode Apps Script di Google Sheets secara manual agar sinkronisasi data tetap berjalan lancar.
-5. **Acuan Apps Script Terakhir (Sangat Penting)**: Jika Anda memodifikasi atau merujuk kode Apps Script (Google Sheets Backend), pastikan untuk selalu merujuk dan memperbarui file [codegs_revitsd_2026.gs](file:///d:/repos/revitsd2026/codegs_revitsd_2026.gs) untuk program SD 2026 dan [code_revitpaud_2026.gs](file:///d:/repos/revitsd2026/code_revitpaud_2026.gs) untuk program PAUD 2026 sebagai *source of truth*, agar variabel baru atau struktur yang telah disesuaikan tidak hilang atau kembali ke versi lama.
+1. Pastikan perubahan disimpan dan disinkronisasikan secara persisten ke Firebase / Firestore.
+2. Perbarui dokumentasi di `walkthrough.md` jika ada perubahan struktur data utama.
 
 ---
 
