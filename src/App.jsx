@@ -400,8 +400,22 @@ export default function App() {
           setPortalSdSettings(merged);
         }
         if (sdData.schools && sdData.schools.length > 0) {
-          window.localStorage.setItem('revit_schools', JSON.stringify(sdData.schools));
-          setPortalSdSchools(sdData.schools);
+          const storedRaw = window.localStorage.getItem('revit_schools');
+          let finalPortalSchools = sdData.schools;
+          if (storedRaw) {
+            try {
+              const storedArr = JSON.parse(storedRaw);
+              if (Array.isArray(storedArr) && storedArr.length > 0) {
+                const remoteNpsns = new Set(sdData.schools.map(s => String(s.npsn).trim()));
+                const missingLocal = storedArr.filter(l => l && l.npsn && !remoteNpsns.has(String(l.npsn).trim()));
+                if (missingLocal.length > 0) {
+                  finalPortalSchools = [...sdData.schools, ...missingLocal];
+                }
+              }
+            } catch (e) {}
+          }
+          window.localStorage.setItem('revit_schools', JSON.stringify(finalPortalSchools));
+          setPortalSdSchools(finalPortalSchools);
         }
         if (sdData.weekly_progress && sdData.weekly_progress.length > 0) {
           window.localStorage.setItem('revit_weekly_progress', JSON.stringify(sdData.weekly_progress));
@@ -858,6 +872,12 @@ export default function App() {
                 updated.kepala_sekolah = updated.kepalaSekolah;
               }
               
+              const currentLocal = latestStateRef.current?.schools || schools;
+              const localSch = (currentLocal || []).find(l => String(l.npsn).trim() === updated.npsn);
+              if (localSch && localSch.fasilitatorId && !updated.fasilitatorId) {
+                updated.fasilitatorId = localSch.fasilitatorId;
+              }
+
               const init = initialSchools.find(x => String(x.npsn) === updated.npsn);
               if (init) {
                 if (isInvalidSchoolName(updated.nama_sekolah, updated.npsn)) {
@@ -1319,6 +1339,12 @@ export default function App() {
             updated.kepala_sekolah = updated.kepalaSekolah;
           }
           
+          const currentLocal = latestStateRef.current?.schools || schools;
+          const localSch = (currentLocal || []).find(l => String(l.npsn).trim() === updated.npsn);
+          if (localSch && localSch.fasilitatorId && !updated.fasilitatorId) {
+            updated.fasilitatorId = localSch.fasilitatorId;
+          }
+
           const init = initialSchools.find(x => String(x.npsn) === updated.npsn);
           if (init) {
             if (isInvalidSchoolName(updated.nama_sekolah, updated.npsn)) {
@@ -1890,6 +1916,7 @@ export default function App() {
     const updated = [...schools, formatted];
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
+    console.log(`[AddSchool] Menambahkan sekolah baru: ${formatted.nama_sekolah} (${schoolId}). Total sekolah lokal: ${updated.length}`);
     syncWithNewState({ schools: updated }, true, true);
   };
 
