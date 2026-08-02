@@ -49,10 +49,12 @@ function parseCSV(text) {
   return lines;
 }
 
-// Clean percentage number string (e.g. "0.639", "0,639", "6,420" -> 0.639)
+// Clean percentage number string (e.g. "0.639", "0,639", "6,420", "28.5979%" -> 28.5979)
 function parsePct(val) {
   if (val === undefined || val === null) return 0;
-  const str = String(val).trim().replace(',', '.');
+  let str = String(val).trim();
+  if (!str || str === '-' || str === '""') return 0;
+  str = str.replace('%', '').replace(',', '.').trim();
   const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 }
@@ -125,9 +127,24 @@ export const googleSheetsService = {
     const headerRow = rows[0] || [];
     const findCol = (predicate) => headerRow.findIndex(h => predicate(String(h || '').toLowerCase().trim()));
 
-    const pksCol = findCol(h => h.includes('tanggal pks')) >= 0 ? findCol(h => h.includes('tanggal pks')) : 12;
-    const danaTahap1Col = findCol(h => h.includes('tanggal dana tahap 1')) >= 0 ? findCol(h => h.includes('tanggal dana tahap 1')) : 13;
-    const mc0Col = findCol(h => (h.includes('tanggal') && h.includes('mc')) || h.includes('mc0')) >= 0 ? findCol(h => (h.includes('tanggal') && h.includes('mc')) || h.includes('mc0')) : 14;
+    const npsnCol = findCol(h => h.includes('nspn') || h.includes('npsn')) >= 0 ? findCol(h => h.includes('nspn') || h.includes('npsn')) : 2;
+    const kepalaSekolahCol = findCol(h => h.includes('kepala sekolah')) >= 0 ? findCol(h => h.includes('kepala sekolah')) : 5;
+    const hpKepalaSekolahCol = 6;
+    const perencanaNamaCol = findCol(h => h.includes('perencana nama')) >= 0 ? findCol(h => h.includes('perencana nama')) : 7;
+    const perencanaHpCol = 8;
+    const pengawasNamaCol = findCol(h => h.includes('pengawas nama')) >= 0 ? findCol(h => h.includes('pengawas nama')) : 9;
+    const pengawasHpCol = 10;
+    const dinasNamaCol = findCol(h => h.includes('dinas pendidikan')) >= 0 ? findCol(h => h.includes('dinas pendidikan')) : 11;
+    const dinasHpCol = 12;
+
+    const pksCol = findCol(h => h.includes('tanggal pks')) >= 0 ? findCol(h => h.includes('tanggal pks')) : 13;
+    const danaTahap1Col = findCol(h => h.includes('tanggal dana tahap 1')) >= 0 ? findCol(h => h.includes('tanggal dana tahap 1')) : 14;
+    const mc0Col = findCol(h => (h.includes('tanggal') && h.includes('mc')) || h.includes('mc0')) >= 0 ? findCol(h => (h.includes('tanggal') && h.includes('mc')) || h.includes('mc0')) : 15;
+    const kelengkapanMc0Col = findCol(h => h.includes('kelengkapan') && h.includes('mc0')) >= 0 ? findCol(h => h.includes('kelengkapan') && h.includes('mc0')) : 16;
+    const kendalaMc0Col = findCol(h => h.includes('kendala') && h.includes('mc0')) >= 0 ? findCol(h => h.includes('kendala') && h.includes('mc0')) : 17;
+    const kendalaPelaksanaanCol = findCol(h => h.includes('kendala') && h.includes('pelaksanaan')) >= 0 ? findCol(h => h.includes('kendala') && h.includes('pelaksanaan')) : 18;
+
+    const m1Col = findCol(h => h.includes('m-1 realisasi') || h.includes('m1 realisasi')) >= 0 ? findCol(h => h.includes('m-1 realisasi') || h.includes('m1 realisasi')) : 19;
 
     const dataRows = rows.slice(1);
 
@@ -135,20 +152,20 @@ export const googleSheetsService = {
     const weeklyProgressRecords = [];
 
     for (const row of dataRows) {
-      if (row.length < 5) continue;
+      if (row.length < 3) continue;
 
-      // Extract NPSN (kolom index 1)
-      const npsn = String(row[1] || '').trim();
-      if (!npsn || npsn.toUpperCase() === 'NSPN' || npsn.toUpperCase() === 'NPSN') continue;
+      // Extract NPSN 8-digit
+      const npsn = String(row[npsnCol] || row[2] || '').trim();
+      if (!npsn || npsn.toUpperCase() === 'NSPN' || npsn.toUpperCase() === 'NPSN' || !/^\d{6,10}$/.test(npsn)) continue;
 
-      const kepala_sekolah = row[4] || '';
-      const hp_kepala_sekolah = row[5] || '';
-      const perencanaNama = row[6] || '';
-      const perencanaHp = row[7] || '';
-      const pengawasNama = row[8] || '';
-      const pengawasHp = row[9] || '';
-      const dinas_pendidikan_nama = row[10] || '';
-      const dinas_pendidikan_hp = row[11] || '';
+      const kepala_sekolah = row[kepalaSekolahCol] || row[5] || '';
+      const hp_kepala_sekolah = row[hpKepalaSekolahCol] || row[6] || '';
+      const perencanaNama = row[perencanaNamaCol] || row[7] || '';
+      const perencanaHp = row[perencanaHpCol] || row[8] || '';
+      const pengawasNama = row[pengawasNamaCol] || row[9] || '';
+      const pengawasHp = row[pengawasHpCol] || row[10] || '';
+      const dinas_pendidikan_nama = row[dinasNamaCol] || row[11] || '';
+      const dinas_pendidikan_hp = row[dinasHpCol] || row[12] || '';
 
       const rawPks = pksCol >= 0 ? (row[pksCol] || '') : '';
       const rawDanaTahap1 = danaTahap1Col >= 0 ? (row[danaTahap1Col] || '') : '';
@@ -157,9 +174,54 @@ export const googleSheetsService = {
       const tanggal_pks = formatDateGSheet(rawPks);
       const tanggal_dana_tahap1 = formatDateGSheet(rawDanaTahap1);
       const tanggal_mc0 = formatDateGSheet(rawMc0);
-      const kelengkapan_mc0 = row[15] || '';
-      const kendala_mc0 = row[16] || '';
-      const kendala_pelaksanaan = row[17] || '';
+      const kelengkapan_mc0 = row[kelengkapanMc0Col] || row[16] || '';
+      const kendala_mc0 = row[kendalaMc0Col] || row[17] || '';
+      const kendala_pelaksanaan = row[kendalaPelaksanaanCol] || row[18] || '';
+
+      let maxKumulatifForSchool = 0;
+
+      // Parse 24 minggu progres mingguan (dimulai dari m1Col = 19)
+      for (let w = 1; w <= 24; w++) {
+        const baseCol = m1Col + (w - 1) * 6;
+        if (baseCol >= row.length) break;
+
+        const reStr = (row[baseCol] || '').trim();
+        const koStr = (row[baseCol + 1] || '').trim();
+        const renStr = (row[baseCol + 2] || '').trim();
+        const devStr = (row[baseCol + 3] || '').trim();
+        const kendala = (row[baseCol + 4] || '').trim();
+        const rekomendasi = (row[baseCol + 5] || '').trim();
+
+        const isRealInput = reStr !== '' || renStr !== '' || devStr !== '' || (kendala !== '' && kendala !== '-') || (rekomendasi !== '' && rekomendasi !== '-');
+        const hasValue = isRealInput || koStr !== '';
+
+        if (hasValue) {
+          const realisasi = parsePct(reStr);
+          const kumulatif = parsePct(koStr);
+          const rencana = parsePct(renStr);
+          const deviasi = devStr !== '' ? parsePct(devStr) : Math.round((kumulatif - rencana) * 100) / 100;
+
+          if (kumulatif > maxKumulatifForSchool) {
+            maxKumulatifForSchool = kumulatif;
+          }
+
+          weeklyProgressRecords.push({
+            id: `wp-${npsn}-m${w}`,
+            schoolId: npsn,
+            minggu: w,
+            bulan: Math.ceil(w / 4),
+            realisasi,
+            kumulatif,
+            rencana,
+            deviasi,
+            kendala,
+            rekomendasi,
+            hasRealInput: isRealInput,
+            updatedBy: 'gsheet_sync',
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
 
       schoolUpdates.push({
         npsn,
@@ -176,45 +238,9 @@ export const googleSheetsService = {
         tanggal_mc0,
         kelengkapan_mc0,
         kendala_mc0,
-        kendala_pelaksanaan
+        kendala_pelaksanaan,
+        progres_fisik: maxKumulatifForSchool > 0 ? maxKumulatifForSchool : undefined
       });
-
-      // Parse 24 minggu progres mingguan (kolom index 18 s/d 161)
-      for (let w = 1; w <= 24; w++) {
-        const baseCol = 18 + (w - 1) * 6;
-        if (baseCol >= row.length) break;
-
-        const reStr = row[baseCol] || '';
-        const koStr = row[baseCol + 1] || '';
-        const renStr = row[baseCol + 2] || '';
-        const devStr = row[baseCol + 3] || '';
-        const kendala = row[baseCol + 4] || '';
-        const rekomendasi = row[baseCol + 5] || '';
-
-        // Hanya buat record jika ada data realisasi, kumulatif, rencana, deviasi, kendala, atau rekomendasi
-        const hasValue = reStr !== '' || koStr !== '' || renStr !== '' || devStr !== '' || (kendala !== '' && kendala !== '-') || (rekomendasi !== '' && rekomendasi !== '-');
-        if (hasValue) {
-          const realisasi = parsePct(reStr);
-          const kumulatif = parsePct(koStr);
-          const rencana = parsePct(renStr);
-          const deviasi = parsePct(devStr) || (realisasi - rencana);
-
-          weeklyProgressRecords.push({
-            id: `wp-${npsn}-m${w}`,
-            schoolId: npsn,
-            minggu: w,
-            bulan: Math.ceil(w / 4),
-            realisasi,
-            kumulatif,
-            rencana,
-            deviasi,
-            kendala,
-            rekomendasi,
-            updatedBy: 'gsheet_sync',
-            updatedAt: new Date().toISOString()
-          });
-        }
-      }
     }
 
     return {

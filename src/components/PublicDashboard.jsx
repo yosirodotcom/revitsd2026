@@ -253,9 +253,9 @@ export default function PublicDashboard({
 
     let lastWeek = 0;
 
-    // 1. Check for realisasi > 0
+    // 1. Check for real input or realisasi > 0 or deviasi != 0
     schoolWp.forEach(w => {
-      if (Number(w.realisasi) > 0) {
+      if (Number(w.realisasi) > 0 || Number(w.deviasi) !== 0 || w.hasRealInput) {
         lastWeek = Math.max(lastWeek, Number(w.minggu));
       }
     });
@@ -352,17 +352,15 @@ export default function PublicDashboard({
     : schools.filter(s => s.fasilitatorId === chartFasilitatorFilter);
 
   // Compute the effective max week from actual data
-  // GSheet may pre-fill rows for all 24 weeks, but only weeks with realisasi > 0 have real data.
-  // We detect the last week where ANY school has a non-zero realisasi (actual weekly increment).
   const dataMaxWeek = useMemo(() => {
     if (!weeklyProgress || weeklyProgress.length === 0) return 4;
 
     let lastActiveWeek = 0;
     weeklyProgress.forEach(wp => {
       const realisasi = Number(wp.realisasi) || 0;
-      const kumulatif = Number(wp.kumulatif) || 0;
+      const deviasi = Number(wp.deviasi) || 0;
       const minggu = Number(wp.minggu) || 0;
-      if ((realisasi > 0 || kumulatif > 0) && minggu > lastActiveWeek) {
+      if ((realisasi > 0 || Math.abs(deviasi) > 0 || wp.hasRealInput) && minggu > lastActiveWeek) {
         lastActiveWeek = minggu;
       }
     });
