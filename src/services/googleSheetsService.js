@@ -179,6 +179,7 @@ export const googleSheetsService = {
       const kendala_pelaksanaan = row[kendalaPelaksanaanCol] || row[18] || '';
 
       let maxKumulatifForSchool = 0;
+      let prevKumulatif = 0;
 
       // Parse 24 minggu progres mingguan (dimulai dari m1Col = 19)
       for (let w = 1; w <= 24; w++) {
@@ -192,15 +193,23 @@ export const googleSheetsService = {
         const kendala = (row[baseCol + 4] || '').trim();
         const rekomendasi = (row[baseCol + 5] || '').trim();
 
-        const isRealInput = reStr !== '' || renStr !== '' || devStr !== '' || (kendala !== '' && kendala !== '-') || (rekomendasi !== '' && rekomendasi !== '-');
-        const hasValue = isRealInput || koStr !== '';
+        const realisasi = parsePct(reStr);
+        const kumulatif = parsePct(koStr);
+        const rencana = parsePct(renStr);
+        const deviasi = devStr !== '' ? parsePct(devStr) : Math.round((kumulatif - rencana) * 100) / 100;
+
+        // Suatu minggu dianggap memiliki input riil jika:
+        // 1) Realisasi > 0
+        // 2) ATAU Kumulatif bertambah/berubah dari minggu sebelumnya
+        // 3) ATAU Ada kendala / rekomendasi spesifik yang diisi
+        const isKumulatifChanged = kumulatif > 0 && Math.abs(kumulatif - prevKumulatif) > 0.001;
+        const isRealInput = realisasi > 0 || isKumulatifChanged || (kendala !== '' && kendala !== '-') || (rekomendasi !== '' && rekomendasi !== '-');
+
+        // Abaikan baris statis di mana kumulatif hanya di-copy berulang tanpa ada realisasi baru
+        const hasValue = isRealInput || (w === 1 && kumulatif > 0);
 
         if (hasValue) {
-          const realisasi = parsePct(reStr);
-          const kumulatif = parsePct(koStr);
-          const rencana = parsePct(renStr);
-          const deviasi = devStr !== '' ? parsePct(devStr) : Math.round((kumulatif - rencana) * 100) / 100;
-
+          prevKumulatif = kumulatif;
           if (kumulatif > maxKumulatifForSchool) {
             maxKumulatifForSchool = kumulatif;
           }

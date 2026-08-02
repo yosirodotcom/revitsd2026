@@ -253,31 +253,24 @@ export default function PublicDashboard({
 
     let lastWeek = 0;
 
-    // 1. Check for real input or realisasi > 0 or deviasi != 0
-    schoolWp.forEach(w => {
-      if (Number(w.realisasi) > 0 || Number(w.deviasi) !== 0 || w.hasRealInput) {
-        lastWeek = Math.max(lastWeek, Number(w.minggu));
-      }
-    });
+    for (let i = 0; i < schoolWp.length; i++) {
+      const w = schoolWp[i];
+      const realisasi = Number(w.realisasi) || 0;
+      const kum = Number(w.kumulatif) || 0;
+      const prevKum = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : 0;
+      const isChanged = kum > 0 && Math.abs(kum - prevKum) > 0.001;
 
-    // 2. Fallback: detect last week where kumulatif changed from previous week
-    if (lastWeek === 0) {
-      for (let i = 0; i < schoolWp.length; i++) {
-        const val = Number(schoolWp[i].kumulatif) || 0;
-        const prevVal = i > 0 ? (Number(schoolWp[i - 1].kumulatif) || 0) : 0;
-        if (val > 0 && val !== prevVal) {
-          lastWeek = Number(schoolWp[i].minggu);
-        }
+      if (realisasi > 0 || isChanged || w.hasRealInput) {
+        lastWeek = Number(w.minggu);
       }
     }
 
-    // 3. Fallback: if kumulatif > 0 exists at M1
-    if (lastWeek === 0) {
-      const first = schoolWp.find(w => Number(w.kumulatif) > 0);
-      if (first) lastWeek = Number(first.minggu);
+    if (lastWeek === 0 && schoolWp.length > 0) {
+      const firstWithProg = schoolWp.find(w => Number(w.kumulatif) > 0);
+      if (firstWithProg) lastWeek = Number(firstWithProg.minggu);
     }
 
-    return Math.max(1, lastWeek || (Number(sch?.progres_fisik) > 0 ? 4 : 1));
+    return Math.max(1, lastWeek || 1);
   };
 
   // Facilitators list

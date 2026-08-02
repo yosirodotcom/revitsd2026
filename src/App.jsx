@@ -2092,54 +2092,43 @@ export default function App() {
         }
       });
 
-      // 3. Merge weeklyProgressRecords: update existing records or add new records from GSheet
+      // 3. Cleanly replace weekly progress records for schools synced from GSheet
+      const syncedSchoolNpsns = new Set(schoolUpdates.map(u => u.npsn));
+
+      // Retain manual user inputs (not gsheet_sync) or records for schools not in GSheet sync
+      const preservedWp = weeklyProgress.filter(w => !syncedSchoolNpsns.has(w.schoolId) || (w.updatedBy && w.updatedBy !== 'gsheet_sync'));
+
+      // Merge GSheet records with preserved records
+      const mergedWp = [...preservedWp];
       let wpAddedCount = 0;
-      const nextWp = [...weeklyProgress];
 
       weeklyProgressRecords.forEach(rec => {
-        const idx = nextWp.findIndex(w => w.id === rec.id || (w.schoolId === rec.schoolId && Number(w.minggu) === Number(rec.minggu)));
+        const idx = mergedWp.findIndex(w => w.id === rec.id || (w.schoolId === rec.schoolId && Number(w.minggu) === Number(rec.minggu)));
         if (idx >= 0) {
-          nextWp[idx] = { ...nextWp[idx], ...rec };
+          mergedWp[idx] = { ...mergedWp[idx], ...rec };
         } else {
-          nextWp.push(rec);
+          mergedWp.push(rec);
           wpAddedCount++;
         }
       });
 
-      // Recalculate cumulative & deviasi
-      const schoolIds = new Set(nextWp.map(w => w.schoolId));
-      let finalWp = [];
+      // Update school progres_fisik based on latest active GSheet cumulative values
+      const finalWp = mergedWp.sort((a, b) => Number(a.minggu) - Number(b.minggu));
 
-      schoolIds.forEach(sId => {
-        const sRecords = nextWp.filter(w => w.schoolId === sId).sort((a, b) => Number(a.minggu) - Number(b.minggu));
-        let runningKumulatif = 0;
-        let runningRencana = 0;
-        const recalculated = sRecords.map(w => {
-          runningKumulatif = w.kumulatif !== undefined && w.kumulatif !== null && Number(w.kumulatif) > 0 ? Number(w.kumulatif) : (runningKumulatif + Number(w.realisasi || 0));
-          runningRencana += Number(w.rencana || 0);
-          const kum = Number(runningKumulatif.toFixed(3));
-          const ren = Number(runningRencana.toFixed(3));
-          const dev = Number((kum - ren).toFixed(3));
-          return {
-            ...w,
-            kumulatif: kum,
-            deviasi: w.deviasi !== undefined && w.deviasi !== 0 ? Number(w.deviasi) : dev
-          };
-        });
-        finalWp = [...finalWp, ...recalculated];
-
-        const latest = recalculated[recalculated.length - 1];
-        if (latest) {
+      syncedSchoolNpsns.forEach(sId => {
+        const sRecords = finalWp.filter(w => w.schoolId === sId);
+        if (sRecords.length > 0) {
+          const maxKum = Math.max(...sRecords.map(w => Number(w.kumulatif) || 0));
           const targetSch = nextSchools.find(s => s.npsn === sId);
-          if (targetSch) {
-            targetSch.progres_fisik = Math.round(latest.kumulatif);
+          if (targetSch && maxKum > 0) {
+            targetSch.progres_fisik = Math.round(maxKum * 10) / 10;
           }
         }
       });
 
-      setSchools(nextSchools);
-      setContacts(updatedContacts);
-      setWeeklyProgress(finalWp);
+      setSchools([...nextSchools]);
+      setContacts([...updatedContacts]);
+      setWeeklyProgress([...finalWp]);
 
       localStorage.setItem('revit_schools', JSON.stringify(nextSchools));
       localStorage.setItem('revit_contacts', JSON.stringify(updatedContacts));
@@ -2151,7 +2140,7 @@ export default function App() {
 
       return {
         success: true,
-        message: `Sinkronisasi berhasil! ${result.totalSchoolsProcessed} sekolah diproses (${schoolsUpdatedCount} profil diperbarui), ${wpAddedCount} record progres mingguan baru ditambahkan.`
+        message: `Sinkronisasi berhasil! ${result.totalSchoolsProcessed} sekolah diproses (${schoolsUpdatedCount} profil diperbarui), ${weeklyProgressRecords.length} record progres mingguan terpasang.`
       };
     } catch (err) {
       console.error('[GSheet Sync] Error:', err);
