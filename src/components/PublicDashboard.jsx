@@ -429,6 +429,51 @@ export default function PublicDashboard({
   };
   const zeroDeviasiY = getDeviasiY(0);
 
+  // Helper to generate a smooth Bezier SVG curve string from data points
+  const getSmoothPathD = (points) => {
+    if (!points || points.length === 0) return '';
+    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+    if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+
+    const smoothing = 0.18;
+
+    const lineProps = (pA, pB) => {
+      const lengthX = pB.x - pA.x;
+      const lengthY = pB.y - pA.y;
+      return {
+        length: Math.sqrt(lengthX * lengthX + lengthY * lengthY),
+        angle: Math.atan2(lengthY, lengthX)
+      };
+    };
+
+    const controlPoint = (current, previous, next, reverse) => {
+      const p = previous || current;
+      const n = next || current;
+      const l = lineProps(p, n);
+      const angle = l.angle + (reverse ? Math.PI : 0);
+      const length = l.length * smoothing;
+      const x = current.x + Math.cos(angle) * length;
+      const y = current.y + Math.sin(angle) * length;
+      return { x, y };
+    };
+
+    let pathD = `M ${points[0].x} ${points[0].y}`;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const curr = points[i];
+      const next = points[i + 1];
+      const prev = points[i - 1];
+      const afterNext = points[i + 2];
+
+      const cp1 = controlPoint(curr, prev, next, false);
+      const cp2 = controlPoint(next, curr, afterNext, true);
+
+      pathD += ` C ${cp1.x.toFixed(2)} ${cp1.y.toFixed(2)}, ${cp2.x.toFixed(2)} ${cp2.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`;
+    }
+
+    return pathD;
+  };
+
   // Point Generator Helpers for Line Charts
   const getKumulatifPoints = (sch) => {
     const schoolWp = weeklyProgress
@@ -467,7 +512,10 @@ export default function PublicDashboard({
       const targetWeek = Math.min(kumDisplayWeeks, lastWeek);
       points.push({ week: 1, x: getKumulatifX(1), y: getKumulatifY(0), val: 0 });
       for (let w = 2; w < targetWeek; w++) {
-        const interpVal = Math.round((w - 1) / (targetWeek - 1) * totalProg * 100) / 100;
+        const t = (w - 1) / (targetWeek - 1);
+        // S-Curve Cubic Smoothstep interpolation (3t^2 - 2t^3) for realistic construction progress curve
+        const sFactor = 3 * Math.pow(t, 2) - 2 * Math.pow(t, 3);
+        const interpVal = Math.round(sFactor * totalProg * 100) / 100;
         points.push({ week: w, x: getKumulatifX(w), y: getKumulatifY(interpVal), val: interpVal });
       }
       points.push({ week: targetWeek, x: getKumulatifX(targetWeek), y: getKumulatifY(totalProg), val: totalProg });
@@ -508,7 +556,10 @@ export default function PublicDashboard({
 
       points.push({ week: 1, x: getDeviasiX(1), y: getDeviasiY(0), val: 0 });
       for (let w = 2; w < targetWeek; w++) {
-        const interpVal = Math.round((w - 1) / (targetWeek - 1) * endDev * 100) / 100;
+        const t = (w - 1) / (targetWeek - 1);
+        // S-Curve Cubic Smoothstep interpolation (3t^2 - 2t^3) for realistic deviasi progress curve
+        const sFactor = 3 * Math.pow(t, 2) - 2 * Math.pow(t, 3);
+        const interpVal = Math.round(sFactor * endDev * 100) / 100;
         points.push({ week: w, x: getDeviasiX(w), y: getDeviasiY(interpVal), val: interpVal });
       }
       points.push({ week: targetWeek, x: getDeviasiX(targetWeek), y: getDeviasiY(endDev), val: endDev });
@@ -920,7 +971,7 @@ export default function PublicDashboard({
 
                   if (points.length === 0) return null;
 
-                  const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+                  const pathD = getSmoothPathD(points);
                   const lastPoint = points[points.length - 1];
 
                   return (
@@ -1135,7 +1186,7 @@ export default function PublicDashboard({
                   const isNeg = lastPoint.val < 0;
                   const strokeColor = isNeg ? '#ef4444' : '#10b981';
 
-                  const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+                  const pathD = getSmoothPathD(points);
 
                   return (
                     <g key={sch.npsn} className="group/line">
@@ -1540,7 +1591,7 @@ export default function PublicDashboard({
                     const points = getKumulatifPoints(sch);
 
                     if (points.length === 0) return null;
-                    const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+                    const pathD = getSmoothPathD(points);
                     const lastPoint = points[points.length - 1];
                     return (
                       <g key={sch.npsn}>
@@ -1598,7 +1649,7 @@ export default function PublicDashboard({
                     const lastPoint = points[points.length - 1];
                     const isNeg = lastPoint.val < 0;
                     const strokeColor = isNeg ? '#ef4444' : '#10b981';
-                    const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+                    const pathD = getSmoothPathD(points);
                     return (
                       <g key={sch.npsn}>
                         <path d={pathD} stroke={strokeColor} strokeWidth="2.5" fill="none" opacity="0.9" />
