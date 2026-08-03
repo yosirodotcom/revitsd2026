@@ -3,7 +3,7 @@
  * Menggunakan Firestore + Firebase Storage (Blaze Plan diperlukan untuk Storage).
  */
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, collection, doc } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -17,8 +17,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-/** Firestore instance */
-export const db = getFirestore(app);
+/** Firestore instance dengan penanganan ignoreUndefinedProperties */
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+});
 
 /** Firebase Storage instance */
 export const storage = getStorage(app);

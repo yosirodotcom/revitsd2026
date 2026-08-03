@@ -92,6 +92,27 @@ const getDocId = (doc) => {
   return String(doc.id || doc.npsn || doc.userId || '').trim();
 };
 
+/**
+ * Helper: membersihkan payload dokumen dari nilai `undefined`
+ * agar aman disimpan ke Firestore tanpa menggagalkan write batch.
+ */
+export const sanitizeFirestorePayload = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeFirestorePayload);
+  const clean = {};
+  Object.keys(obj).forEach((key) => {
+    const val = obj[key];
+    if (val !== undefined) {
+      if (val !== null && typeof val === 'object' && !(val instanceof Date)) {
+        clean[key] = sanitizeFirestorePayload(val);
+      } else {
+        clean[key] = val;
+      }
+    }
+  });
+  return clean;
+};
+
 // ============================================================
 // 2. Simpan / Update satu dokumen
 // ============================================================
@@ -99,7 +120,8 @@ export const saveDocument = async (programId, collectionName, docData) => {
   const docId = getDocId(docData);
   if (!docId) throw new Error(`saveDocument: dokumen tanpa 'id' atau 'npsn' (${collectionName})`);
   const docRef = programDoc(programId, collectionName, docId);
-  const payload = { id: docId, ...docData, _updatedAt: serverTimestamp() };
+  const sanitized = sanitizeFirestorePayload(docData);
+  const payload = { id: docId, ...sanitized, _updatedAt: serverTimestamp() };
   await setDoc(docRef, payload, { merge: true });
 };
 
@@ -147,7 +169,8 @@ export const saveDocumentsBatch = async (programId, collectionName, docs, allowD
         const docId = getDocId(docData);
         if (!docId) return;
         const docRef = programDoc(programId, collectionName, docId);
-        const payload = { id: docId, ...docData, _updatedAt: serverTimestamp() };
+        const sanitized = sanitizeFirestorePayload(docData);
+        const payload = { id: docId, ...sanitized, _updatedAt: serverTimestamp() };
         batch.set(docRef, payload, { merge: true });
       });
       await batch.commit();

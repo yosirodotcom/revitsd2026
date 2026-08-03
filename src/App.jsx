@@ -388,8 +388,11 @@ export default function App() {
             taxPct: (u.taxPct === undefined || u.taxPct === null || String(u.taxPct).trim() === '') ? null : Number(u.taxPct)
           }));
           if (clean.length > 0) {
-            window.localStorage.setItem('revit_users', JSON.stringify(clean));
-            setPortalSdUsers(clean);
+            const isLocalDirty = window.localStorage.getItem('revit_is_dirty') === 'true';
+            if (!isLocalDirty) {
+              window.localStorage.setItem('revit_users', JSON.stringify(clean));
+              setPortalSdUsers(clean);
+            }
           }
         }
         if (sdData.settings && Object.keys(sdData.settings).length > 0) {
@@ -406,16 +409,24 @@ export default function App() {
             try {
               const storedArr = JSON.parse(storedRaw);
               if (Array.isArray(storedArr) && storedArr.length > 0) {
-                const remoteNpsns = new Set(sdData.schools.map(s => String(s.npsn).trim()));
-                const missingLocal = storedArr.filter(l => l && l.npsn && !remoteNpsns.has(String(l.npsn).trim()));
-                if (missingLocal.length > 0) {
-                  finalPortalSchools = [...sdData.schools, ...missingLocal];
+                const isLocalDirty = window.localStorage.getItem('revit_is_dirty') === 'true';
+                if (isLocalDirty) {
+                  finalPortalSchools = storedArr;
+                } else {
+                  const remoteNpsns = new Set(sdData.schools.map(s => String(s.npsn).trim()));
+                  const missingLocal = storedArr.filter(l => l && l.npsn && !remoteNpsns.has(String(l.npsn).trim()));
+                  if (missingLocal.length > 0) {
+                    finalPortalSchools = [...sdData.schools, ...missingLocal];
+                  }
                 }
               }
             } catch (e) {}
           }
-          window.localStorage.setItem('revit_schools', JSON.stringify(finalPortalSchools));
-          setPortalSdSchools(finalPortalSchools);
+          const isLocalDirty = window.localStorage.getItem('revit_is_dirty') === 'true';
+          if (!isLocalDirty) {
+            window.localStorage.setItem('revit_schools', JSON.stringify(finalPortalSchools));
+            setPortalSdSchools(finalPortalSchools);
+          }
         }
         if (sdData.weekly_progress && sdData.weekly_progress.length > 0) {
           window.localStorage.setItem('revit_weekly_progress', JSON.stringify(sdData.weekly_progress));
@@ -874,7 +885,7 @@ export default function App() {
               
               const currentLocal = latestStateRef.current?.schools || schools;
               const localSch = (currentLocal || []).find(l => String(l.npsn).trim() === updated.npsn);
-              if (localSch && localSch.fasilitatorId && !updated.fasilitatorId) {
+              if (localSch && localSch.fasilitatorId && updated.fasilitatorId === undefined) {
                 updated.fasilitatorId = localSch.fasilitatorId;
               }
 
@@ -1341,7 +1352,7 @@ export default function App() {
           
           const currentLocal = latestStateRef.current?.schools || schools;
           const localSch = (currentLocal || []).find(l => String(l.npsn).trim() === updated.npsn);
-          if (localSch && localSch.fasilitatorId && !updated.fasilitatorId) {
+          if (localSch && localSch.fasilitatorId && updated.fasilitatorId === undefined) {
             updated.fasilitatorId = localSch.fasilitatorId;
           }
 
@@ -1926,7 +1937,11 @@ export default function App() {
     if (oldSchool && oldSchool.progres_fisik !== updatedSchool.progres_fisik) {
       updatedLogs = addActivityLog('update_progress', `Update progress sekolah ${updatedSchool.nama_sekolah} ke ${updatedSchool.progres_fisik}%`, null, false);
     }
-    const updated = schools.map((s) => (s.npsn === updatedSchool.npsn ? updatedSchool : s));
+    const formattedSchool = {
+      ...updatedSchool,
+      fasilitatorId: updatedSchool.fasilitatorId !== undefined ? updatedSchool.fasilitatorId : null
+    };
+    const updated = schools.map((s) => (s.npsn === updatedSchool.npsn ? formattedSchool : s));
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
     
@@ -2154,7 +2169,7 @@ export default function App() {
     if (schoolObj) {
       updatedLogs = addActivityLog('claim_school', `Mengklaim sekolah ${schoolObj.nama_sekolah}`, null, false);
     }
-    const updated = schools.map((s) => (s.npsn === npsn ? { ...s, fasilitatorId } : s));
+    const updated = schools.map((s) => (s.npsn === npsn ? { ...s, fasilitatorId: fasilitatorId || null } : s));
     setSchools(updated);
     localStorage.setItem('revit_schools', JSON.stringify(updated));
     
