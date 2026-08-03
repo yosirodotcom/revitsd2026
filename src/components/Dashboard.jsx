@@ -2962,94 +2962,51 @@ export default function Dashboard({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {displaySchools.map(school => (
-                    <div 
-                      key={school.npsn} 
-                      onClick={() => onSelectSchool && onSelectSchool(school.npsn)}
-                      className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-500/40 hover:bg-indigo-950/10 cursor-pointer transition-all duration-300"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-200 text-sm">{school.nama_sekolah || `Sekolah NPSN ${school.npsn}`}</span>
-                          <span className="text-[9px] font-mono px-2 py-0.5 rounded-full border border-slate-800 bg-slate-900/60 text-slate-400">
-                            NPSN {school.npsn}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-medium">
-                          <span>Wilayah: {school.kabupaten} {school.kecamatan ? `, Kec. ${school.kecamatan}` : ''} {school.desa ? `, Desa ${school.desa}` : ''}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {school.kepala_sekolah ? (
-                            <span>Kepala Sekolah: <strong>{school.kepala_sekolah}</strong> {school.hp_kepala_sekolah ? `(${school.hp_kepala_sekolah})` : ''}</span>
-                          ) : (
-                            <span className="italic">Data kepala sekolah belum dilengkapi</span>
-                          )}
-                        </div>
-                      </div>
+                  {[...displaySchools]
+                    .sort((a, b) => (Number(b.progres_fisik) || 0) - (Number(a.progres_fisik) || 0))
+                    .map(school => {
+                      const prog = Math.min(100, Math.max(0, Number(school.progres_fisik) || 0));
+                      return (
+                        <div 
+                          key={school.npsn} 
+                          onClick={() => onSelectSchool && onSelectSchool(school.npsn)}
+                          className="bg-slate-950/20 border border-slate-850/40 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-500/40 hover:bg-indigo-950/10 cursor-pointer transition-all duration-300"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-200 text-sm">{school.nama_sekolah || `Sekolah NPSN ${school.npsn}`}</span>
+                              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full border border-slate-800 bg-slate-900/60 text-slate-400">
+                                NPSN {school.npsn}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-medium">
+                              <span>Wilayah: {school.kabupaten} {school.kecamatan ? `, Kec. ${school.kecamatan}` : ''} {school.desa ? `, Desa ${school.desa}` : ''}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              {school.kepala_sekolah ? (
+                                <span>Kepala Sekolah: <strong>{school.kepala_sekolah}</strong> {school.hp_kepala_sekolah ? `(${school.hp_kepala_sekolah})` : ''}</span>
+                              ) : (
+                                <span className="italic">Data kepala sekolah belum dilengkapi</span>
+                              )}
+                            </div>
+                          </div>
 
-                      {/* Progress info & bar */}
-                      <div className="w-full md:w-48 shrink-0 space-y-1" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-between items-center text-xs font-semibold">
-                          <span className="text-slate-400">Progres Fisik</span>
-                          {editingSchoolNpsn === school.npsn ? (
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={editingValue}
-                                onChange={(e) => {
-                                  let val = parseInt(e.target.value, 10);
-                                  if (isNaN(val)) val = 0;
-                                  val = Math.max(0, Math.min(100, val));
-                                  setEditingValue(val);
-                                }}
-                                className="w-12 bg-slate-950 border border-slate-800 text-slate-100 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:border-indigo-500 font-bold"
+                          {/* Progress info & bar */}
+                          <div className="w-full md:w-56 shrink-0 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center text-xs font-semibold">
+                              <span className="text-slate-400">Progres Fisik</span>
+                              <span className="text-emerald-400 font-bold">{prog}%</span>
+                            </div>
+                            <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-850 p-0.5">
+                              <div
+                                className="bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-sm"
+                                style={{ width: `${prog}%` }}
                               />
-                              <button
-                                onClick={() => {
-                                  onUpdateSchool && onUpdateSchool({ ...school, progres_fisik: Number(editingValue) });
-                                  setEditingSchoolNpsn(null);
-                                  window.showAlert('Progres fisik sekolah berhasil diperbarui!');
-                                }}
-                                className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded cursor-pointer transition-all"
-                                title="Simpan"
-                              >
-                                <Check className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => setEditingSchoolNpsn(null)}
-                                className="p-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 rounded cursor-pointer transition-all"
-                                title="Batal"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-emerald-400 font-bold">{school.progres_fisik || 0}%</span>
-                              <button
-                                onClick={() => {
-                                  setEditingSchoolNpsn(school.npsn);
-                                  setEditingValue(school.progres_fisik || 0);
-                                }}
-                                className="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-indigo-400 rounded-lg cursor-pointer transition-all"
-                                title="Edit Progres Fisik"
-                              >
-                                <Pencil className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          )}
+                          </div>
                         </div>
-                        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${school.progres_fisik || 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
             </div>
