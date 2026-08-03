@@ -87,7 +87,7 @@ export const fetchAllData = async (programId) => {
   return result;
 };
 
-const getDocId = (doc) => {
+export const getDocId = (doc) => {
   if (!doc) return '';
   return String(doc.id || doc.npsn || doc.userId || '').trim();
 };

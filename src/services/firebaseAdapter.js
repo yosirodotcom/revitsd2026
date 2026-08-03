@@ -16,6 +16,7 @@ import {
   saveSettings,
   saveDocumentsBatch,
   uploadBase64ToStorage,
+  getDocId,
 } from './firestoreService';
 
 // ============================================================
@@ -38,7 +39,7 @@ const resolveFileField = async (programId, collection, docId, fieldName, value) 
     const ext = value.startsWith('data:image') ? 'jpg'
               : value.startsWith('data:application/pdf') ? 'pdf'
               : 'bin';
-    const path = `${collection}/${docId}/${fieldName}.${ext}`;
+    const path = `${collection}/${docId || 'doc'}/${fieldName}.${ext}`;
     try {
       const url = await uploadBase64ToStorage(programId, path, value);
       return url;
@@ -59,10 +60,11 @@ const processFilesInDocs = async (programId, collectionName, docs, fileFields) =
   return Promise.all(
     docs.map(async (doc) => {
       const updated = { ...doc };
+      const docId = getDocId(doc);
       for (const field of fileFields) {
         if (updated[field]) {
           updated[field] = await resolveFileField(
-            programId, collectionName, doc.id, field, updated[field]
+            programId, collectionName, docId, field, updated[field]
           );
         }
       }

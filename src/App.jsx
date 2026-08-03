@@ -1637,6 +1637,7 @@ export default function App() {
       if (key === 'activityLogs') tableName = 'activity_logs';
       if (key === 'kendalaComments') tableName = 'kendala_comments';
       if (key === 'kendalaDocs') tableName = 'kendala_docs';
+      if (key === 'weeklyProgress') tableName = 'weekly_progress';
       
       if (tableName in DEFAULT_DIRTY_TABLES) {
         dirty[tableName] = true;
@@ -2056,13 +2057,30 @@ export default function App() {
 
       // 1. Merge schoolUpdates: non-destructive merge by NPSN
       let schoolsUpdatedCount = 0;
-      const baseSchools = (schools && schools.length > 0) ? schools : initialSchools;
+      const currentLocalSchools = latestStateRef.current?.schools || schools;
+      let storedSchools = [];
+      try {
+        const storedRaw = window.localStorage.getItem('revit_schools');
+        if (storedRaw) {
+          const parsed = JSON.parse(storedRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) storedSchools = parsed;
+        }
+      } catch (e) {}
+      
+      const baseSchools = (currentLocalSchools && currentLocalSchools.length > 0)
+        ? currentLocalSchools
+        : (storedSchools.length > 0 ? storedSchools : initialSchools);
+
       const nextSchools = baseSchools.map(sch => {
         const update = schoolUpdates.find(u => u.npsn === sch.npsn);
         if (!update) return sch;
 
         let hasChanges = false;
-        const merged = { ...sch };
+        const merged = { 
+          ...sch,
+          id: String(sch.id || sch.npsn).trim(),
+          fasilitatorId: sch.fasilitatorId !== undefined ? sch.fasilitatorId : null
+        };
         const isEmpty = (val) => val === undefined || val === null || String(val).trim() === '';
 
         const fieldsToMerge = [
