@@ -1107,6 +1107,22 @@ export default function PublicDashboard({
                 viewBox={`0 0 ${deviasiChartWidth} ${deviasiChartHeight}`} 
                 className="w-full h-auto min-w-[500px]"
               >
+                <defs>
+                  <linearGradient 
+                    id="deviasiGradient" 
+                    x1="0" 
+                    y1={devPadding.top} 
+                    x2="0" 
+                    y2={deviasiChartHeight - devPadding.bottom} 
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="50%" stopColor="#10b981" />
+                    <stop offset="50%" stopColor="#ef4444" />
+                    <stop offset="100%" stopColor="#ef4444" />
+                  </linearGradient>
+                </defs>
+
                 {/* Horizontal Baseline (0%) and Limits (+20%, -20%) */}
                 {[-20, -10, 0, 10, 20].map(val => {
                   const y = getDeviasiY(val);
@@ -1184,7 +1200,6 @@ export default function PublicDashboard({
 
                   const lastPoint = points[points.length - 1];
                   const isNeg = lastPoint.val < 0;
-                  const strokeColor = isNeg ? '#ef4444' : '#10b981';
 
                   const pathD = getSmoothPathD(points);
 
@@ -1192,11 +1207,11 @@ export default function PublicDashboard({
                     <g key={sch.npsn} className="group/line">
                       <path 
                         d={pathD} 
-                        stroke={strokeColor} 
+                        stroke="url(#deviasiGradient)" 
                         strokeWidth="2" 
                         fill="none" 
                         className="transition-all duration-200 group-hover/line:stroke-width-4"
-                        opacity="0.8"
+                        opacity="0.85"
                       />
                       
                       {/* Data Points */}
@@ -1206,7 +1221,7 @@ export default function PublicDashboard({
                           cx={p.x}
                           cy={p.y}
                           r="3"
-                          fill={strokeColor}
+                          fill={p.val < 0 ? '#ef4444' : '#10b981'}
                           className="cursor-pointer transition-transform hover:r-5"
                           onMouseEnter={() => setDeviasiHover({ school: sch, point: p })}
                           onMouseLeave={() => setDeviasiHover(null)}
@@ -1230,7 +1245,7 @@ export default function PublicDashboard({
             </div>
 
             <p className="text-[10px] text-slate-500 italic mt-2 text-center">
-              💡 Garis merah menandakan deviasi keterlambatan progres (&lt; 0%), garis hijau menandakan progres melampaui target (≥ 0%).
+              💡 Garis dan titik di atas baseline (≥ 0%) berwarna hijau (progres melampaui target), di bawah baseline (&lt; 0%) berwarna merah (keterlambatan).
             </p>
           </div>
 
@@ -1614,6 +1629,22 @@ export default function PublicDashboard({
                   className="w-full h-full max-h-[calc(100vh-160px)]"
                   preserveAspectRatio="xMidYMid meet"
                 >
+                  <defs>
+                    <linearGradient 
+                      id="deviasiGradientModal" 
+                      x1="0" 
+                      y1={devPadding.top} 
+                      x2="0" 
+                      y2={deviasiChartHeight - devPadding.bottom} 
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="50%" stopColor="#10b981" />
+                      <stop offset="50%" stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#ef4444" />
+                    </linearGradient>
+                  </defs>
+
                   {/* Y-axis grid */}
                   {[-20, -10, 0, 10, 20].map(val => {
                     const y = getDeviasiY(val);
@@ -1648,13 +1679,12 @@ export default function PublicDashboard({
                     if (points.length === 0) return null;
                     const lastPoint = points[points.length - 1];
                     const isNeg = lastPoint.val < 0;
-                    const strokeColor = isNeg ? '#ef4444' : '#10b981';
                     const pathD = getSmoothPathD(points);
                     return (
                       <g key={sch.npsn}>
-                        <path d={pathD} stroke={strokeColor} strokeWidth="2.5" fill="none" opacity="0.9" />
+                        <path d={pathD} stroke="url(#deviasiGradientModal)" strokeWidth="2.5" fill="none" opacity="0.9" />
                         {points.map((p, idx) => (
-                          <circle key={idx} cx={p.x} cy={p.y} r="3.5" fill={strokeColor} className="cursor-pointer" onMouseEnter={() => setDeviasiHover({ school: sch, point: p })} onMouseLeave={() => setDeviasiHover(null)} onClick={() => setSelectedSchoolDetail(sch)} />
+                          <circle key={idx} cx={p.x} cy={p.y} r="3.5" fill={p.val < 0 ? '#ef4444' : '#10b981'} className="cursor-pointer" onMouseEnter={() => setDeviasiHover({ school: sch, point: p })} onMouseLeave={() => setDeviasiHover(null)} onClick={() => setSelectedSchoolDetail(sch)} />
                         ))}
                         <text x={lastPoint.x + 6} y={lastPoint.y + 3} className={`text-[9px] font-bold cursor-pointer transition-colors ${isNeg ? 'fill-rose-300 hover:fill-rose-100' : 'fill-emerald-300 hover:fill-emerald-100'}`} onClick={() => setSelectedSchoolDetail(sch)}>
                           {sch.nama_sekolah.length > 18 ? `${sch.nama_sekolah.substring(0, 16)}...` : sch.nama_sekolah} ({lastPoint.val > 0 ? `+${lastPoint.val}` : lastPoint.val}%)
@@ -1671,7 +1701,7 @@ export default function PublicDashboard({
               <p className="text-[11px] text-slate-400">
                 {fullscreenChart === 'kumulatif' 
                   ? '💡 Klik nama sekolah di ujung garis untuk melihat informasi detail sekolah tersebut.'
-                  : '💡 Garis merah menandakan deviasi keterlambatan (< 0%), garis hijau menandakan progres melampaui target (≥ 0%).'
+                  : '💡 Garis dan titik di atas baseline (≥ 0%) berwarna hijau (progres melampaui target), di bawah baseline (< 0%) berwarna merah (keterlambatan).'
                 }
                 &nbsp;Tekan <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200 text-[10px] font-mono border border-slate-700">Esc</kbd> atau klik ikon di pojok kanan atas untuk keluar.
               </p>
