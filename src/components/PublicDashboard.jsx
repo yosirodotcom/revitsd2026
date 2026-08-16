@@ -197,7 +197,8 @@ export default function PublicDashboard({
     setIsSyncingGsheet(true);
     setGsheetSyncStatus(null);
     try {
-      const res = await onRefreshGSheetData();
+      const gsheetId = settings?.gsheetMonitoringId || settings?.googleSheetsId || '';
+      const res = await onRefreshGSheetData(gsheetId);
       setGsheetSyncStatus({ type: 'success', message: res?.message || 'Data berhasil diperbarui dari Google Sheets!' });
       setTimeout(() => setGsheetSyncStatus(null), 5000);
     } catch (err) {

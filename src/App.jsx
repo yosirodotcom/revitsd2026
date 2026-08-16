@@ -2052,6 +2052,9 @@ export default function App() {
 
   const handleRefreshGSheetData = async (spreadsheetId) => {
     try {
+      const currentPrefix = publicProgram?.prefix || activeProgram?.prefix || window.localStorage.getItem('active_program_prefix') || 'revit';
+      const isSd = currentPrefix === 'revit';
+
       const result = await googleSheetsService.fetchMonitoringData(spreadsheetId);
       const { schoolUpdates, weeklyProgressRecords } = result;
 
@@ -2060,16 +2063,18 @@ export default function App() {
       const currentLocalSchools = latestStateRef.current?.schools || schools;
       let storedSchools = [];
       try {
-        const storedRaw = window.localStorage.getItem('revit_schools');
+        const storedRaw = window.localStorage.getItem(`${currentPrefix}_schools`);
         if (storedRaw) {
           const parsed = JSON.parse(storedRaw);
           if (Array.isArray(parsed) && parsed.length > 0) storedSchools = parsed;
         }
       } catch (e) {}
       
+      const portalSchools = isSd ? portalSdSchools : portalPaudSchools;
+      const defaultSeedSchools = isSd ? initialSchools : initialPaudSchools;
       const baseSchools = (currentLocalSchools && currentLocalSchools.length > 0)
         ? currentLocalSchools
-        : (storedSchools.length > 0 ? storedSchools : initialSchools);
+        : (portalSchools && portalSchools.length > 0 ? portalSchools : (storedSchools.length > 0 ? storedSchools : defaultSeedSchools));
 
       const nextSchools = baseSchools.map(sch => {
         const update = schoolUpdates.find(u => u.npsn === sch.npsn);
@@ -2129,7 +2134,12 @@ export default function App() {
       const syncedSchoolNpsns = new Set(schoolUpdates.map(u => u.npsn));
 
       // Retain manual user inputs (not gsheet_sync) or records for schools not in GSheet sync
-      const preservedWp = weeklyProgress.filter(w => !syncedSchoolNpsns.has(w.schoolId) || (w.updatedBy && w.updatedBy !== 'gsheet_sync'));
+      const portalWp = isSd ? portalSdWeeklyProgress : portalPaudWeeklyProgress;
+      const currentWp = (weeklyProgress && weeklyProgress.length > 0)
+        ? weeklyProgress
+        : (portalWp && portalWp.length > 0 ? portalWp : []);
+
+      const preservedWp = currentWp.filter(w => !syncedSchoolNpsns.has(w.schoolId) || (w.updatedBy && w.updatedBy !== 'gsheet_sync'));
 
       // Merge GSheet records with preserved records
       const mergedWp = [...preservedWp];
@@ -2163,9 +2173,19 @@ export default function App() {
       setContacts([...updatedContacts]);
       setWeeklyProgress([...finalWp]);
 
-      localStorage.setItem('revit_schools', JSON.stringify(nextSchools));
-      localStorage.setItem('revit_contacts', JSON.stringify(updatedContacts));
-      localStorage.setItem('revit_weekly_progress', JSON.stringify(finalWp));
+      // Update portal states so PublicDashboard reactive re-rendering works immediately
+      if (isSd) {
+        setPortalSdSchools([...nextSchools]);
+        setPortalSdWeeklyProgress([...finalWp]);
+      } else {
+        setPortalPaudSchools([...nextSchools]);
+        setPortalPaudWeeklyProgress([...finalWp]);
+      }
+
+      window.localStorage.setItem(`${currentPrefix}_schools`, JSON.stringify(nextSchools));
+      window.localStorage.setItem(`${currentPrefix}_contacts`, JSON.stringify(updatedContacts));
+      window.localStorage.setItem(`${currentPrefix}_weekly_progress`, JSON.stringify(finalWp));
+      window.localStorage.setItem('active_program_prefix', currentPrefix);
 
       addActivityLog('gsheet_sync', `Bulk-import data monitoring Google Sheets: ${result.totalSchoolsProcessed} sekolah diproses, ${wpAddedCount} record progres mingguan baru.`, null, false);
 
@@ -3424,28 +3444,29 @@ export default function App() {
 
     if (publicProgram) {
       const isCurrentProgram = activeProgram && publicProgram.prefix === activeProgram.prefix;
+      const isSd = publicProgram.prefix === 'revit';
       
-      const rawSchools = publicProgram.prefix === 'revit' ? portalSdSchools : portalPaudSchools;
-      const defaultSchools = publicProgram.prefix === 'revit' ? initialSchools : initialPaudSchools;
-      const dashSchools = (isCurrentProgram && schools && schools.length > 0)
-        ? schools
-        : (rawSchools && rawSchools.length > 0 ? rawSchools : defaultSchools);
+      const rawSchools = isSd ? portalSdSchools : portalPaudSchools;
+      const defaultSchools = isSd ? initialSchools : initialPaudSchools;
+      const dashSchools = (rawSchools && rawSchools.length > 0)
+        ? rawSchools
+        : ((isCurrentProgram && schools && schools.length > 0) ? schools : defaultSchools);
 
-      const rawUsers = publicProgram.prefix === 'revit' ? sdUsersList : paudUsersList;
-      const defaultUsers = publicProgram.prefix === 'revit' ? initialUsers : initialPaudUsers;
-      const dashUsers = (isCurrentProgram && users && users.length > 0)
-        ? users
-        : (rawUsers && rawUsers.length > 0 ? rawUsers : defaultUsers);
+      const rawUsers = isSd ? sdUsersList : paudUsersList;
+      const defaultUsers = isSd ? initialUsers : initialPaudUsers;
+      const dashUsers = (rawUsers && rawUsers.length > 0)
+        ? rawUsers
+        : ((isCurrentProgram && users && users.length > 0) ? users : defaultUsers);
 
-      const rawWp = publicProgram.prefix === 'revit' ? portalSdWeeklyProgress : portalPaudWeeklyProgress;
-      const dashWp = (isCurrentProgram && weeklyProgress && weeklyProgress.length > 0)
-        ? weeklyProgress
-        : (rawWp && rawWp.length > 0 ? rawWp : []);
+      const rawWp = isSd ? portalSdWeeklyProgress : portalPaudWeeklyProgress;
+      const dashWp = (rawWp && rawWp.length > 0)
+        ? rawWp
+        : ((isCurrentProgram && weeklyProgress && weeklyProgress.length > 0) ? weeklyProgress : []);
 
-      const rawSettings = publicProgram.prefix === 'revit' ? portalSdSettings : portalPaudSettings;
-      const dashSettings = (isCurrentProgram && settings && Object.keys(settings).length > 0)
-        ? settings
-        : rawSettings;
+      const rawSettings = isSd ? portalSdSettings : portalPaudSettings;
+      const dashSettings = (rawSettings && Object.keys(rawSettings).length > 0)
+        ? rawSettings
+        : ((isCurrentProgram && settings && Object.keys(settings).length > 0) ? settings : {});
 
       return (
         <>
